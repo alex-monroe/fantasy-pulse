@@ -11,13 +11,23 @@ export default function IntegrationsPage() {
             Connect your fantasy football accounts to get started.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link href="/integrations/sleeper">
             <Card className="hover:bg-muted">
               <CardHeader>
                 <CardTitle>Sleeper</CardTitle>
                 <CardDescription>
                   Connect your Sleeper account to import your leagues.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link href="/integrations/yahoo">
+            <Card className="hover:bg-muted">
+              <CardHeader>
+                <CardTitle>Yahoo</CardTitle>
+                <CardDescription>
+                  Connect your Yahoo account to import your leagues.
                 </CardDescription>
               </CardHeader>
             </Card>
