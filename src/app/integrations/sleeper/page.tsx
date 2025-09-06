@@ -13,6 +13,7 @@ export default function SleeperPage() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [integration, setIntegration] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [debugData, setDebugData] = useState<any>(null);
 
   useEffect(() => {
     const checkIntegration = async () => {
@@ -58,11 +59,12 @@ export default function SleeperPage() {
         }
 
         // If no leagues in DB, fetch from Sleeper API and persist
-        const { leagues, error } = await getSleeperLeagues(integration.provider_user_id, integration.id);
-        if (error) {
-          setError(error);
+        const sleeperResponse = await getSleeperLeagues(integration.provider_user_id, integration.id);
+        setDebugData(sleeperResponse);
+        if (sleeperResponse.error) {
+          setError(sleeperResponse.error);
         } else {
-          setLeagues(leagues || []);
+          setLeagues(sleeperResponse.leagues || []);
         }
       };
       fetchLeagues();
@@ -111,6 +113,12 @@ export default function SleeperPage() {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          {debugData && (
+            <div className="mt-4 p-4 border rounded bg-slate-50">
+              <h3 className="text-lg font-medium">Debug Info</h3>
+              <pre className="text-sm overflow-auto">{JSON.stringify(debugData, null, 2)}</pre>
             </div>
           )}
         </CardContent>
