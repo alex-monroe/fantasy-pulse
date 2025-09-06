@@ -4,14 +4,11 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarInset,
   SidebarProvider,
+  SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Goal, Users, User, Tv } from 'lucide-react';
+import { Goal, PlusCircle, Users, User, Tv } from 'lucide-react';
 import { mockTeams } from '@/lib/mock-data';
 import type { Player } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -59,26 +56,12 @@ function AppContent() {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton isActive={true}>
-                <Tv />
-                <span>Dashboard</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton>
-                <User />
-                <span>My Players</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton>
-                <Users />
-                <span>Opponents</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+            <div className='p-2'>
+                 <Button variant="outline" className="w-full justify-start gap-2">
+                    <PlusCircle />
+                    <span className="group-data-[collapsible=icon]:hidden">Add League</span>
+                </Button>
+            </div>
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
