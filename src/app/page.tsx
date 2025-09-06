@@ -11,40 +11,19 @@ import {
 import { Button } from '@/components/ui/button';
 import { Goal, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { mockTeams } from '@/lib/mock-data';
-import type { Player } from '@/lib/types';
+import { Team, Player } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useMemo, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getTeams } from './actions';
 
-function AppContent({ onSignOut }: { onSignOut: () => void }) {
-  const { myPlayers, opponentPlayers } = useMemo(() => {
-    const myPlayersMap = new Map<number, Player>();
-    const opponentPlayersMap = new Map<number, Player>();
-    
-    mockTeams.forEach(team => {
-      team.players.forEach(player => {
-        if (!myPlayersMap.has(player.id)) {
-          myPlayersMap.set(player.id, player);
-        }
-      });
-
-      team.opponent.players.forEach(player => {
-        if (!myPlayersMap.has(player.id) && !opponentPlayersMap.has(player.id)) {
-          opponentPlayersMap.set(player.id, player);
-        }
-      });
-    });
-
-    const myPlayers = Array.from(myPlayersMap.values()).sort((a, b) => b.score - a.score);
-    const opponentPlayers = Array.from(opponentPlayersMap.values()).sort((a, b) => b.score - a.score);
-
-    return { myPlayers, opponentPlayers };
-  }, []);
+function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
+  const myPlayers = teams.flatMap(team => team.players);
+  const opponentPlayers = teams.flatMap(team => team.opponent.players);
 
   return (
     <>
@@ -84,7 +63,7 @@ function AppContent({ onSignOut }: { onSignOut: () => void }) {
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
-                    {mockTeams.map(team => (
+                    {teams.map(team => (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -131,7 +110,7 @@ function AppContent({ onSignOut }: { onSignOut: () => void }) {
   )
 }
 
-export default function Home() {
+function HomePage({ teams }: { teams: Team[] }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -153,7 +132,13 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <AppContent onSignOut={handleSignOut} />
+      <AppContent onSignOut={handleSignOut} teams={teams} />
     </SidebarProvider>
   );
+}
+
+export default async function Home() {
+  const { teams } = await getTeams();
+
+  return <HomePage teams={teams} />;
 }
