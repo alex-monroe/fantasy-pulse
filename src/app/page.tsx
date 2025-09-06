@@ -10,12 +10,13 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Goal, PlusCircle } from 'lucide-react';
+import Link from 'next/link';
 import { mockTeams } from '@/lib/mock-data';
 import type { Player } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,10 +61,12 @@ function AppContent({ onSignOut }: { onSignOut: () => void }) {
         </SidebarHeader>
         <SidebarContent>
             <div className='p-2'>
-                 <Button variant="outline" className="w-full justify-start gap-2">
-                    <PlusCircle />
-                    <span className="group-data-[collapsible=icon]:hidden">Add League</span>
-                </Button>
+                <Link href="/integrations">
+                  <Button variant="outline" className="w-full justify-start gap-2">
+                      <PlusCircle />
+                      <span className="group-data-[collapsible=icon]:hidden">Add League</span>
+                  </Button>
+                </Link>
             </div>
         </SidebarContent>
       </Sidebar>
@@ -133,6 +136,7 @@ export default function Home() {
 
   useEffect(() => {
     const checkUser = async () => {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.replace('/login');
@@ -142,6 +146,7 @@ export default function Home() {
   }, [router]);
 
   const handleSignOut = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
     router.replace('/login');
   };
