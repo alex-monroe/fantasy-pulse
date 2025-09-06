@@ -48,19 +48,21 @@ export default function SleeperPage() {
     if (integration) {
       const fetchLeagues = async () => {
         // First, try to get leagues from our DB
-        const { leagues: dbLeagues, error: dbError } = await getLeagues(integration.id);
-        if (dbError) {
-          setError(dbError);
+        const dbResponse = await getLeagues(integration.id);
+        setDebugData({ from: 'db', ...dbResponse });
+
+        if (dbResponse.error) {
+          setError(dbResponse.error);
           return;
         }
-        if (dbLeagues && dbLeagues.length > 0) {
-          setLeagues(dbLeagues);
+        if (dbResponse.leagues && dbResponse.leagues.length > 0) {
+          setLeagues(dbResponse.leagues);
           return;
         }
 
         // If no leagues in DB, fetch from Sleeper API and persist
         const sleeperResponse = await getSleeperLeagues(integration.provider_user_id, integration.id);
-        setDebugData(sleeperResponse);
+        setDebugData({ from: 'api', ...sleeperResponse });
         if (sleeperResponse.error) {
           setError(sleeperResponse.error);
         } else {
