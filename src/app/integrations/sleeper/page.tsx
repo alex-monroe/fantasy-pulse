@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, FormEvent, useEffect } from 'react';
-import { connectSleeper, getSleeperLeagues, getSleeperIntegration, getLeagues } from './actions';
+import { connectSleeper, getSleeperLeagues, getSleeperIntegration, getLeagues, removeSleeperIntegration } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ export default function SleeperPage() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [integration, setIntegration] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     const checkIntegration = async () => {
@@ -41,6 +42,25 @@ export default function SleeperPage() {
     } else {
       setIntegration(integration);
     }
+  };
+
+  const handleRemove = async () => {
+    if (!integration) return;
+
+    setIsRemoving(true);
+    setError(null);
+
+    const { success, error } = await removeSleeperIntegration(integration.id);
+
+    if (error) {
+      setError(error);
+    } else if (success) {
+      setIntegration(null);
+      setLeagues([]);
+      setUsername('');
+    }
+
+    setIsRemoving(false);
   };
 
   useEffect(() => {
@@ -86,7 +106,7 @@ export default function SleeperPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!integration && (
+          {!integration ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="username">Sleeper Username</Label>
@@ -98,10 +118,16 @@ export default function SleeperPage() {
                   required
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit">Connect</Button>
             </form>
+          ) : (
+            <div>
+              <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
+                {isRemoving ? 'Removing...' : 'Remove Integration'}
+              </Button>
+            </div>
           )}
+          {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
           {leagues.length > 0 && (
             <div className="mt-4">
               <h3 className="text-lg font-medium">Your Leagues</h3>
