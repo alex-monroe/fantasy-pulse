@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Goal, PlusCircle } from 'lucide-react';
+import Link from 'next/link';
 import { mockTeams } from '@/lib/mock-data';
 import type { Player } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -60,10 +61,12 @@ function AppContent({ onSignOut }: { onSignOut: () => void }) {
         </SidebarHeader>
         <SidebarContent>
             <div className='p-2'>
-                 <Button variant="outline" className="w-full justify-start gap-2">
-                    <PlusCircle />
-                    <span className="group-data-[collapsible=icon]:hidden">Add League</span>
-                </Button>
+                <Link href="/integrations">
+                  <Button variant="outline" className="w-full justify-start gap-2">
+                      <PlusCircle />
+                      <span className="group-data-[collapsible=icon]:hidden">Add League</span>
+                  </Button>
+                </Link>
             </div>
         </SidebarContent>
       </Sidebar>
