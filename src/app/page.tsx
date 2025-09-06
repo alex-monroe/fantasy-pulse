@@ -21,7 +21,7 @@ import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 function AppContent() {
-  const { myPlayers, opponentPlayers, myTotalScore, opponentTotalScore } = useMemo(() => {
+  const { myPlayers, opponentPlayers } = useMemo(() => {
     const myPlayersMap = new Map<number, Player>();
     const opponentPlayersMap = new Map<number, Player>();
     
@@ -41,11 +41,8 @@ function AppContent() {
 
     const myPlayers = Array.from(myPlayersMap.values()).sort((a, b) => b.score - a.score);
     const opponentPlayers = Array.from(opponentPlayersMap.values()).sort((a, b) => b.score - a.score);
-    
-    const myCalculatedScore = myPlayers.reduce((sum, p) => sum + p.score, 0);
-    const opponentCalculatedScore = opponentPlayers.reduce((sum, p) => sum + p.score, 0);
 
-    return { myPlayers, opponentPlayers, myTotalScore: myCalculatedScore, opponentTotalScore: opponentCalculatedScore };
+    return { myPlayers, opponentPlayers };
   }, []);
 
   return (
@@ -91,19 +88,27 @@ function AppContent() {
             </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-8">
-             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-lg border bg-card text-card-foreground p-4">
-                <h2 className="text-3xl font-bold tracking-tight">Weekly Matchup</h2>
-                <div className="flex items-baseline gap-4">
-                    <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Your Score</p>
-                        <p className="text-4xl font-bold text-primary">{myTotalScore.toFixed(1)}</p>
-                    </div>
-                     <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Opponents' Score</p>
-                        <p className="text-4xl font-bold text-muted-foreground">{opponentTotalScore.toFixed(1)}</p>
-                    </div>
-                </div>
-            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Weekly Matchups</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                    {mockTeams.map(team => (
+                        <Card key={team.id} className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="font-semibold">{team.name}</p>
+                                    <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-lg text-primary">{team.totalScore.toFixed(1)}</p>
+                                    <p className="font-bold text-lg text-muted-foreground">{team.opponent.totalScore.toFixed(1)}</p>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
+                </CardContent>
+             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                 <Card>
