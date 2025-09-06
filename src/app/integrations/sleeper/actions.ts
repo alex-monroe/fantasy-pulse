@@ -39,6 +39,32 @@ export async function connectSleeper(username: string) {
   }
 }
 
+export async function removeSleeperIntegration(integrationId: number) {
+  const supabase = createClient();
+
+  // First, delete all leagues associated with the integration
+  const { error: deleteLeaguesError } = await supabase
+    .from('leagues')
+    .delete()
+    .eq('user_integration_id', integrationId);
+
+  if (deleteLeaguesError) {
+    return { error: `Failed to delete leagues: ${deleteLeaguesError.message}` };
+  }
+
+  // Then, delete the integration itself
+  const { error: deleteIntegrationError } = await supabase
+    .from('user_integrations')
+    .delete()
+    .eq('id', integrationId);
+
+  if (deleteIntegrationError) {
+    return { error: `Failed to delete integration: ${deleteIntegrationError.message}` };
+  }
+
+  return { success: true };
+}
+
 export async function getLeagues(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
