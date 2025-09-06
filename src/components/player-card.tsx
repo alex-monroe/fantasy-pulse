@@ -23,9 +23,9 @@ export function PlayerCard({ player }: { player: Player }) {
     useEffect(() => {
         setCurrentScore(player.score);
         const interval = setInterval(() => {
-            const scoreChange = Math.random() > 0.9 ? (Math.random() * 7).toFixed(1) : 0;
+            const scoreChange = Math.random() > 0.9 ? parseFloat((Math.random() * 7).toFixed(1)) : 0;
             if (scoreChange > 0 && player.gameStatus === 'possession') {
-                setCurrentScore(prev => parseFloat((prev + parseFloat(scoreChange.toString())).toFixed(1)));
+                setCurrentScore(prev => parseFloat((prev + scoreChange).toFixed(1)));
                 setScoreChanged(true);
                 setTimeout(() => setScoreChanged(false), 1000);
             }

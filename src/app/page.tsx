@@ -13,12 +13,14 @@ import { Goal, PlusCircle } from 'lucide-react';
 import { mockTeams } from '@/lib/mock-data';
 import type { Player } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-function AppContent() {
+function AppContent({ onSignOut }: { onSignOut: () => void }) {
   const { myPlayers, opponentPlayers } = useMemo(() => {
     const myPlayersMap = new Map<number, Player>();
     const opponentPlayersMap = new Map<number, Player>();
@@ -66,11 +68,12 @@ function AppContent() {
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6")}>
+        <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6")}> 
             <SidebarTrigger />
             <div className="flex-1">
                 <h2 className="text-xl font-semibold">Matchup Overview</h2>
             </div>
+            <Button variant="outline" onClick={onSignOut}>Sign Out</Button>
         </header>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-8">
              <Card>
@@ -126,9 +129,26 @@ function AppContent() {
 }
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace('/login');
+      }
+    };
+    checkUser();
+  }, [router]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
+
   return (
     <SidebarProvider>
-      <AppContent />
+      <AppContent onSignOut={handleSignOut} />
     </SidebarProvider>
   );
 }
