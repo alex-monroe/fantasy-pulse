@@ -6,9 +6,10 @@ import {
   SidebarContent,
   SidebarProvider,
   SidebarInset,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Goal, PlusCircle, Users, User, Tv } from 'lucide-react';
+import { Goal, PlusCircle } from 'lucide-react';
 import { mockTeams } from '@/lib/mock-data';
 import type { Player } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -44,7 +45,7 @@ function AppContent() {
 
   return (
     <>
-      <Sidebar>
+      <Sidebar collapsible="icon">
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-10 w-10 text-primary hover:bg-primary/10">
@@ -66,6 +67,7 @@ function AppContent() {
       </Sidebar>
       <SidebarInset>
         <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6")}>
+            <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
                 <h2 className="text-xl font-semibold">Matchup Overview</h2>
             </div>
