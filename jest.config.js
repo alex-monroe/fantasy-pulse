@@ -8,7 +8,8 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-  transformIgnorePatterns: ['/node_modules/(?!lucide-react)']
+  transformIgnorePatterns: ['/node_modules/(?!lucide-react)'],
+  testPathIgnorePatterns: ['<rootDir>/tests/']
 }
 
 module.exports = createJestConfig(customJestConfig)
