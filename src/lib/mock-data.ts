@@ -1,0 +1,55 @@
+import type { Team, Integration, Alert } from '@/lib/types';
+
+export const mockIntegrations: Integration[] = [
+    { id: 'espn', name: 'ESPN', status: 'ok', lastUpdated: '2 minutes ago' },
+    { id: 'yahoo', name: 'Yahoo Sports', status: 'ok', lastUpdated: '3 minutes ago' },
+    { id: 'sleeper', name: 'Sleeper', status: 'error', lastUpdated: '1 hour ago' },
+];
+
+export const mockAlerts: Alert[] = [
+    { id: 1, message: 'Successfully synced with ESPN.', timestamp: '2024-07-21T14:30:00Z', type: 'success' },
+    { id: 2, message: 'Failed to sync with Sleeper. Please check credentials.', timestamp: '2024-07-21T13:45:00Z', type: 'error' },
+    { id: 3, message: 'Player injury update: C. McCaffrey is questionable.', timestamp: '2024-07-21T14:32:00Z', type: 'info' },
+    { id: 4, message: 'Successfully synced with Yahoo Sports.', timestamp: '2024-07-21T14:29:00Z', type: 'success' },
+    { id: 5, message: 'Live scoring data is now active.', timestamp: '2024-07-21T14:28:00Z', type: 'info' },
+];
+
+export const mockTeams: Team[] = [
+  {
+    id: 1,
+    name: 'Gridiron Gladiators',
+    totalScore: 124.5,
+    players: [
+      { id: 101, name: 'Patrick Mahomes', position: 'QB', realTeam: 'KC', score: 28.5, gameStatus: 'possession', onUserTeams: 2, onOpponentTeams: 0, gameDetails: { score: 'KC 21 - DEN 14', timeRemaining: '2:15 Q4', fieldPosition: 'KC ball on DEN 25' }, imageUrl: 'https://picsum.photos/64/64?random=1' },
+      { id: 102, name: 'C. McCaffrey', position: 'RB', realTeam: 'SF', score: 35.2, gameStatus: 'sidelines', onUserTeams: 1, onOpponentTeams: 1, gameDetails: { score: 'SF 28 - LAR 21', timeRemaining: '8:30 Q3', fieldPosition: 'LAR ball on SF 40' }, imageUrl: 'https://picsum.photos/64/64?random=2' },
+      { id: 103, name: 'Justin Jefferson', position: 'WR', realTeam: 'MIN', score: 22.8, gameStatus: 'final', onUserTeams: 1, onOpponentTeams: 0, gameDetails: { score: 'MIN 24 - GB 17', timeRemaining: '0:00 Q4', fieldPosition: 'Game Over' }, imageUrl: 'https://picsum.photos/64/64?random=3' },
+      { id: 104, name: 'Travis Kelce', position: 'TE', realTeam: 'KC', score: 18.0, gameStatus: 'possession', onUserTeams: 2, onOpponentTeams: 0, gameDetails: { score: 'KC 21 - DEN 14', timeRemaining: '2:15 Q4', fieldPosition: 'KC ball on DEN 25' }, imageUrl: 'https://picsum.photos/64/64?random=4' },
+    ],
+    opponent: {
+      name: 'The Touchdown Kings',
+      totalScore: 110.2,
+      players: [
+        { id: 201, name: 'Josh Allen', position: 'QB', realTeam: 'BUF', score: 25.4, gameStatus: 'sidelines', onUserTeams: 0, onOpponentTeams: 1, gameDetails: { score: 'BUF 17 - MIA 20', timeRemaining: '5:00 Q4', fieldPosition: 'MIA ball on BUF 30' }, imageUrl: 'https://picsum.photos/64/64?random=5' },
+        { id: 102, name: 'C. McCaffrey', position: 'RB', realTeam: 'SF', score: 35.2, gameStatus: 'sidelines', onUserTeams: 1, onOpponentTeams: 1, gameDetails: { score: 'SF 28 - LAR 21', timeRemaining: '8:30 Q3', fieldPosition: 'LAR ball on SF 40' }, imageUrl: 'https://picsum.photos/64/64?random=2' },
+        { id: 203, name: 'Tyreek Hill', position: 'WR', realTeam: 'MIA', score: 29.6, gameStatus: 'possession', onUserTeams: 0, onOpponentTeams: 1, gameDetails: { score: 'BUF 17 - MIA 20', timeRemaining: '5:00 Q4', fieldPosition: 'MIA ball on BUF 30' }, imageUrl: 'https://picsum.photos/64/64?random=6' },
+      ],
+    },
+  },
+  {
+    id: 2,
+    name: 'Endzone Enforcers',
+    totalScore: 98.7,
+    players: [
+      { id: 101, name: 'Patrick Mahomes', position: 'QB', realTeam: 'KC', score: 28.5, gameStatus: 'possession', onUserTeams: 2, onOpponentTeams: 0, gameDetails: { score: 'KC 21 - DEN 14', timeRemaining: '2:15 Q4', fieldPosition: 'KC ball on DEN 25' }, imageUrl: 'https://picsum.photos/64/64?random=1' },
+      { id: 205, name: 'Bijan Robinson', position: 'RB', realTeam: 'ATL', score: 15.5, gameStatus: 'pregame', onUserTeams: 1, onOpponentTeams: 0, gameDetails: { score: 'ATL 0 - CAR 0', timeRemaining: '15:00 Q1', fieldPosition: 'Pregame' }, imageUrl: 'https://picsum.photos/64/64?random=7' },
+      { id: 206, name: 'A. St. Brown', position: 'WR', realTeam: 'DET', score: 25.7, gameStatus: 'final', onUserTeams: 1, onOpponentTeams: 0, gameDetails: { score: 'DET 31 - CHI 20', timeRemaining: '0:00 Q4', fieldPosition: 'Game Over' }, imageUrl: 'https://picsum.photos/64/64?random=8' },
+    ],
+    opponent: {
+      name: 'The Pigskin Prophets',
+      totalScore: 105.1,
+      players: [
+         { id: 207, name: 'Jalen Hurts', position: 'QB', realTeam: 'PHI', score: 30.1, gameStatus: 'sidelines', onUserTeams: 0, onOpponentTeams: 1, gameDetails: { score: 'PHI 24 - DAL 27', timeRemaining: '1:50 Q4', fieldPosition: 'DAL ball on DAL 45' }, imageUrl: 'https://picsum.photos/64/64?random=9' },
+      ],
+    },
+  },
+];
