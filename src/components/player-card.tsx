@@ -6,8 +6,6 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { User, Users, Zap } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
-import { analyzeLiveGame } from "@/ai/flows/live-game-analysis";
-import type { LiveGameAnalysisOutput } from "@/ai/flows/live-game-analysis";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -21,14 +19,10 @@ const gameStatusConfig = {
 export function PlayerCard({ player }: { player: Player }) {
     const [currentScore, setCurrentScore] = useState(player.score);
     const [scoreChanged, setScoreChanged] = useState(false);
-    const [analysis, setAnalysis] = useState<LiveGameAnalysisOutput | null>(null);
-    const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
     useEffect(() => {
         // Reset state when player changes
         setCurrentScore(player.score);
-        setAnalysis(null);
-        setLoadingAnalysis(false);
 
         // Simulate live score updates
         const interval = setInterval(() => {
@@ -42,16 +36,6 @@ export function PlayerCard({ player }: { player: Player }) {
 
         return () => clearInterval(interval);
     }, [player]);
-
-    useEffect(() => {
-        if (player.gameStatus === 'possession' && !analysis && !loadingAnalysis) {
-            setLoadingAnalysis(true);
-            analyzeLiveGame(player.gameDetails)
-                .then(setAnalysis)
-                .catch(console.error)
-                .finally(() => setLoadingAnalysis(false));
-        }
-    }, [player.gameStatus, player.gameDetails, analysis, loadingAnalysis]);
 
     const statusInfo = useMemo(() => gameStatusConfig[player.gameStatus], [player.gameStatus]);
 
@@ -78,7 +62,7 @@ export function PlayerCard({ player }: { player: Player }) {
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-1 space-y-3 pt-2">
+            <CardContent className="flex-1 space-y-3 pt-4">
                 <div className="flex items-baseline justify-between">
                     <p className="text-sm text-muted-foreground">Live Score</p>
                     <p className={cn(
@@ -95,24 +79,17 @@ export function PlayerCard({ player }: { player: Player }) {
                     </Badge>
                 </div>
             </CardContent>
-            {(player.gameStatus === 'possession' || analysis) && (
             <CardFooter className="flex flex-col items-start gap-2 pt-4 border-t bg-black/10">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Zap className="h-4 w-4 text-accent" />
-                    <span>AI Play Prediction</span>
+                    <span>Game Details</span>
                 </div>
-                {loadingAnalysis ? (
-                    <div className="space-y-2 w-full">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-4 w-1/2" />
-                    </div>
-                ) : analysis ? (
-                    <p className="text-sm text-foreground">{analysis.likelyScenario}</p>
-                ) : (
-                     player.gameStatus !== 'final' && player.gameStatus !== 'pregame' && <p className="text-sm text-muted-foreground">Awaiting possession to analyze...</p>
-                )}
+                <div className="text-sm text-foreground space-y-1">
+                    <p>Score: {player.gameDetails.score}</p>
+                    <p>Time: {player.gameDetails.timeRemaining}</p>
+                    <p>Position: {player.gameDetails.fieldPosition}</p>
+                </div>
             </CardFooter>
-            )}
         </Card>
     );
 }
