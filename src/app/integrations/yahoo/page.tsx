@@ -44,7 +44,7 @@ export default function YahooPage() {
     const redirectUri =
       process.env.NEXT_PUBLIC_YAHOO_REDIRECT_URI ||
       `${window.location.origin}/api/auth/yahoo`;
-    const scope = 'openid profile email';
+    const scope = 'openid fspt-r';
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
