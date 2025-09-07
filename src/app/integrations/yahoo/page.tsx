@@ -33,7 +33,9 @@ export default function YahooPage() {
       setError('Yahoo client ID is not configured.');
       return;
     }
-    const redirectUri = `${window.location.origin}/api/auth/yahoo`;
+    const redirectUri =
+      process.env.NEXT_PUBLIC_YAHOO_REDIRECT_URI ||
+      `${window.location.origin}/api/auth/yahoo`;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,

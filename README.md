@@ -31,6 +31,8 @@ A basic structure for Yahoo Fantasy Football integration has been added. To comp
         ```
         YAHOO_CLIENT_ID=<your_yahoo_client_id>
         YAHOO_CLIENT_SECRET=<your_yahoo_client_secret>
+        YAHOO_REDIRECT_URI=<https://your-domain.com/api/auth/yahoo>
+        NEXT_PUBLIC_YAHOO_REDIRECT_URI=<https://your-domain.com/api/auth/yahoo>
         ```
 
 3.  **Implement the OAuth 2.0 flow:**

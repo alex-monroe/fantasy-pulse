@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${url.origin}/integrations/yahoo?error=missing_code`);
   }
 
+  const redirectUri =
+    process.env.YAHOO_REDIRECT_URI || `${url.origin}/api/auth/yahoo`;
   const tokenResponse = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
     method: 'POST',
     headers: {
@@ -19,7 +21,7 @@ export async function GET(request: Request) {
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: `${url.origin}/api/auth/yahoo`,
+      redirect_uri: redirectUri,
     }),
   });
 
