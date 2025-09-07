@@ -3,26 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function connectYahoo() {
-  // This will be replaced with the actual OAuth flow
-  const supabase = createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: 'You must be logged in to connect your Yahoo account.' };
-  }
-
-  const { error: insertError } = await supabase
-    .from('user_integrations')
-    .insert({
-      user_id: user.id,
-      provider: 'yahoo',
-      provider_user_id: 'mock_yahoo_user_id', // This will be replaced with the actual Yahoo user ID
-    });
-
-  if (insertError) {
-    return { error: insertError.message };
-  }
-
+  // This function is deprecated. The OAuth flow handles the connection.
   return { success: true };
 }
 
@@ -89,6 +70,58 @@ export async function getYahooIntegration() {
 }
 
 export async function getYahooLeagues(integrationId: number) {
-  // This will be replaced with the actual API call to Yahoo
-  return { leagues: [] };
+  const supabase = createClient();
+  const { data: integration, error: integrationError } = await supabase
+    .from('user_integrations')
+    .select('access_token')
+    .eq('id', integrationId)
+    .single();
+
+  if (integrationError || !integration) {
+    return { error: 'Yahoo integration not found.' };
+  }
+
+  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/leagues?format=json';
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${integration.access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      // Potentially handle token refresh here in a real app
+      return { error: `Failed to fetch leagues from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const leaguesFromYahoo = data.fantasy_content.users[0].user[1].games[0].game[1].leagues;
+
+    const leaguesToInsert = Object.values(leaguesFromYahoo).filter((l: any) => l.league).map((l: any) => ({
+      user_integration_id: integrationId,
+      league_id: l.league[0].league_key,
+      name: l.league[0].name,
+      season: l.league[0].season,
+      total_rosters: l.league[0].num_teams,
+      status: l.league[0].status,
+    }));
+
+    if (leaguesToInsert.length > 0) {
+      const { data: insertedLeagues, error: insertError } = await supabase
+        .from('leagues')
+        .insert(leaguesToInsert)
+        .select();
+
+      if (insertError) {
+        return { error: `Failed to save leagues to database: ${insertError.message}` };
+      }
+      return { leagues: insertedLeagues };
+    }
+
+    return { leagues: [] };
+  } catch (error) {
+    return { error: 'An unexpected error occurred while fetching leagues from Yahoo.' };
+  }
 }
