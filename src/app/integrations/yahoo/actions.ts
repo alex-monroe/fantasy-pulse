@@ -125,6 +125,79 @@ export async function getLeagues(integrationId: number) {
   return { leagues: data };
 }
 
+export async function getTeams(integrationId: number) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('teams')
+    .select('*')
+    .eq('user_integration_id', integrationId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { teams: data };
+}
+
+export async function getYahooUserTeams(integrationId: number) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_key=nfl/teams?format=json';
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      return { error: `Failed to fetch teams from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
+
+    if (!teamsFromYahoo) {
+      return { teams: [] };
+    }
+
+    const teamsToInsert = Object.values(teamsFromYahoo).filter((t: any) => t.team).map((t: any) => ({
+      user_integration_id: integrationId,
+      team_key: t.team[0][0].team_key,
+      team_id: t.team[0][1].team_id,
+      name: t.team[0][2].name,
+      logo_url: t.team[0][5].team_logos[0].team_logo.url,
+      league_id: t.team[0][0].team_key.split('.').slice(0, 3).join('.'),
+    }));
+
+    if (teamsToInsert.length > 0) {
+      const supabase = createClient();
+      const { data: insertedTeams, error: insertError } = await supabase
+        .from('teams')
+        .upsert(teamsToInsert, { onConflict: 'team_key' })
+        .select();
+
+      if (insertError) {
+        console.error('Could not insert teams, they may already exist.', insertError.message);
+        return { teams: [] };
+      }
+      return { teams: insertedTeams };
+    }
+
+    return { teams: [] };
+  } catch (error) {
+    console.error('An unexpected error occurred while fetching teams from Yahoo.', error);
+    return { error: 'An unexpected error occurred while fetching teams from Yahoo.' };
+  }
+}
+
 export async function getYahooIntegration() {
   const supabase = createClient();
 
