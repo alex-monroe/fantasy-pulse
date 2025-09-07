@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function connectYahoo(accessToken: string) {
   try {
+    console.log('Fetching Yahoo user info');
     const res = await fetch('https://api.login.yahoo.com/openid/v1/userinfo', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -12,12 +13,15 @@ export async function connectYahoo(accessToken: string) {
 
     if (!res.ok) {
       const error = await res.json();
+      console.error('Yahoo user info request failed', error);
       return { error: error.error_description || 'Failed to fetch user info' };
     }
 
     const user = await res.json();
+    console.log('Yahoo user info response', user);
     return { user };
   } catch (error) {
+    console.error('Unexpected error fetching Yahoo user info', error);
     return { error: 'An unexpected error occurred' };
   }
 }

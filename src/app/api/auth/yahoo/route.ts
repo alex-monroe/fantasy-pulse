@@ -8,6 +8,12 @@ export async function GET(request: Request) {
   const oauthErrorDescription = url.searchParams.get('error_description');
   const code = url.searchParams.get('code');
 
+  console.log('Yahoo OAuth callback params', {
+    error: oauthError,
+    error_description: oauthErrorDescription,
+    code,
+  });
+
   if (oauthError) {
     const description = oauthErrorDescription || oauthError;
     return NextResponse.redirect(
@@ -16,11 +22,13 @@ export async function GET(request: Request) {
   }
 
   if (!code) {
+    console.error('Yahoo OAuth missing authorization code');
     return NextResponse.redirect(`${url.origin}/integrations/yahoo?error=missing_code`);
   }
 
   const redirectUri =
     process.env.YAHOO_REDIRECT_URI || `${url.origin}/api/auth/yahoo`;
+  console.log('Yahoo OAuth token exchange redirect URI', redirectUri);
   const tokenResponse = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
     method: 'POST',
     headers: {
@@ -35,6 +43,10 @@ export async function GET(request: Request) {
   });
 
   const tokenData = await tokenResponse.json();
+  console.log('Yahoo OAuth token response', {
+    status: tokenResponse.status,
+    body: tokenData,
+  });
 
   if (!tokenResponse.ok) {
     const description = tokenData.error_description || 'Failed to obtain access token';
@@ -50,6 +62,7 @@ export async function GET(request: Request) {
 
   let providerUserId = tokenData.xoauth_yahoo_guid;
   const { user: yahooUser } = await connectYahoo(tokenData.access_token);
+  console.log('Yahoo user info', yahooUser);
   if (yahooUser && yahooUser.sub) {
     providerUserId = yahooUser.sub;
   }
@@ -64,8 +77,10 @@ export async function GET(request: Request) {
   }, { onConflict: 'user_id,provider' });
 
   if (error) {
+    console.error('Failed to upsert Yahoo integration', error);
     return NextResponse.redirect(`${url.origin}/integrations/yahoo?error=${encodeURIComponent(error.message)}`);
   }
 
+  console.log('Yahoo integration stored successfully');
   return NextResponse.redirect(`${url.origin}/integrations/yahoo`);
 }

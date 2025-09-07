@@ -11,6 +11,12 @@ export default function YahooPage() {
   const [integration, setIntegration] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{
+    clientId: string;
+    redirectUri: string;
+    scope: string;
+    authUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -31,24 +37,30 @@ export default function YahooPage() {
     checkIntegration();
   }, []);
 
-  const handleConnect = () => {
+  useEffect(() => {
     const clientId =
       process.env.NEXT_PUBLIC_YAHOO_CLIENT_ID ??
       'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
-    if (!clientId) {
-      setError('Yahoo client ID is not configured.');
-      return;
-    }
     const redirectUri =
       process.env.NEXT_PUBLIC_YAHOO_REDIRECT_URI ||
       `${window.location.origin}/api/auth/yahoo`;
+    const scope = 'openid profile email';
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
     });
-    const scope = encodeURIComponent('openid profile email');
-    window.location.href = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}&scope=${scope}`;
+    const authUrl = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}&scope=${encodeURIComponent(scope)}`;
+    setDebugInfo({ clientId, redirectUri, scope, authUrl });
+  }, []);
+
+  const handleConnect = () => {
+    if (!debugInfo?.clientId) {
+      setError('Yahoo client ID is not configured.');
+      return;
+    }
+    console.log('Yahoo OAuth connect debug info', debugInfo);
+    window.location.href = debugInfo.authUrl;
   };
 
   const handleRemove = async () => {
@@ -123,6 +135,14 @@ export default function YahooPage() {
             </div>
           )}
           {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+          {debugInfo && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium">Debug Info</h4>
+              <pre className="mt-2 overflow-x-auto rounded bg-gray-100 p-2 text-xs">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
           {leagues.length > 0 && (
             <div className="mt-4">
               <h3 className="text-lg font-medium">Your Leagues</h3>
