@@ -1,11 +1,13 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { getSleeperIntegration, getLeagues } from '@/app/integrations/sleeper/actions';
 import { Team } from '@/lib/types';
 
 export async function getTeams() {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {

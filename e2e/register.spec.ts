@@ -5,13 +5,10 @@ test('user can register', async ({ page }) => {
   const email = `user${Date.now()}@example.com`;
   const password = 'test1234';
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabase = serviceRoleKey
-    ? createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        serviceRoleKey
-      )
-    : null;
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   try {
     await page.goto('/register');
@@ -21,13 +18,10 @@ test('user can register', async ({ page }) => {
     await expect(page).toHaveURL('/login');
     await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
   } finally {
-    if (supabase) {
-      const {
-        data: { user },
-      } = await supabase.auth.admin.getUserByEmail(email);
-      if (user) {
+    const { data: { users } } = await supabase.auth.admin.listUsers();
+    const user = users.find(u => u.email === email);
+    if (user) {
         await supabase.auth.admin.deleteUser(user.id);
-      }
     }
   }
 });
