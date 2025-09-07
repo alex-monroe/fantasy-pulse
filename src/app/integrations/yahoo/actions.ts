@@ -34,11 +34,11 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
   // Check if the token is expired or close to expiring (e.g., within 60 seconds)
   if (integration.expires_at && new Date(integration.expires_at).getTime() < Date.now() + 60000) {
     // Token is expired, refresh it
-    const clientId = process.env.YAHOO_CLIENT_ID;
+    const clientId = 'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
     const clientSecret = process.env.YAHOO_CLIENT_SECRET;
     const redirectUri = process.env.YAHOO_REDIRECT_URI;
 
-    if (!clientId || !clientSecret || !redirectUri) {
+    if (!clientSecret || !redirectUri) {
       return { error: 'Yahoo client ID, secret, or redirect URI is not configured.' };
     }
 
