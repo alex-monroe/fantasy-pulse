@@ -22,8 +22,9 @@ test('user can register', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
   } finally {
     if (supabase) {
-      const { data } = await supabase.auth.admin.listUsers({ email });
-      const user = data.users?.[0];
+      const {
+        data: { user },
+      } = await supabase.auth.admin.getUserByEmail(email);
       if (user) {
         await supabase.auth.admin.deleteUser(user.id);
       }
