@@ -208,9 +208,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     return { error: tokenError || 'Failed to get Yahoo access token.' };
   }
 
-  // The game_key for nfl is 'nfl'. This might need to be dynamic in the future.
-  const gameKey = 'nfl';
-  const teamKey = `${gameKey}.l.${leagueId}.t.${teamId}`;
+  const teamKey = `${leagueId}.t.${teamId}`;
   const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster/players?format=json`;
 
   try {
@@ -228,32 +226,45 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     }
 
     const data = await response.json();
-    const roster = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
+    const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
-    if (!roster) {
+    // Log the raw roster data for debugging
+    // console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
+
+    if (!rosterData) {
+      console.log('No roster data found in Yahoo API response.');
       return { players: [] };
     }
 
-    const players = Object.values(roster).filter((p: any) => p.player).map((p: any) => {
-      const playerDetails = p.player[0];
+    const players = Object.values(rosterData).filter((p: any) => p.player).map((p: any) => {
+      const playerDetailsArray = p.player?.[0];
+      if (!playerDetailsArray) return null;
+
+      // Convert array to a more readable object
+      const playerDetails: { [key: string]: any } = {};
+      playerDetailsArray.forEach((detail: any) => {
+        const key = Object.keys(detail)[0];
+        playerDetails[key] = detail[key];
+      });
+
       return {
-        player_key: playerDetails[0].player_key,
-        player_id: playerDetails[1].player_id,
-        name: playerDetails[2].name.full,
-        editorial_player_key: playerDetails[3].editorial_player_key,
-        editorial_team_key: playerDetails[4].editorial_team_key,
-        editorial_team_full_name: playerDetails[5].editorial_team_full_name,
-        editorial_team_abbr: playerDetails[6].editorial_team_abbr,
-        bye_weeks: playerDetails[7].bye_weeks.week,
-        uniform_number: playerDetails[8].uniform_number,
-        display_position: playerDetails[9].display_position,
-        headshot: playerDetails[10].headshot.url,
-        image_url: playerDetails[11].image_url,
-        is_undroppable: playerDetails[12].is_undroppable,
-        position_type: playerDetails[13].position_type,
-        eligible_positions: playerDetails[14].eligible_positions.map((pos: any) => pos.position),
+        player_key: playerDetails.player_key,
+        player_id: playerDetails.player_id,
+        name: playerDetails.name?.full,
+        editorial_player_key: playerDetails.editorial_player_key,
+        editorial_team_key: playerDetails.editorial_team_key,
+        editorial_team_full_name: playerDetails.editorial_team_full_name,
+        editorial_team_abbr: playerDetails.editorial_team_abbr,
+        bye_weeks: playerDetails.bye_weeks?.week,
+        uniform_number: playerDetails.uniform_number,
+        display_position: playerDetails.display_position,
+        headshot: playerDetails.headshot?.url,
+        image_url: playerDetails.image_url,
+        is_undroppable: playerDetails.is_undroppable,
+        position_type: playerDetails.position_type,
+        eligible_positions: playerDetails.eligible_positions?.map((pos: any) => pos.position),
       };
-    });
+    }).filter(Boolean); // Filter out any null entries from failed parsing
 
     return { players };
   } catch (error) {
