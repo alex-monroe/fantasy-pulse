@@ -2,28 +2,24 @@
 
 import { createClient } from '@/utils/supabase/server';
 
-export async function connectYahoo() {
-  // This will be replaced with the actual OAuth flow
-  const supabase = createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: 'You must be logged in to connect your Yahoo account.' };
-  }
-
-  const { error: insertError } = await supabase
-    .from('user_integrations')
-    .insert({
-      user_id: user.id,
-      provider: 'yahoo',
-      provider_user_id: 'mock_yahoo_user_id', // This will be replaced with the actual Yahoo user ID
+export async function connectYahoo(accessToken: string) {
+  try {
+    const res = await fetch('https://api.login.yahoo.com/openid/v1/userinfo', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
-  if (insertError) {
-    return { error: insertError.message };
-  }
+    if (!res.ok) {
+      const error = await res.json();
+      return { error: error.error_description || 'Failed to fetch user info' };
+    }
 
-  return { success: true };
+    const user = await res.json();
+    return { user };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
 }
 
 export async function removeYahooIntegration(integrationId: number) {

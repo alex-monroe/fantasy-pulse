@@ -26,9 +26,15 @@ export default function YahooPage() {
   }, []);
 
   const handleConnect = () => {
-    // The OAuth flow will be initiated here.
-    // For now, we'll just log a message to the console.
-    console.log('Initiating Yahoo OAuth flow...');
+    const clientId = process.env.NEXT_PUBLIC_YAHOO_CLIENT_ID || process.env.YAHOO_CLIENT_ID;
+    const redirectUri = `${window.location.origin}/api/auth/yahoo`;
+    const params = new URLSearchParams({
+      client_id: clientId ?? '',
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid profile email',
+    });
+    window.location.href = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}`;
   };
 
   const handleRemove = async () => {
