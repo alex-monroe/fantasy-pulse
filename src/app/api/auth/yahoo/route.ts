@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { connectYahoo } from '@/app/integrations/yahoo/actions';
 
+export const runtime = 'nodejs';
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const oauthError = url.searchParams.get('error');
@@ -33,7 +35,9 @@ export async function GET(request: Request) {
   const clientId =
     process.env.YAHOO_CLIENT_ID ||
     'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
-  const clientSecret = process.env.YAHOO_CLIENT_SECRET;
+  const clientSecret =
+    process.env.YAHOO_CLIENT_SECRET ||
+    process.env.NEXT_PUBLIC_YAHOO_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     console.error('Missing Yahoo OAuth client configuration');
