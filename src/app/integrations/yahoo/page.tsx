@@ -46,9 +46,9 @@ export default function YahooPage() {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: 'openid profile email',
     });
-    window.location.href = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}`;
+    const scope = encodeURIComponent('openid profile email');
+    window.location.href = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}&scope=${scope}`;
   };
 
   const handleRemove = async () => {
