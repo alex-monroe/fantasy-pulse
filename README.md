@@ -43,3 +43,24 @@ A basic structure for Yahoo Fantasy Football integration has been added. To comp
 4.  **Implement the API calls to fetch data:**
     *   Update the `getYahooLeagues` function in `src/app/integrations/yahoo/actions.ts` to fetch the user's leagues from the Yahoo Fantasy Sports API. You will need to use the access token to make authenticated requests.
     *   Implement a function to fetch players from a team's roster.
+
+### Fetching the Correct Team ID
+
+The current implementation for fetching a team's roster hardcodes the `team_id` to `'1'`. This is a temporary measure because the API call to fetch leagues does not return the user's `team_id` for each league. A proper implementation requires the following steps:
+
+1.  **Create a New Server Action to Fetch Teams:**
+    *   Implement a new function in `src/app/integrations/yahoo/actions.ts`, such as `getYahooUserTeams(integrationId: number)`.
+    *   This function should call the Yahoo API endpoint to get all the teams associated with the user's account for the current game (e.g., `https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_key=nfl/teams?format=json`).
+    *   It should use the `getYahooAccessToken` helper to ensure the request is authenticated.
+
+2.  **Store Team Data:**
+    *   The teams returned from the API should be stored in the database. This may require a new `teams` table or adding columns to the existing `leagues` table.
+    *   A `teams` table would ideally store the `team_key`, `team_id`, `league_id`, `user_integration_id`, and other relevant team details like name and logo.
+
+3.  **Update the Frontend Logic:**
+    *   When the Yahoo integration page is loaded, the application should call the new `getYahooUserTeams` action to ensure the user's team data is synced and available.
+    *   The `handleFetchRoster` function in `src/app/integrations/yahoo/page.tsx` must be modified.
+    *   Instead of using a hardcoded `team_id`, it should look up the correct `team_id` from the stored team data that corresponds to the selected `league_id`.
+
+4.  **Remove Hardcoded Value:**
+    *   Once the correct `team_id` is being dynamically retrieved, the hardcoded `const teamId = '1';` line in `handleFetchRoster` should be removed.
