@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
@@ -9,7 +10,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No code provided' }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

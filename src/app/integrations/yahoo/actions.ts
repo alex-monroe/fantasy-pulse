@@ -1,5 +1,6 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 
 export async function connectYahoo() {
@@ -8,7 +9,8 @@ export async function connectYahoo() {
 }
 
 export async function removeYahooIntegration(integrationId: number) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
   // First, delete all leagues associated with the integration
   const { error: deleteLeaguesError } = await supabase
@@ -34,7 +36,8 @@ export async function removeYahooIntegration(integrationId: number) {
 }
 
 export async function getLeagues(integrationId: number) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const { data, error } = await supabase
     .from('leagues')
     .select('*')
@@ -48,7 +51,8 @@ export async function getLeagues(integrationId: number) {
 }
 
 export async function getYahooIntegration() {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -70,7 +74,8 @@ export async function getYahooIntegration() {
 }
 
 export async function getYahooLeagues(integrationId: number) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const { data: integration, error: integrationError } = await supabase
     .from('user_integrations')
     .select('access_token')
