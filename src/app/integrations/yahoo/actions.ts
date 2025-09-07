@@ -168,7 +168,7 @@ export async function getYahooUserTeams(integrationId: number) {
     return { error: tokenError || 'Failed to get Yahoo access token.' };
   }
 
-  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_key=nfl/teams?format=json';
+  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/teams?format=json';
 
   try {
     const response = await fetch(url, {
