@@ -168,7 +168,7 @@ export async function getYahooUserTeams(integrationId: number) {
     return { error: tokenError || 'Failed to get Yahoo access token.' };
   }
 
-  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_key=nfl/teams?format=json';
+  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/teams?format=json';
 
   try {
     const response = await fetch(url, {
@@ -214,16 +214,16 @@ export async function getYahooUserTeams(integrationId: number) {
     if (teamsToInsert.length > 0) {
       const cookieStore = cookies();
       const supabase = createClient(cookieStore);
-      const { data: insertedTeams, error: insertError } = await supabase
+      const { data: upsertedTeams, error: upsertError } = await supabase
         .from('teams')
         .upsert(teamsToInsert, { onConflict: 'team_key' })
         .select();
 
-      if (insertError) {
-        console.error('Could not insert teams, they may already exist.', insertError.message);
-        return { teams: [] };
+      if (upsertError) {
+        console.error('Could not upsert teams.', upsertError.message);
+        return { error: `Failed to save teams to database: ${upsertError.message}` };
       }
-      return { teams: insertedTeams };
+      return { teams: upsertedTeams };
     }
 
     return { teams: [] };
@@ -298,18 +298,16 @@ export async function getYahooLeagues(integrationId: number) {
     if (leaguesToInsert.length > 0) {
       const cookieStore = cookies();
       const supabase = createClient(cookieStore);
-      const { data: insertedLeagues, error: insertError } = await supabase
+      const { data: upsertedLeagues, error: upsertError } = await supabase
         .from('leagues')
-        .insert(leaguesToInsert)
+        .upsert(leaguesToInsert, { onConflict: 'league_id' })
         .select();
 
-      if (insertError) {
-        // This could be a unique constraint violation if leagues already exist, which is fine.
-        // A more robust implementation would use .upsert()
-        console.log('Could not insert leagues, they may already exist.', insertError.message);
-        return { leagues: [] };
+      if (upsertError) {
+        console.error('Could not upsert leagues.', upsertError.message);
+        return { error: `Failed to save leagues to database: ${upsertError.message}` };
       }
-      return { leagues: insertedLeagues };
+      return { leagues: upsertedLeagues };
     }
 
     return { leagues: [] };

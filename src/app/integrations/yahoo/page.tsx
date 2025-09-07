@@ -13,7 +13,7 @@ export default function YahooPage() {
   const [loading, setLoading] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
   const [players, setPlayers] = useState<any[]>([]);
-  const [loadingRoster, setLoadingRoster] = useState(false);
+  const [loadingRosterLeagueId, setLoadingRosterLeagueId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkIntegration = async () => {
@@ -58,17 +58,28 @@ export default function YahooPage() {
   };
 
   const handleFetchRoster = async (leagueId: string) => {
-    if (!integration || teams.length === 0) return;
-
-    setLoadingRoster(true);
+    setLoadingRosterLeagueId(leagueId);
     setPlayers([]);
     setError(null);
 
-    const team = teams.find(t => t.league_id === leagueId);
+    let currentTeams = teams;
+    // If teams are not loaded, fetch them now.
+    if (currentTeams.length === 0) {
+      const yahooTeamsResponse = await getYahooUserTeams(integration.id);
+      if (yahooTeamsResponse.error) {
+        setError(yahooTeamsResponse.error);
+        setLoadingRosterLeagueId(null);
+        return;
+      }
+      currentTeams = yahooTeamsResponse.teams || [];
+      setTeams(currentTeams);
+    }
+
+    const team = currentTeams.find(t => t.league_id === leagueId);
 
     if (!team) {
       setError('Could not find a team for this league.');
-      setLoadingRoster(false);
+      setLoadingRosterLeagueId(null);
       return;
     }
 
@@ -79,7 +90,7 @@ export default function YahooPage() {
     } else {
       setPlayers(players || []);
     }
-    setLoadingRoster(false);
+    setLoadingRosterLeagueId(null);
   };
 
   useEffect(() => {
@@ -153,15 +164,18 @@ export default function YahooPage() {
                 {leagues.map((league) => (
                   <li key={league.league_id} className="p-2 border rounded-md flex justify-between items-center">
                     <span>{league.name}</span>
-                    <Button onClick={() => handleFetchRoster(league.league_id)} size="sm">
-                      View Roster
+                    <Button
+                      onClick={() => handleFetchRoster(league.league_id)}
+                      size="sm"
+                      disabled={loadingRosterLeagueId === league.league_id}
+                    >
+                      {loadingRosterLeagueId === league.league_id ? 'Loading...' : 'View Roster'}
                     </Button>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          {loadingRoster && <p className="mt-4">Loading roster...</p>}
           {players.length > 0 && (
             <div className="mt-4">
               <h3 className="text-lg font-medium">Roster</h3>
