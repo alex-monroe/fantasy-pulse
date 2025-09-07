@@ -2,6 +2,84 @@
 
 import { createClient } from '@/utils/supabase/server';
 
+async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
+  const supabase = createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'User not authenticated.' };
+  }
+
+  const { data: integration, error: integrationError } = await supabase
+    .from('user_integrations')
+    .select('access_token, refresh_token, expires_at')
+    .eq('id', integrationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (integrationError || !integration) {
+    return { error: 'Yahoo integration not found.' };
+  }
+
+  // Check if the token is expired or close to expiring (e.g., within 60 seconds)
+  if (integration.expires_at && new Date(integration.expires_at).getTime() < Date.now() + 60000) {
+    // Token is expired, refresh it
+    const clientId = process.env.YAHOO_CLIENT_ID;
+    const clientSecret = process.env.YAHOO_CLIENT_SECRET;
+    const redirectUri = process.env.YAHOO_REDIRECT_URI;
+
+    if (!clientId || !clientSecret || !redirectUri) {
+      return { error: 'Yahoo client ID, secret, or redirect URI is not configured.' };
+    }
+
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+    try {
+      const response = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${basicAuth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          redirect_uri: redirectUri,
+          refresh_token: integration.refresh_token,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Yahoo token refresh error:', data);
+        return { error: `Failed to refresh Yahoo token: ${data.error_description || response.statusText}` };
+      }
+
+      const newExpiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+
+      const { error: updateError } = await supabase
+        .from('user_integrations')
+        .update({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token, // Yahoo may issue a new refresh token
+          expires_at: newExpiresAt,
+        })
+        .eq('id', integrationId);
+
+      if (updateError) {
+        return { error: `Failed to update new token in database: ${updateError.message}` };
+      }
+
+      return { access_token: data.access_token };
+    } catch (error) {
+      return { error: 'An unexpected error occurred while refreshing the Yahoo token.' };
+    }
+  }
+
+  // Token is still valid
+  return { access_token: integration.access_token };
+}
+
 export async function connectYahoo() {
   // This function is deprecated. The OAuth flow handles the connection.
   return { success: true };
@@ -70,15 +148,10 @@ export async function getYahooIntegration() {
 }
 
 export async function getYahooLeagues(integrationId: number) {
-  const supabase = createClient();
-  const { data: integration, error: integrationError } = await supabase
-    .from('user_integrations')
-    .select('access_token')
-    .eq('id', integrationId)
-    .single();
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
 
-  if (integrationError || !integration) {
-    return { error: 'Yahoo integration not found.' };
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
   }
 
   const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json';
@@ -86,13 +159,12 @@ export async function getYahooLeagues(integrationId: number) {
   try {
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${integration.access_token}`,
+        'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
     });
 
     if (!response.ok) {
-      // Potentially handle token refresh here in a real app
       const errorBody = await response.text();
       console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
       return { error: `Failed to fetch leagues from Yahoo: ${response.statusText}` };
@@ -100,6 +172,10 @@ export async function getYahooLeagues(integrationId: number) {
 
     const data = await response.json();
     const leaguesFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.leagues;
+
+    if (!leaguesFromYahoo) {
+      return { leagues: [] };
+    }
 
     const leaguesToInsert = Object.values(leaguesFromYahoo).filter((l: any) => l.league).map((l: any) => ({
       user_integration_id: integrationId,
@@ -111,13 +187,17 @@ export async function getYahooLeagues(integrationId: number) {
     }));
 
     if (leaguesToInsert.length > 0) {
+      const supabase = createClient();
       const { data: insertedLeagues, error: insertError } = await supabase
         .from('leagues')
         .insert(leaguesToInsert)
         .select();
 
       if (insertError) {
-        return { error: `Failed to save leagues to database: ${insertError.message}` };
+        // This could be a unique constraint violation if leagues already exist, which is fine.
+        // A more robust implementation would use .upsert()
+        console.log('Could not insert leagues, they may already exist.', insertError.message);
+        return { leagues: [] };
       }
       return { leagues: insertedLeagues };
     }
@@ -125,5 +205,76 @@ export async function getYahooLeagues(integrationId: number) {
     return { leagues: [] };
   } catch (error) {
     return { error: 'An unexpected error occurred while fetching leagues from Yahoo.' };
+  }
+}
+
+export async function getYahooRoster(integrationId: number, leagueId: string, teamId: string) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const teamKey = `${leagueId}.t.${teamId}`;
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster/players?format=json`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      return { error: `Failed to fetch roster from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
+
+    // Log the raw roster data for debugging
+    // console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
+
+    if (!rosterData) {
+      console.log('No roster data found in Yahoo API response.');
+      return { players: [] };
+    }
+
+    const players = Object.values(rosterData).filter((p: any) => p.player).map((p: any) => {
+      const playerDetailsArray = p.player?.[0];
+      if (!playerDetailsArray) return null;
+
+      // Convert array to a more readable object
+      const playerDetails: { [key: string]: any } = {};
+      playerDetailsArray.forEach((detail: any) => {
+        const key = Object.keys(detail)[0];
+        playerDetails[key] = detail[key];
+      });
+
+      return {
+        player_key: playerDetails.player_key,
+        player_id: playerDetails.player_id,
+        name: playerDetails.name?.full,
+        editorial_player_key: playerDetails.editorial_player_key,
+        editorial_team_key: playerDetails.editorial_team_key,
+        editorial_team_full_name: playerDetails.editorial_team_full_name,
+        editorial_team_abbr: playerDetails.editorial_team_abbr,
+        bye_weeks: playerDetails.bye_weeks?.week,
+        uniform_number: playerDetails.uniform_number,
+        display_position: playerDetails.display_position,
+        headshot: playerDetails.headshot?.url,
+        image_url: playerDetails.image_url,
+        is_undroppable: playerDetails.is_undroppable,
+        position_type: playerDetails.position_type,
+        eligible_positions: playerDetails.eligible_positions?.map((pos: any) => pos.position),
+      };
+    }).filter(Boolean); // Filter out any null entries from failed parsing
+
+    return { players };
+  } catch (error) {
+    return { error: 'An unexpected error occurred while fetching the roster from Yahoo.' };
   }
 }
