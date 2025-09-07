@@ -128,13 +128,50 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
         status: league.status,
       }));
 
-      const { error: insertError } = await supabase.from('leagues').upsert(leaguesToInsert, { onConflict: 'league_id,user_integration_id' });
-      if (insertError) {
-        return { error: insertError.message };
+      // Manual upsert logic
+      const { data: existingLeagues, error: selectError } = await supabase
+        .from('leagues')
+        .select('league_id')
+        .eq('user_integration_id', integrationId);
+
+      if (selectError) {
+        return { error: `Failed to query existing leagues: ${selectError.message}` };
+      }
+
+      const existingLeagueIds = new Set(existingLeagues.map(l => l.league_id));
+      const toInsert = leaguesToInsert.filter(l => !existingLeagueIds.has(l.league_id));
+      const toUpdate = leaguesToInsert.filter(l => existingLeagueIds.has(l.league_id));
+
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase.from('leagues').insert(toInsert);
+        if (insertError) {
+          return { error: `Failed to insert new leagues: ${insertError.message}` };
+        }
+      }
+
+      for (const league of toUpdate) {
+        const { error: updateError } = await supabase
+          .from('leagues')
+          .update(league)
+          .eq('league_id', league.league_id)
+          .eq('user_integration_id', integrationId);
+        if (updateError) {
+          return { error: `Failed to update league ${league.league_id}: ${updateError.message}` };
+        }
       }
     }
 
-    return { leagues };
+    // After upserting, fetch all leagues for the integration to return them
+    const { data: finalLeagues, error: finalSelectError } = await supabase
+      .from('leagues')
+      .select('*')
+      .eq('user_integration_id', integrationId);
+
+    if (finalSelectError) {
+      return { error: `Failed to fetch final leagues: ${finalSelectError.message}` };
+    }
+
+    return { leagues: finalLeagues };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
   }

@@ -34,11 +34,11 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
   // Check if the token is expired or close to expiring (e.g., within 60 seconds)
   if (integration.expires_at && new Date(integration.expires_at).getTime() < Date.now() + 60000) {
     // Token is expired, refresh it
-    const clientId = 'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
+    const clientId = process.env.YAHOO_CLIENT_ID;
     const clientSecret = process.env.YAHOO_CLIENT_SECRET;
     const redirectUri = process.env.YAHOO_REDIRECT_URI;
 
-    if (!clientSecret || !redirectUri) {
+    if (!clientId || !clientSecret || !redirectUri) {
       return { error: 'Yahoo client ID, secret, or redirect URI is not configured.' };
     }
 
@@ -214,19 +214,51 @@ export async function getYahooUserTeams(integrationId: number) {
     if (teamsToInsert.length > 0) {
       const cookieStore = cookies();
       const supabase = createClient(cookieStore);
-      const { data: upsertedTeams, error: upsertError } = await supabase
-        .from('teams')
-        .upsert(teamsToInsert, { onConflict: 'team_key' })
-        .select();
 
-      if (upsertError) {
-        console.error('Could not upsert teams.', upsertError.message);
-        return { error: `Failed to save teams to database: ${upsertError.message}` };
+      // Manual upsert logic
+      const { data: existingTeams, error: selectError } = await supabase
+        .from('teams')
+        .select('team_key')
+        .eq('user_integration_id', integrationId);
+
+      if (selectError) {
+        return { error: `Failed to query existing teams: ${selectError.message}` };
       }
-      return { teams: upsertedTeams };
+
+      const existingTeamKeys = new Set(existingTeams.map(t => t.team_key));
+      const toInsert = teamsToInsert.filter(t => !existingTeamKeys.has(t.team_key));
+      const toUpdate = teamsToInsert.filter(t => existingTeamKeys.has(t.team_key));
+
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase.from('teams').insert(toInsert);
+        if (insertError) {
+          return { error: `Failed to insert new teams: ${insertError.message}` };
+        }
+      }
+
+      for (const team of toUpdate) {
+        const { error: updateError } = await supabase
+          .from('teams')
+          .update(team)
+          .eq('team_key', team.team_key)
+          .eq('user_integration_id', integrationId);
+        if (updateError) {
+          return { error: `Failed to update team ${team.team_key}: ${updateError.message}` };
+        }
+      }
     }
 
-    return { teams: [] };
+    // After upserting, fetch all teams for the integration to return them
+    const { data: finalTeams, error: finalSelectError } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('user_integration_id', integrationId);
+
+    if (finalSelectError) {
+      return { error: `Failed to fetch final teams: ${finalSelectError.message}` };
+    }
+
+    return { teams: finalTeams };
   } catch (error) {
     console.error('An unexpected error occurred while fetching teams from Yahoo.', error);
     return { error: 'An unexpected error occurred while fetching teams from Yahoo.' };
@@ -298,19 +330,51 @@ export async function getYahooLeagues(integrationId: number) {
     if (leaguesToInsert.length > 0) {
       const cookieStore = cookies();
       const supabase = createClient(cookieStore);
-      const { data: upsertedLeagues, error: upsertError } = await supabase
-        .from('leagues')
-        .upsert(leaguesToInsert, { onConflict: 'league_id,user_integration_id' })
-        .select();
 
-      if (upsertError) {
-        console.error('Could not upsert leagues.', upsertError.message);
-        return { error: `Failed to save leagues to database: ${upsertError.message}` };
+      // Manual upsert logic
+      const { data: existingLeagues, error: selectError } = await supabase
+        .from('leagues')
+        .select('league_id')
+        .eq('user_integration_id', integrationId);
+
+      if (selectError) {
+        return { error: `Failed to query existing leagues: ${selectError.message}` };
       }
-      return { leagues: upsertedLeagues };
+
+      const existingLeagueIds = new Set(existingLeagues.map(l => l.league_id));
+      const toInsert = leaguesToInsert.filter(l => !existingLeagueIds.has(l.league_id));
+      const toUpdate = leaguesToInsert.filter(l => existingLeagueIds.has(l.league_id));
+
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase.from('leagues').insert(toInsert);
+        if (insertError) {
+          return { error: `Failed to insert new leagues: ${insertError.message}` };
+        }
+      }
+
+      for (const league of toUpdate) {
+        const { error: updateError } = await supabase
+          .from('leagues')
+          .update(league)
+          .eq('league_id', league.league_id)
+          .eq('user_integration_id', integrationId);
+        if (updateError) {
+          return { error: `Failed to update league ${league.league_id}: ${updateError.message}` };
+        }
+      }
     }
 
-    return { leagues: [] };
+    // After upserting, fetch all leagues for the integration to return them
+    const { data: finalLeagues, error: finalSelectError } = await supabase
+      .from('leagues')
+      .select('*')
+      .eq('user_integration_id', integrationId);
+
+    if (finalSelectError) {
+      return { error: `Failed to fetch final leagues: ${finalSelectError.message}` };
+    }
+
+    return { leagues: finalLeagues };
   } catch (error) {
     return { error: 'An unexpected error occurred while fetching leagues from Yahoo.' };
   }
