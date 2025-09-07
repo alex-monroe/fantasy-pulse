@@ -4,7 +4,8 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   console.log(`Fetching access token for integrationId: ${integrationId}`);
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -147,7 +148,8 @@ export async function getLeagues(integrationId: number) {
 }
 
 export async function getTeams(integrationId: number) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const { data, error } = await supabase
     .from('teams')
     .select('*')
@@ -210,7 +212,8 @@ export async function getYahooUserTeams(integrationId: number) {
     });
 
     if (teamsToInsert.length > 0) {
-      const supabase = createClient();
+      const cookieStore = cookies();
+      const supabase = createClient(cookieStore);
       const { data: insertedTeams, error: insertError } = await supabase
         .from('teams')
         .upsert(teamsToInsert, { onConflict: 'team_key' })
@@ -293,7 +296,8 @@ export async function getYahooLeagues(integrationId: number) {
     }));
 
     if (leaguesToInsert.length > 0) {
-      const supabase = createClient();
+      const cookieStore = cookies();
+      const supabase = createClient(cookieStore);
       const { data: insertedLeagues, error: insertError } = await supabase
         .from('leagues')
         .insert(leaguesToInsert)
