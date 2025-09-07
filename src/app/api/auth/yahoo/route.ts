@@ -4,12 +4,12 @@ import { connectYahoo } from '@/app/integrations/yahoo/actions';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const error = url.searchParams.get('error');
-  const errorDescription = url.searchParams.get('error_description');
+  const oauthError = url.searchParams.get('error');
+  const oauthErrorDescription = url.searchParams.get('error_description');
   const code = url.searchParams.get('code');
 
-  if (error) {
-    const description = errorDescription || error;
+  if (oauthError) {
+    const description = oauthErrorDescription || oauthError;
     return NextResponse.redirect(
       `${url.origin}/integrations/yahoo?error=${encodeURIComponent(description)}`
     );
