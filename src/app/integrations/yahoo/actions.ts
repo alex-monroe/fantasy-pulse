@@ -220,18 +220,8 @@ export async function getYahooUserTeams(integrationId: number) {
         .select();
 
       if (upsertError) {
-        console.error('Could not upsert teams. Fetching existing ones.', upsertError.message);
-        // If upsert fails, try to fetch the teams that might already be there.
-        const { data, error: selectError } = await supabase
-          .from('teams')
-          .select('*')
-          .in('team_key', teamsToInsert.map(t => t.team_key));
-
-        if (selectError) {
-          console.error('Could not fetch existing teams either.', selectError.message);
-          return { error: `Failed to upsert or select teams: ${selectError.message}` };
-        }
-        return { teams: data };
+        console.error('Could not upsert teams.', upsertError.message);
+        return { error: `Failed to save teams to database: ${upsertError.message}` };
       }
       return { teams: upsertedTeams };
     }
@@ -314,18 +304,8 @@ export async function getYahooLeagues(integrationId: number) {
         .select();
 
       if (upsertError) {
-        console.error('Could not upsert leagues. Fetching existing ones.', upsertError.message);
-        // If upsert fails, try to fetch the leagues that might already be there.
-        const { data, error: selectError } = await supabase
-          .from('leagues')
-          .select('*')
-          .in('league_id', leaguesToInsert.map(l => l.league_id));
-
-        if (selectError) {
-          console.error('Could not fetch existing leagues either.', selectError.message);
-          return { error: `Failed to upsert or select leagues: ${selectError.message}` };
-        }
-        return { leagues: data };
+        console.error('Could not upsert leagues.', upsertError.message);
+        return { error: `Failed to save leagues to database: ${upsertError.message}` };
       }
       return { leagues: upsertedLeagues };
     }
