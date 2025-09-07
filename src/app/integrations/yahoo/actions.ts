@@ -4,10 +4,17 @@ import { createClient } from '@/utils/supabase/server';
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const supabase = createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'User not authenticated.' };
+  }
+
   const { data: integration, error: integrationError } = await supabase
     .from('user_integrations')
     .select('access_token, refresh_token, expires_at')
     .eq('id', integrationId)
+    .eq('user_id', user.id)
     .single();
 
   if (integrationError || !integration) {
