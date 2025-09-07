@@ -1,6 +1,6 @@
 CREATE TABLE leagues (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  league_id TEXT NOT NULL UNIQUE,
+  league_id TEXT NOT NULL,
   name TEXT NOT NULL,
   user_integration_id BIGINT NOT NULL REFERENCES user_integrations(id),
   season TEXT NOT NULL,

@@ -128,7 +128,7 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
         status: league.status,
       }));
 
-      const { error: insertError } = await supabase.from('leagues').upsert(leaguesToInsert);
+      const { error: insertError } = await supabase.from('leagues').upsert(leaguesToInsert, { onConflict: 'league_id,user_integration_id' });
       if (insertError) {
         return { error: insertError.message };
       }

@@ -300,7 +300,7 @@ export async function getYahooLeagues(integrationId: number) {
       const supabase = createClient(cookieStore);
       const { data: upsertedLeagues, error: upsertError } = await supabase
         .from('leagues')
-        .upsert(leaguesToInsert, { onConflict: 'league_id' })
+        .upsert(leaguesToInsert, { onConflict: 'league_id,user_integration_id' })
         .select();
 
       if (upsertError) {
