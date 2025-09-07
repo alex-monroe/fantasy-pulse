@@ -27,5 +27,5 @@ jobs:
           path: test-results/**/*.webm
           if-no-files-found: ignore
       - name: Add Playwright video to summary
-        if: steps.upload-video.outputs.artifact-url
+        if: ${{ always() && steps.upload-video.outputs.artifact-url }}
         run: echo "### Playwright Video\n[Download video](${{ steps.upload-video.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
