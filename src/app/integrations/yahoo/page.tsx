@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getYahooIntegration, getLeagues, removeYahooIntegration } from './actions';
+import { getYahooIntegration, getLeagues, removeYahooIntegration, getYahooLeagues } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -26,9 +26,12 @@ export default function YahooPage() {
   }, []);
 
   const handleConnect = () => {
-    // The OAuth flow will be initiated here.
-    // For now, we'll just log a message to the console.
-    console.log('Initiating Yahoo OAuth flow...');
+    const client_id = 'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
+    const redirect_uri = `${window.location.origin}/api/auth/yahoo`;
+    const scope = 'openid fspt-r';
+    const response_type = 'code';
+    const url = `https://api.login.yahoo.com/oauth2/request_auth?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=${response_type}&scope=${encodeURIComponent(scope)}`;
+    window.location.href = url;
   };
 
   const handleRemove = async () => {
@@ -65,13 +68,12 @@ export default function YahooPage() {
         }
 
         // If no leagues in DB, fetch from Yahoo API and persist
-        // This will be implemented later
-        // const yahooResponse = await getYahooLeagues(integration.id);
-        // if (yahooResponse.error) {
-        //   setError(yahooResponse.error);
-        // } else {
-        //   setLeagues(yahooResponse.leagues || []);
-        // }
+        const yahooResponse = await getYahooLeagues(integration.id);
+        if (yahooResponse.error) {
+          setError(yahooResponse.error);
+        } else {
+          setLeagues(yahooResponse.leagues || []);
+        }
       };
       fetchLeagues();
     }
