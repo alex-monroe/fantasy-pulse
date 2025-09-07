@@ -29,16 +29,30 @@ export async function GET(request: Request) {
   const redirectUri =
     process.env.YAHOO_REDIRECT_URI || `${url.origin}/api/auth/yahoo`;
   console.log('Yahoo OAuth token exchange redirect URI', redirectUri);
+
+  const clientId =
+    process.env.YAHOO_CLIENT_ID ||
+    'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
+  const clientSecret = process.env.YAHOO_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    console.error('Missing Yahoo OAuth client configuration');
+    return NextResponse.redirect(
+      `${url.origin}/integrations/yahoo?error=missing_client_configuration`
+    );
+  }
+
   const tokenResponse = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${Buffer.from(`${process.env.YAHOO_CLIENT_ID}:${process.env.YAHOO_CLIENT_SECRET}`).toString('base64')}`,
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
     },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
+      client_id: clientId,
     }),
   });
 
