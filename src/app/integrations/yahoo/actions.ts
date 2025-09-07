@@ -214,16 +214,26 @@ export async function getYahooUserTeams(integrationId: number) {
     if (teamsToInsert.length > 0) {
       const cookieStore = cookies();
       const supabase = createClient(cookieStore);
-      const { data: insertedTeams, error: insertError } = await supabase
+      const { data: upsertedTeams, error: upsertError } = await supabase
         .from('teams')
         .upsert(teamsToInsert, { onConflict: 'team_key' })
         .select();
 
-      if (insertError) {
-        console.error('Could not insert teams, they may already exist.', insertError.message);
-        return { teams: [] };
+      if (upsertError) {
+        console.error('Could not upsert teams. Fetching existing ones.', upsertError.message);
+        // If upsert fails, try to fetch the teams that might already be there.
+        const { data, error: selectError } = await supabase
+          .from('teams')
+          .select('*')
+          .in('team_key', teamsToInsert.map(t => t.team_key));
+
+        if (selectError) {
+          console.error('Could not fetch existing teams either.', selectError.message);
+          return { error: `Failed to upsert or select teams: ${selectError.message}` };
+        }
+        return { teams: data };
       }
-      return { teams: insertedTeams };
+      return { teams: upsertedTeams };
     }
 
     return { teams: [] };
@@ -298,18 +308,26 @@ export async function getYahooLeagues(integrationId: number) {
     if (leaguesToInsert.length > 0) {
       const cookieStore = cookies();
       const supabase = createClient(cookieStore);
-      const { data: insertedLeagues, error: insertError } = await supabase
+      const { data: upsertedLeagues, error: upsertError } = await supabase
         .from('leagues')
-        .insert(leaguesToInsert)
+        .upsert(leaguesToInsert, { onConflict: 'league_id' })
         .select();
 
-      if (insertError) {
-        // This could be a unique constraint violation if leagues already exist, which is fine.
-        // A more robust implementation would use .upsert()
-        console.log('Could not insert leagues, they may already exist.', insertError.message);
-        return { leagues: [] };
+      if (upsertError) {
+        console.error('Could not upsert leagues. Fetching existing ones.', upsertError.message);
+        // If upsert fails, try to fetch the leagues that might already be there.
+        const { data, error: selectError } = await supabase
+          .from('leagues')
+          .select('*')
+          .in('league_id', leaguesToInsert.map(l => l.league_id));
+
+        if (selectError) {
+          console.error('Could not fetch existing leagues either.', selectError.message);
+          return { error: `Failed to upsert or select leagues: ${selectError.message}` };
+        }
+        return { leagues: data };
       }
-      return { leagues: insertedLeagues };
+      return { leagues: upsertedLeagues };
     }
 
     return { leagues: [] };
