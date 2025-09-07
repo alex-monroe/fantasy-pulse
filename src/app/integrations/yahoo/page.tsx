@@ -13,6 +13,12 @@ export default function YahooPage() {
   const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlError = params.get('error');
+    if (urlError) {
+      setError(urlError);
+    }
+
     const checkIntegration = async () => {
       const { integration, error } = await getYahooIntegration();
       if (error) {

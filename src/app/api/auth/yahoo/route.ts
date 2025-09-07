@@ -4,7 +4,16 @@ import { connectYahoo } from '@/app/integrations/yahoo/actions';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const error = url.searchParams.get('error');
+  const errorDescription = url.searchParams.get('error_description');
   const code = url.searchParams.get('code');
+
+  if (error) {
+    const description = errorDescription || error;
+    return NextResponse.redirect(
+      `${url.origin}/integrations/yahoo?error=${encodeURIComponent(description)}`
+    );
+  }
 
   if (!code) {
     return NextResponse.redirect(`${url.origin}/integrations/yahoo?error=missing_code`);
