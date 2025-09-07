@@ -81,7 +81,7 @@ export async function getYahooLeagues(integrationId: number) {
     return { error: 'Yahoo integration not found.' };
   }
 
-  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/leagues?format=json';
+  const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json';
 
   try {
     const response = await fetch(url, {
@@ -93,11 +93,13 @@ export async function getYahooLeagues(integrationId: number) {
 
     if (!response.ok) {
       // Potentially handle token refresh here in a real app
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
       return { error: `Failed to fetch leagues from Yahoo: ${response.statusText}` };
     }
 
     const data = await response.json();
-    const leaguesFromYahoo = data.fantasy_content.users[0].user[1].games[0].game[1].leagues;
+    const leaguesFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.leagues;
 
     const leaguesToInsert = Object.values(leaguesFromYahoo).filter((l: any) => l.league).map((l: any) => ({
       user_integration_id: integrationId,
