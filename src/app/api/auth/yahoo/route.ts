@@ -59,6 +59,7 @@ export async function GET(request: Request) {
 
     // Decode id_token to get user info
     const idTokenPayload = JSON.parse(Buffer.from(data.id_token.split('.')[1], 'base64').toString());
+
     const provider_user_id = idTokenPayload.sub;
 
     const { error: insertError } = await supabase

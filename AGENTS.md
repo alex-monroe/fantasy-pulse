@@ -41,3 +41,4 @@ CREATE TABLE public.user_integrations (
   CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
 );
 ```
+
