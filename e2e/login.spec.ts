@@ -13,8 +13,9 @@ test('user can log in', async ({ page }) => {
   );
 
   try {
-    const { data: existing } = await supabase.auth.admin.listUsers({ email });
-    const existingUser = existing.users?.[0];
+    const {
+      data: { user: existingUser },
+    } = await supabase.auth.admin.getUserByEmail(email);
     if (existingUser) {
       await supabase.auth.admin.deleteUser(existingUser.id);
     }
@@ -32,8 +33,9 @@ test('user can log in', async ({ page }) => {
     await expect(page).toHaveURL('/');
     await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible();
   } finally {
-    const { data } = await supabase.auth.admin.listUsers({ email });
-    const user = data.users?.[0];
+    const {
+      data: { user },
+    } = await supabase.auth.admin.getUserByEmail(email);
     if (user) {
       await supabase.auth.admin.deleteUser(user.id);
     }
