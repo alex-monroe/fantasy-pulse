@@ -26,10 +26,16 @@ export default function YahooPage() {
   }, []);
 
   const handleConnect = () => {
-    const clientId = process.env.NEXT_PUBLIC_YAHOO_CLIENT_ID || process.env.YAHOO_CLIENT_ID;
+    const clientId =
+      process.env.NEXT_PUBLIC_YAHOO_CLIENT_ID ??
+      'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
+    if (!clientId) {
+      setError('Yahoo client ID is not configured.');
+      return;
+    }
     const redirectUri = `${window.location.origin}/api/auth/yahoo`;
     const params = new URLSearchParams({
-      client_id: clientId ?? '',
+      client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'openid profile email',
