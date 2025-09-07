@@ -4,9 +4,11 @@ import { createClient } from '@/utils/supabase/server';
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const supabase = createClient();
+  console.log(`Fetching access token for integrationId: ${integrationId}`);
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    console.error('Authentication error: No user found.');
     return { error: 'User not authenticated.' };
   }
 
@@ -17,7 +19,13 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
     .eq('user_id', user.id)
     .single();
 
-  if (integrationError || !integration) {
+  if (integrationError) {
+    console.error('Error fetching integration from Supabase:', integrationError);
+    return { error: `Error fetching integration: ${integrationError.message}` };
+  }
+
+  if (!integration) {
+    console.error(`Integration not found for id: ${integrationId} and user_id: ${user.id}`);
     return { error: 'Yahoo integration not found.' };
   }
 
@@ -88,7 +96,17 @@ export async function connectYahoo() {
 export async function removeYahooIntegration(integrationId: number) {
   const supabase = createClient();
 
-  // First, delete all leagues associated with the integration
+  // First, delete all teams associated with the integration
+  const { error: deleteTeamsError } = await supabase
+    .from('teams')
+    .delete()
+    .eq('user_integration_id', integrationId);
+
+  if (deleteTeamsError) {
+    return { error: `Failed to delete teams: ${deleteTeamsError.message}` };
+  }
+
+  // Then, delete all leagues associated with the integration
   const { error: deleteLeaguesError } = await supabase
     .from('leagues')
     .delete()
@@ -162,6 +180,7 @@ export async function getYahooUserTeams(integrationId: number) {
     }
 
     const data = await response.json();
+    console.log('Yahoo API response for teams:', JSON.stringify(data, null, 2));
     const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
 
     if (!teamsFromYahoo) {

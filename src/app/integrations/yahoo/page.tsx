@@ -176,6 +176,25 @@ export default function YahooPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card className="mt-4 bg-gray-800 text-white">
+        <CardHeader>
+          <CardTitle>Troubleshooting</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc list-inside space-y-2">
+            <li>
+              If you see a "Yahoo integration not found" error, please try removing the integration and connecting again.
+            </li>
+            <li>
+              If your leagues or teams are not showing up, it might be because you don't have any active teams for the current NFL season in your Yahoo account.
+            </li>
+            <li>
+              The "Could not find a team for this league" error can happen if your team data is out of sync. Removing and re-adding the integration should resolve this.
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </main>
   );
 }
