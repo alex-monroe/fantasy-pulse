@@ -157,7 +157,7 @@ export async function getYahooUserTeams(integrationId: number) {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      console.error(`Yahoo API Error fetching teams: ${response.status} ${response.statusText}`, errorBody);
       return { error: `Failed to fetch teams from Yahoo: ${response.statusText}` };
     }
 
@@ -165,17 +165,27 @@ export async function getYahooUserTeams(integrationId: number) {
     const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
 
     if (!teamsFromYahoo) {
+      console.log('No teams found in Yahoo API response.');
       return { teams: [] };
     }
 
-    const teamsToInsert = Object.values(teamsFromYahoo).filter((t: any) => t.team).map((t: any) => ({
-      user_integration_id: integrationId,
-      team_key: t.team[0][0].team_key,
-      team_id: t.team[0][1].team_id,
-      name: t.team[0][2].name,
-      logo_url: t.team[0][5].team_logos[0].team_logo.url,
-      league_id: t.team[0][0].team_key.split('.').slice(0, 3).join('.'),
-    }));
+    const teamsToInsert = Object.values(teamsFromYahoo).filter((t: any) => t.team).map((t: any) => {
+      const teamDetailsArray = t.team[0];
+      const teamDetails: { [key: string]: any } = {};
+      teamDetailsArray.forEach((detail: any) => {
+        const key = Object.keys(detail)[0];
+        teamDetails[key] = detail[key];
+      });
+
+      return {
+        user_integration_id: integrationId,
+        team_key: teamDetails.team_key,
+        team_id: teamDetails.team_id,
+        name: teamDetails.name,
+        logo_url: teamDetails.team_logos?.[0]?.team_logo?.url,
+        league_id: teamDetails.team_key.split('.').slice(0, 3).join('.'),
+      };
+    });
 
     if (teamsToInsert.length > 0) {
       const supabase = createClient();

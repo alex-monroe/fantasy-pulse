@@ -17,6 +17,7 @@ export default function YahooPage() {
 
   useEffect(() => {
     const checkIntegration = async () => {
+      setError(null);
       const { integration, error } = await getYahooIntegration();
       if (error) {
         setError(error);
@@ -57,7 +58,7 @@ export default function YahooPage() {
   };
 
   const handleFetchRoster = async (leagueId: string) => {
-    if (!integration) return;
+    if (!integration || teams.length === 0) return;
 
     setLoadingRoster(true);
     setPlayers([]);
@@ -84,6 +85,7 @@ export default function YahooPage() {
   useEffect(() => {
     if (integration) {
       const fetchLeaguesAndTeams = async () => {
+        setError(null);
         // Fetch leagues
         const leaguesDbResponse = await getLeagues(integration.id);
         if (leaguesDbResponse.error) {
