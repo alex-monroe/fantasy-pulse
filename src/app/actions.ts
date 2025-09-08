@@ -3,7 +3,75 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { getSleeperIntegration, getLeagues } from '@/app/integrations/sleeper/actions';
-import { Team } from '@/lib/types';
+import {
+  getYahooIntegration,
+  getYahooUserTeams,
+  getYahooRoster,
+} from '@/app/integrations/yahoo/actions';
+import { Team, Player } from '@/lib/types';
+
+async function getYahooTeams(): Promise<Team[]> {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return [];
+  }
+
+  const { integration, error: integrationError } = await getYahooIntegration();
+  if (integrationError || !integration) {
+    return [];
+  }
+
+  const { teams: yahooApiTeams, error: teamsError } = await getYahooUserTeams(integration.id);
+  if (teamsError || !yahooApiTeams) {
+    return [];
+  }
+
+  const allPlayers: Player[] = [];
+  for (const team of yahooApiTeams) {
+    const { players, error: rosterError } = await getYahooRoster(
+      integration.id,
+      team.league_id,
+      team.team_id
+    );
+    if (rosterError || !players) {
+      continue;
+    }
+    const mappedPlayers: Player[] = players.map((p: any) => ({
+      id: p.player_key,
+      name: p.name,
+      position: p.display_position,
+      realTeam: p.editorial_team_abbr,
+      score: 0, // Yahoo API doesn't provide live scores here
+      gameStatus: 'pregame', // Yahoo API doesn't provide this here
+      onUserTeams: 0,
+      onOpponentTeams: 0,
+      gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+      imageUrl: p.headshot,
+    }));
+    allPlayers.push(...mappedPlayers);
+  }
+
+  if (allPlayers.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      id: integration.id,
+      name: 'Yahoo Roster',
+      totalScore: 0,
+      players: allPlayers,
+      opponent: {
+        name: 'No Opponent',
+        totalScore: 0,
+        players: [],
+      },
+    },
+  ];
+}
 
 export async function getTeams() {
   const cookieStore = cookies();
@@ -31,6 +99,9 @@ export async function getTeams() {
   }
 
   const teams: Team[] = [];
+
+  const yahooTeams = await getYahooTeams();
+  teams.push(...yahooTeams);
 
   const nflStateResponse = await fetch('https://api.sleeper.app/v1/state/nfl');
   const nflState = await nflStateResponse.json();
