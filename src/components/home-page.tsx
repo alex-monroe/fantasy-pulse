@@ -20,6 +20,30 @@ import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: GroupedPlayer[] } => {
+  const positions = ['QB', 'WR', 'RB', 'TE'];
+  const grouped: { [key: string]: GroupedPlayer[] } = {
+    'QB': [],
+    'WR': [],
+    'RB': [],
+    'TE': [],
+    'Other': [],
+  };
+
+  players.forEach(player => {
+    if (player && typeof player.position === 'string') {
+      const position = player.position.toUpperCase();
+      if (positions.includes(position)) {
+        grouped[position].push(player);
+      } else {
+        grouped['Other'].push(player);
+      }
+    }
+  });
+
+  return grouped;
+};
+
 function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
   const groupPlayers = (players: Player[]): GroupedPlayer[] => {
     const playerMap = new Map<string, GroupedPlayer>();
@@ -38,6 +62,10 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
 
   const myPlayers = groupPlayers(teams.flatMap(team => team.players));
   const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
+
+  const myPlayersByPosition = groupPlayersByPosition(myPlayers);
+  const opponentPlayersByPosition = groupPlayersByPosition(opponentPlayers);
+  const positions = ['QB', 'WR', 'RB', 'TE', 'Other'];
 
   return (
     <>
@@ -100,9 +128,20 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                         <CardTitle>My Players</CardTitle>
                         <Badge variant="secondary" className="ml-2">{myPlayers.length}</Badge>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        {myPlayers.map(player => (
-                            <PlayerCard key={`my-player-${player.id}`} player={player} />
+                    <CardContent className="space-y-4">
+                        {positions.map(position => (
+                          myPlayersByPosition[position].length > 0 && (
+                            <div key={position}>
+                              <h3 className="text-lg font-semibold tracking-tight mb-2">{position}</h3>
+                              <div className="space-y-2">
+                                {myPlayersByPosition[position]
+                                  .sort((a, b) => b.score - a.score)
+                                  .map(player => (
+                                    <PlayerCard key={`my-player-${player.id}-${player.name}`} player={player} />
+                                ))}
+                              </div>
+                            </div>
+                          )
                         ))}
                     </CardContent>
                 </Card>
@@ -111,9 +150,20 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                         <CardTitle>Opponent Players</CardTitle>
                         <Badge variant="secondary" className="ml-2">{opponentPlayers.length}</Badge>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        {opponentPlayers.map(player => (
-                            <PlayerCard key={`opponent-player-${player.id}`} player={player} />
+                    <CardContent className="space-y-4">
+                        {positions.map(position => (
+                          opponentPlayersByPosition[position].length > 0 && (
+                            <div key={position}>
+                              <h3 className="text-lg font-semibold tracking-tight mb-2">{position}</h3>
+                              <div className="space-y-2">
+                                {opponentPlayersByPosition[position]
+                                  .sort((a, b) => b.score - a.score)
+                                  .map(player => (
+                                    <PlayerCard key={`opponent-player-${player.id}-${player.name}`} player={player} />
+                                ))}
+                              </div>
+                            </div>
+                          )
                         ))}
                     </CardContent>
                 </Card>
