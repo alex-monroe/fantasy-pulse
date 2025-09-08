@@ -4,6 +4,17 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
 
+function parseYahooTeamData(teamData: any[]) {
+  const teamDetails: { [key: string]: any } = {};
+  teamData.forEach((detail: any) => {
+    if (detail) {
+      const key = Object.keys(detail)[0];
+      teamDetails[key] = detail[key];
+    }
+  });
+  return teamDetails;
+}
+
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
@@ -199,12 +210,7 @@ export async function getYahooUserTeams(integrationId: number) {
     }
 
     const teamsToInsert = Object.values(teamsFromYahoo).filter((t: any) => t.team).map((t: any) => {
-      const teamDetailsArray = t.team[0];
-      const teamDetails: { [key: string]: any } = {};
-      teamDetailsArray.forEach((detail: any) => {
-        const key = Object.keys(detail)[0];
-        teamDetails[key] = detail[key];
-      });
+      const teamDetails = parseYahooTeamData(t.team[0]);
 
       return {
         user_integration_id: integrationId,
@@ -431,18 +437,21 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
       return { matchups: null };
     }
 
+    const parsedUserTeam = parseYahooTeamData(userTeamData.team[0]);
+    const parsedOpponentTeam = parseYahooTeamData(opponentTeamData.team[0]);
+
     const matchup = {
       userTeam: {
-        team_key: userTeamData.team[0][0].team_key,
-        team_id: userTeamData.team[0][1].team_id,
-        name: userTeamData.team[0][2].name,
-        logo_url: userTeamData.team[0][3].team_logos[0].team_logo.url,
+        team_key: parsedUserTeam.team_key,
+        team_id: parsedUserTeam.team_id,
+        name: parsedUserTeam.name,
+        logo_url: parsedUserTeam.team_logos?.[0]?.team_logo?.url,
       },
       opponentTeam: {
-        team_key: opponentTeamData.team[0][0].team_key,
-        team_id: opponentTeamData.team[0][1].team_id,
-        name: opponentTeamData.team[0][2].name,
-        logo_url: opponentTeamData.team[0][3].team_logos[0].team_logo.url,
+        team_key: parsedOpponentTeam.team_key,
+        team_id: parsedOpponentTeam.team_id,
+        name: parsedOpponentTeam.name,
+        logo_url: parsedOpponentTeam.team_logos?.[0]?.team_logo?.url,
       },
     };
 
