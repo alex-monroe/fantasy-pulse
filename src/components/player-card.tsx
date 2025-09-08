@@ -1,6 +1,6 @@
 'use client';
 
-import type { Player } from "@/lib/types";
+import type { GroupedPlayer } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ const gameStatusConfig = {
     pregame: { text: 'Pregame', className: 'bg-accent/20 text-accent-foreground border-accent' },
 };
 
-export function PlayerCard({ player }: { player: Player }) {
+export function PlayerCard({ player }: { player: GroupedPlayer }) {
     const [currentScore, setCurrentScore] = useState(player.score);
     const [scoreChanged, setScoreChanged] = useState(false);
 
@@ -44,6 +44,11 @@ export function PlayerCard({ player }: { player: Player }) {
                     <p className="font-semibold leading-tight">{player.name}</p>
                     <p className="text-xs text-muted-foreground">{player.position} - {player.realTeam}</p>
                 </div>
+                {player.count > 1 && (
+                    <Badge variant="secondary" className="mr-2">
+                        {player.count}
+                    </Badge>
+                )}
                 <div className="flex items-center gap-2 text-muted-foreground mr-2">
                     {player.onUserTeams > 0 && (
                         <Tooltip>

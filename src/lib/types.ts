@@ -13,7 +13,7 @@ export type Alert = {
 };
 
 export type Player = {
-  id: string;
+  id:string;
   name: string;
   position: string;
   realTeam: string;
@@ -27,6 +27,10 @@ export type Player = {
     fieldPosition: string;
   };
   imageUrl: string;
+};
+
+export type GroupedPlayer = Player & {
+  count: number;
 };
 
 export type Team = {
