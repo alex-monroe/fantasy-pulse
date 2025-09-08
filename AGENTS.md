@@ -70,3 +70,13 @@ CREATE TABLE public.user_integrations (
   CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
 );
 ```
+
+## Development
+
+When making changes to dependencies in `package.json`, you must regenerate the `package-lock.json` file. To do this, run the following command:
+
+```bash
+npm install
+```
+
+After running the command, be sure to commit the updated `package-lock.json` file along with your other changes.
