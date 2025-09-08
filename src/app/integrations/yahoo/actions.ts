@@ -31,8 +31,8 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
     return { error: 'Yahoo integration not found.' };
   }
 
-  // Check if the token is expired or close to expiring (e.g., within 60 seconds)
-  if (integration.expires_at && new Date(integration.expires_at).getTime() < Date.now() + 60000) {
+  // Refresh the token if it has expired
+  if (!integration.expires_at || new Date(integration.expires_at).getTime() <= Date.now()) {
     // Token is expired, refresh it
     const clientId = process.env.YAHOO_CLIENT_ID;
     const clientSecret = process.env.YAHOO_CLIENT_SECRET;
