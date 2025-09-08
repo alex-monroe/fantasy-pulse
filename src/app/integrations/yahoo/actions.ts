@@ -220,7 +220,7 @@ export async function getYahooUserTeams(integrationId: number) {
       const supabase = createClient(cookieStore);
       const { data: upsertedTeams, error: upsertError } = await supabase
         .from('teams')
-        .upsert(teamsToInsert, { onConflict: 'team_key' })
+        .upsert(teamsToInsert, { onConflict: 'team_key,user_integration_id' })
         .select();
 
       if (upsertError) {
