@@ -36,9 +36,14 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
     // Token is expired, refresh it
     const clientId = process.env.YAHOO_CLIENT_ID;
     const clientSecret = process.env.YAHOO_CLIENT_SECRET;
+    const redirectUri = process.env.YAHOO_REDIRECT_URI;
 
-    if (!clientId || !clientSecret) {
-      return { error: 'Yahoo client ID, or secret, is not configured.' };
+    if (!clientId || !clientSecret || !redirectUri) {
+      const missingVars = [];
+      if (!clientId) missingVars.push('YAHOO_CLIENT_ID');
+      if (!clientSecret) missingVars.push('YAHOO_CLIENT_SECRET');
+      if (!redirectUri) missingVars.push('YAHOO_REDIRECT_URI');
+      return { error: `Yahoo integration is not configured. Missing environment variables: ${missingVars.join(', ')}` };
     }
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
