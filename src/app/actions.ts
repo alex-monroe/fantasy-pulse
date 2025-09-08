@@ -63,6 +63,14 @@ export async function getTeams() {
         const opponentRoster = rosters.find((roster: any) => roster.roster_id === userMatchup.matchup_id);
         if (!opponentRoster) continue;
 
+        // Fetch all users in the league. This is done once per league.
+        // The Sleeper API does not provide an endpoint to get all users for multiple leagues at once.
+        const leagueUsersResponse = await fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`);
+        const leagueUsers = await leagueUsersResponse.json();
+
+        const opponentUser = leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id);
+        const opponentName = opponentUser?.metadata?.team_name || opponentUser?.display_name || 'Opponent';
+
         const userPlayers = userRoster.players.map((playerId: string) => {
           const player = playersData[playerId];
           return {
@@ -101,7 +109,7 @@ export async function getTeams() {
           totalScore: 0,
           players: userPlayers,
           opponent: {
-            name: 'Opponent',
+            name: opponentName,
             totalScore: 0,
             players: opponentPlayers,
           },
