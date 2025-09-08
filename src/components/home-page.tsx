@@ -20,24 +20,51 @@ import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
-  const groupPlayers = (players: Player[]): GroupedPlayer[] => {
-    const playerMap = new Map<string, GroupedPlayer>();
-    players.forEach(player => {
-      if (player && player.name && player.realTeam) {
-        const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
-        if (playerMap.has(key)) {
-          playerMap.get(key)!.count++;
-        } else {
-          playerMap.set(key, { ...player, count: 1 });
-        }
+const groupPlayers = (players: Player[]): GroupedPlayer[] => {
+  const playerMap = new Map<string, GroupedPlayer>();
+  players.forEach(player => {
+    if (player && player.name && player.realTeam) {
+      const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
+      if (playerMap.has(key)) {
+        playerMap.get(key)!.count++;
+      } else {
+        playerMap.set(key, { ...player, count: 1 });
       }
-    });
-    return Array.from(playerMap.values());
+    }
+  });
+  return Array.from(playerMap.values());
+};
+
+const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: GroupedPlayer[] } => {
+  const positions = ['QB', 'WR', 'RB', 'TE'];
+  const grouped: { [key: string]: GroupedPlayer[] } = {
+    'QB': [],
+    'WR': [],
+    'RB': [],
+    'TE': [],
+    'Other': [],
   };
 
-  const myPlayers = groupPlayers(teams.flatMap(team => team.players));
-  const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
+  players.forEach(player => {
+    // Basic check for player and position validity
+    if (player && typeof player.position === 'string') {
+      const position = player.position.toUpperCase();
+      if (positions.includes(position)) {
+        grouped[position].push(player);
+      } else {
+        grouped['Other'].push(player);
+      }
+    }
+  });
+
+  return grouped;
+};
+
+
+function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
+  const allPlayers = groupPlayers(teams.flatMap(team => [...team.players, ...team.opponent.players]));
+  const playersByPosition = groupPlayersByPosition(allPlayers);
+  const positions = ['QB', 'WR', 'RB', 'TE', 'Other'];
 
   return (
     <>
@@ -94,30 +121,28 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                 </CardContent>
              </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>My Players</CardTitle>
-                        <Badge variant="secondary" className="ml-2">{myPlayers.length}</Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        {myPlayers.map(player => (
-                            <PlayerCard key={`my-player-${player.id}`} player={player} />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Players</CardTitle>
+                <Badge variant="secondary" className="ml-2">{allPlayers.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {positions.map(position => (
+                  playersByPosition[position].length > 0 && (
+                    <div key={position}>
+                      <h3 className="text-lg font-semibold tracking-tight mb-2">{position}</h3>
+                      <div className="space-y-2">
+                        {playersByPosition[position]
+                          .sort((a, b) => b.score - a.score)
+                          .map(player => (
+                            <PlayerCard key={`player-${player.id}-${player.name}`} player={player} />
                         ))}
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Opponent Players</CardTitle>
-                        <Badge variant="secondary" className="ml-2">{opponentPlayers.length}</Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        {opponentPlayers.map(player => (
-                            <PlayerCard key={`opponent-player-${player.id}`} player={player} />
-                        ))}
-                    </CardContent>
-                </Card>
-            </div>
+                      </div>
+                    </div>
+                  )
+                ))}
+              </CardContent>
+            </Card>
         </main>
       </SidebarInset>
     </>
