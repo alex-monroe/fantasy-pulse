@@ -69,7 +69,7 @@ export async function getTeams() {
         const leagueUsers = await leagueUsersResponse.json();
 
         const opponentUser = leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id);
-        const opponentName = opponentUser ? opponentUser.display_name : 'Opponent';
+        const opponentName = opponentUser?.metadata?.team_name || opponentUser?.display_name || 'Opponent';
 
         const userPlayers = userRoster.players.map((playerId: string) => {
           const player = playersData[playerId];
