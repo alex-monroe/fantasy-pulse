@@ -53,11 +53,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch token from Yahoo' }, { status: 500 });
     }
 
-    const { access_token, refresh_token, id_token, token_type } = data;
+    const { access_token, refresh_token, id_token, token_type, expires_in } = data;
 
     // Decode id_token to get user info
     const idTokenPayload = JSON.parse(Buffer.from(id_token.split('.')[1], 'base64').toString());
     const provider_user_id = idTokenPayload.sub;
+
+    const expires_at = new Date(Date.now() + expires_in * 1000).toISOString();
 
     const { error: insertError } = await supabase
       .from('user_integrations')
@@ -68,6 +70,7 @@ export async function GET(request: Request) {
         access_token: access_token,
         refresh_token: refresh_token,
         token_type: token_type,
+        expires_at: expires_at,
       });
 
     if (insertError) {

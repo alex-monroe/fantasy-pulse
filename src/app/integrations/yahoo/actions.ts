@@ -324,7 +324,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
   }
 
   const teamKey = `${leagueId}.t.${teamId}`;
-  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster/players?format=json`;
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;out=stats?format=json`;
 
   try {
     const response = await fetch(url, {
@@ -384,5 +384,62 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     return { players };
   } catch (error) {
     return { error: 'An unexpected error occurred while fetching the roster from Yahoo.' };
+  }
+}
+
+export async function getYahooMatchups(integrationId: number, leagueId: string) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${leagueId}/scoreboard?format=json`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      return { error: `Failed to fetch matchups from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const matchupsData = data.fantasy_content?.league?.[1]?.scoreboard?.['0']?.matchups;
+
+    if (!matchupsData) {
+      return { matchups: [] };
+    }
+
+    const matchups = Object.values(matchupsData).filter((m: any) => m.matchup).map((m: any) => {
+      const teams = m.matchup['0'].teams;
+      return {
+        teams: Object.values(teams).filter((t: any) => t.team).map((t: any) => {
+          const teamDetailsArray = t.team[0];
+          const teamDetails: { [key: string]: any } = {};
+          teamDetailsArray.forEach((detail: any) => {
+            const key = Object.keys(detail)[0];
+            teamDetails[key] = detail[key];
+          });
+          return {
+            team_key: teamDetails.team_key,
+            team_id: teamDetails.team_id,
+            name: teamDetails.name,
+            logo_url: teamDetails.team_logos?.[0]?.team_logo?.url,
+          };
+        }),
+      };
+    });
+
+
+    return { matchups };
+  } catch (error) {
+    return { error: 'An unexpected error occurred while fetching matchups from Yahoo.' };
   }
 }

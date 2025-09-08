@@ -63,7 +63,7 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
                     {teams.map(team => (
-                        <Card key={team.id} className="p-4">
+                        <Card key={`${team.id}-${team.name}`} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="font-semibold">{team.name}</p>
@@ -87,7 +87,7 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {myPlayers.map(player => (
-                            <PlayerCard key={`my-player-${player.id}`} player={player} />
+                            <PlayerCard key={`my-player-${player.id}-${player.name}`} player={player} />
                         ))}
                     </CardContent>
                 </Card>
@@ -98,7 +98,7 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {opponentPlayers.map(player => (
-                            <PlayerCard key={`opponent-player-${player.id}`} player={player} />
+                            <PlayerCard key={`opponent-player-${player.id}-${player.name}`} player={player} />
                         ))}
                     </CardContent>
                 </Card>
