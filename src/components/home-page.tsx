@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Goal, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { Team, Player } from '@/lib/types';
+import { Team, Player, GroupedPlayer } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,7 +21,22 @@ import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
-  const myPlayers = teams.flatMap(team => team.players);
+  const groupPlayers = (players: Player[]): GroupedPlayer[] => {
+    const playerMap = new Map<string, GroupedPlayer>();
+    players.forEach(player => {
+      if (player && player.name && player.realTeam) {
+        const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
+        if (playerMap.has(key)) {
+          playerMap.get(key)!.count++;
+        } else {
+          playerMap.set(key, { ...player, count: 1 });
+        }
+      }
+    });
+    return Array.from(playerMap.values());
+  };
+
+  const myPlayers = groupPlayers(teams.flatMap(team => team.players));
   const opponentPlayers = teams.flatMap(team => team.opponent.players);
 
   return (
