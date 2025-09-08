@@ -364,7 +364,8 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
 
     const players = Object.values(rosterData).filter((p: any) => p.player).map((p: any) => {
       const playerDetailsArray = p.player?.[0];
-      if (!playerDetailsArray) return null;
+      const playerInfo = p.player?.[1];
+      if (!playerDetailsArray || !playerInfo) return null;
 
       // Convert array to a more readable object
       const playerDetails: { [key: string]: any } = {};
@@ -372,6 +373,8 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         const key = Object.keys(detail)[0];
         playerDetails[key] = detail[key];
       });
+
+      const selectedPosition = playerInfo.selected_position?.[1]?.position;
 
       return {
         player_key: playerDetails.player_key,
@@ -389,6 +392,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         is_undroppable: playerDetails.is_undroppable,
         position_type: playerDetails.position_type,
         eligible_positions: playerDetails.eligible_positions?.map((pos: any) => pos.position),
+        on_bench: selectedPosition === 'BN',
       };
     }).filter(Boolean); // Filter out any null entries from failed parsing
 
