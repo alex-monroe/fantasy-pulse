@@ -27,6 +27,7 @@ export type Player = {
     fieldPosition: string;
   };
   imageUrl: string;
+  on_bench: boolean;
 };
 
 export type GroupedPlayer = Player & {
