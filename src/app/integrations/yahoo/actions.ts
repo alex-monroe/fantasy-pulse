@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
+import { getCurrentNflWeek } from '@/app/actions';
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const cookieStore = cookies();
@@ -388,5 +389,66 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     return { players };
   } catch (error) {
     return { error: 'An unexpected error occurred while fetching the roster from Yahoo.' };
+  }
+}
+
+export async function getYahooMatchups(integrationId: number, teamKey: string) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const week = await getCurrentNflWeek();
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/matchups;weeks=${week}?format=json`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error fetching matchups: ${response.status} ${response.statusText}`, errorBody);
+      return { error: `Failed to fetch matchups from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const matchupsData = data.fantasy_content?.team?.[1]?.matchups?.['0']?.matchup;
+
+    if (!matchupsData) {
+      console.log('No matchups found in Yahoo API response.');
+      return { matchups: null };
+    }
+
+    const teams = matchupsData['0'].teams;
+    const userTeamData = Object.values(teams).find((t: any) => t.team[0][0].team_key === teamKey) as any;
+    const opponentTeamData = Object.values(teams).find((t: any) => t.team[0][0].team_key !== teamKey) as any;
+
+    if (!userTeamData || !opponentTeamData) {
+      return { matchups: null };
+    }
+
+    const matchup = {
+      userTeam: {
+        team_key: userTeamData.team[0][0].team_key,
+        team_id: userTeamData.team[0][1].team_id,
+        name: userTeamData.team[0][2].name,
+        logo_url: userTeamData.team[0][3].team_logos[0].team_logo.url,
+      },
+      opponentTeam: {
+        team_key: opponentTeamData.team[0][0].team_key,
+        team_id: opponentTeamData.team[0][1].team_id,
+        name: opponentTeamData.team[0][2].name,
+        logo_url: opponentTeamData.team[0][3].team_logos[0].team_logo.url,
+      },
+    };
+
+    return { matchups: matchup };
+  } catch (error) {
+    console.error('An unexpected error occurred while fetching matchups from Yahoo.', error);
+    return { error: 'An unexpected error occurred while fetching matchups from Yahoo.' };
   }
 }
