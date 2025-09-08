@@ -37,7 +37,7 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   };
 
   const myPlayers = groupPlayers(teams.flatMap(team => team.players));
-  const opponentPlayers = teams.flatMap(team => team.opponent.players);
+  const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
 
   return (
     <>
