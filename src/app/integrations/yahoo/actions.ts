@@ -36,10 +36,9 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
     // Token is expired, refresh it
     const clientId = process.env.YAHOO_CLIENT_ID;
     const clientSecret = process.env.YAHOO_CLIENT_SECRET;
-    const redirectUri = process.env.YAHOO_REDIRECT_URI;
 
-    if (!clientId || !clientSecret || !redirectUri) {
-      return { error: 'Yahoo client ID, secret, or redirect URI is not configured.' };
+    if (!clientId || !clientSecret) {
+      return { error: 'Yahoo client ID, or secret, is not configured.' };
     }
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
@@ -53,8 +52,8 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
-          redirect_uri: redirectUri,
-          refresh_token: integration.refresh_token,
+          redirect_uri: process.env.YAHOO_REDIRECT_URI!,
+          refresh_token: integration.refresh_token!,
         }),
       });
 
@@ -71,7 +70,7 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
         .from('user_integrations')
         .update({
           access_token: data.access_token,
-          refresh_token: data.refresh_token, // Yahoo may issue a new refresh token
+          refresh_token: data.refresh_token || integration.refresh_token, // Yahoo may issue a new refresh token
           expires_at: newExpiresAt,
         })
         .eq('id', integrationId);
