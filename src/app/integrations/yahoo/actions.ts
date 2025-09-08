@@ -2,6 +2,18 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
+import { getCurrentNflWeek } from '@/app/actions';
+
+function parseYahooTeamData(teamData: any[]) {
+  const teamDetails: { [key: string]: any } = {};
+  teamData.forEach((detail: any) => {
+    if (detail) {
+      const key = Object.keys(detail)[0];
+      teamDetails[key] = detail[key];
+    }
+  });
+  return teamDetails;
+}
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const cookieStore = cookies();
@@ -198,12 +210,7 @@ export async function getYahooUserTeams(integrationId: number) {
     }
 
     const teamsToInsert = Object.values(teamsFromYahoo).filter((t: any) => t.team).map((t: any) => {
-      const teamDetailsArray = t.team[0];
-      const teamDetails: { [key: string]: any } = {};
-      teamDetailsArray.forEach((detail: any) => {
-        const key = Object.keys(detail)[0];
-        teamDetails[key] = detail[key];
-      });
+      const teamDetails = parseYahooTeamData(t.team[0]);
 
       return {
         user_integration_id: integrationId,
@@ -388,5 +395,69 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     return { players };
   } catch (error) {
     return { error: 'An unexpected error occurred while fetching the roster from Yahoo.' };
+  }
+}
+
+export async function getYahooMatchups(integrationId: number, teamKey: string) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const week = await getCurrentNflWeek();
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/matchups;weeks=${week}?format=json`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error fetching matchups: ${response.status} ${response.statusText}`, errorBody);
+      return { error: `Failed to fetch matchups from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const matchupsData = data.fantasy_content?.team?.[1]?.matchups?.['0']?.matchup;
+
+    if (!matchupsData) {
+      console.log('No matchups found in Yahoo API response.');
+      return { matchups: null };
+    }
+
+    const teams = matchupsData['0'].teams;
+    const userTeamData = Object.values(teams).find((t: any) => t.team[0][0].team_key === teamKey) as any;
+    const opponentTeamData = Object.values(teams).find((t: any) => t.team[0][0].team_key !== teamKey) as any;
+
+    if (!userTeamData || !opponentTeamData) {
+      return { matchups: null };
+    }
+
+    const parsedUserTeam = parseYahooTeamData(userTeamData.team[0]);
+    const parsedOpponentTeam = parseYahooTeamData(opponentTeamData.team[0]);
+
+    const matchup = {
+      userTeam: {
+        team_key: parsedUserTeam.team_key,
+        team_id: parsedUserTeam.team_id,
+        name: parsedUserTeam.name,
+        logo_url: parsedUserTeam.team_logos?.[0]?.team_logo?.url,
+      },
+      opponentTeam: {
+        team_key: parsedOpponentTeam.team_key,
+        team_id: parsedOpponentTeam.team_id,
+        name: parsedOpponentTeam.name,
+        logo_url: parsedOpponentTeam.team_logos?.[0]?.team_logo?.url,
+      },
+    };
+
+    return { matchups: matchup };
+  } catch (error) {
+    console.error('An unexpected error occurred while fetching matchups from Yahoo.', error);
+    return { error: 'An unexpected error occurred while fetching matchups from Yahoo.' };
   }
 }
