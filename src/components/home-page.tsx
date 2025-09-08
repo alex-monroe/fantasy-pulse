@@ -24,18 +24,20 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   const groupPlayers = (players: Player[]): GroupedPlayer[] => {
     const playerMap = new Map<string, GroupedPlayer>();
     players.forEach(player => {
-      const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
-      if (playerMap.has(key)) {
-        playerMap.get(key)!.count++;
-      } else {
-        playerMap.set(key, { ...player, count: 1 });
+      if (player && player.name && player.realTeam) {
+        const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
+        if (playerMap.has(key)) {
+          playerMap.get(key)!.count++;
+        } else {
+          playerMap.set(key, { ...player, count: 1 });
+        }
       }
     });
     return Array.from(playerMap.values());
   };
 
   const myPlayers = groupPlayers(teams.flatMap(team => team.players));
-  const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
+  const opponentPlayers = teams.flatMap(team => team.opponent.players);
 
   return (
     <>
