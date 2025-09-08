@@ -70,3 +70,20 @@ CREATE TABLE public.user_integrations (
   CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
 );
 ```
+
+## Development
+
+### `package-lock.json` Synchronization
+
+When making changes to dependencies in `package.json`, you must regenerate the `package-lock.json` file. This is crucial because our continuous integration (CI) pipeline uses the `npm ci` command, which requires `package.json` and `package-lock.json` to be perfectly in sync.
+
+If they are not in sync, the CI pipeline will fail with an error similar to this:
+`npm ERR! clean install a project with an out-of-sync lockfile`
+
+To prevent this, after any change in `package.json`, run the following command to update `package-lock.json`:
+
+```bash
+npm install
+```
+
+After running the command, be sure to commit the updated `package-lock.json` file along with your other changes. If you forget to do this, you will need to pull the latest changes, run `npm install`, and then push the updated `package-lock.json` file.
