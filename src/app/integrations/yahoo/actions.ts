@@ -443,12 +443,14 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
         team_id: parsedUserTeam.team_id,
         name: parsedUserTeam.name,
         logo_url: parsedUserTeam.team_logos?.[0]?.team_logo?.url,
+        totalPoints: userTeamData.team[1]?.team_points?.total,
       },
       opponentTeam: {
         team_key: parsedOpponentTeam.team_key,
         team_id: parsedOpponentTeam.team_id,
         name: parsedOpponentTeam.name,
         logo_url: parsedOpponentTeam.team_logos?.[0]?.team_logo?.url,
+        totalPoints: opponentTeamData.team[1]?.team_points?.total,
       },
     };
 
@@ -456,5 +458,65 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
   } catch (error) {
     console.error('An unexpected error occurred while fetching matchups from Yahoo.', error);
     return { error: 'An unexpected error occurred while fetching matchups from Yahoo.' };
+  }
+}
+
+export async function getYahooPlayerScores(integrationId: number, teamKey: string) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const week = await getCurrentNflWeek();
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;week=${week}/players/stats?format=json`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      return { error: `Failed to fetch player scores from Yahoo: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    // console.log('Yahoo player scores data:', JSON.stringify(data, null, 2));
+    const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
+
+    if (!rosterData) {
+      console.log('No roster data found in Yahoo API response.');
+      return { players: [] };
+    }
+
+    const players = Object.values(rosterData).filter((p: any) => p.player).map((p: any) => {
+      const playerDetailsArray = p.player[0];
+      const playerStats = p.player[1]?.player_points?.total;
+
+      const playerDetails: { [key: string]: any } = {};
+      playerDetailsArray.forEach((detail: any) => {
+        if (detail) {
+          const key = Object.keys(detail)[0];
+          playerDetails[key] = detail[key];
+        }
+      });
+
+      return {
+        player_key: playerDetails.player_key,
+        player_id: playerDetails.player_id,
+        name: playerDetails.name?.full,
+        headshot: playerDetails.headshot?.url,
+        position_type: playerDetails.position_type,
+        totalPoints: playerStats,
+      };
+    }).filter(Boolean);
+
+    return { players };
+  } catch (error) {
+    return { error: 'An unexpected error occurred while fetching player scores from Yahoo.' };
   }
 }
