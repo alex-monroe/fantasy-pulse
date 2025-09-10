@@ -92,6 +92,7 @@ export async function getTeams() {
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
             imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
+            on_bench: !userRoster.starters.includes(playerId),
           };
         });
 
@@ -108,6 +109,7 @@ export async function getTeams() {
                 onOpponentTeams: 0,
                 gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
                 imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
+                on_bench: !opponentRoster.starters.includes(playerId),
             };
         });
 
