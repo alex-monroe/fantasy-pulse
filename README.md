@@ -40,6 +40,5 @@ You can sign in at `/login` with an email and password, sign up for a new accoun
 ## To Do
 
 * update live game states
-* fix sleeper matchup info
 * fix player lookup with "Jr" or "III" in name
 * update favicon
