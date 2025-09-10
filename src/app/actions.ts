@@ -40,6 +40,14 @@ export async function getTeams() {
   const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
   const playersData = await playersResponse.json();
 
+  const playerNameMap: { [key: string]: string } = {};
+  for (const playerId in playersData) {
+    const player = playersData[playerId];
+    if (player.full_name) {
+      playerNameMap[player.full_name.toLowerCase()] = playerId;
+    }
+  }
+
   for (const integration of integrations) {
     if (integration.provider === 'sleeper') {
       const { leagues, error: leaguesError } = await getLeagues(integration.id);
@@ -143,20 +151,13 @@ export async function getTeams() {
         );
         if (opponentRosterError || !opponentPlayers) continue;
 
-        const mappedUserPlayers: Player[] = userPlayers.map((p: any) => ({
-          id: p.player_key,
-          name: p.name,
-          position: p.display_position,
-          realTeam: p.editorial_team_abbr,
-          score: 0,
-          gameStatus: 'pregame',
-          onUserTeams: 0,
-          onOpponentTeams: 0,
-          gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-          imageUrl: p.headshot,
-        }));
+        const mapYahooPlayer = (p: any): Player => {
+          const sleeperId = playerNameMap[p.name.toLowerCase()];
+          const imageUrl = sleeperId
+            ? `https://sleepercdn.com/content/nfl/players/thumb/${sleeperId}.jpg`
+            : p.headshot;
 
-        const mappedOpponentPlayers: Player[] = opponentPlayers.map((p: any) => ({
+          return {
             id: p.player_key,
             name: p.name,
             position: p.display_position,
@@ -166,8 +167,12 @@ export async function getTeams() {
             onUserTeams: 0,
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-            imageUrl: p.headshot,
-        }));
+            imageUrl: imageUrl,
+          };
+        };
+
+        const mappedUserPlayers: Player[] = userPlayers.map(mapYahooPlayer);
+        const mappedOpponentPlayers: Player[] = opponentPlayers.map(mapYahooPlayer);
 
         teams.push({
           id: team.id,
