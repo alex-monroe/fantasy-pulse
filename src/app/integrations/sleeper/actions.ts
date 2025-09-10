@@ -4,8 +4,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 
 export async function connectSleeper(username: string) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -42,8 +41,7 @@ export async function connectSleeper(username: string) {
 }
 
 export async function removeSleeperIntegration(integrationId: number) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   // First, delete all leagues associated with the integration
   const { error: deleteLeaguesError } = await supabase
@@ -69,8 +67,7 @@ export async function removeSleeperIntegration(integrationId: number) {
 }
 
 export async function getLeagues(integrationId: number) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('leagues')
     .select('*')
@@ -84,8 +81,7 @@ export async function getLeagues(integrationId: number) {
 }
 
 export async function getSleeperIntegration() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -107,8 +103,7 @@ export async function getSleeperIntegration() {
 }
 
 export async function getSleeperLeagues(userId: string, integrationId: number) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
   try {
     const year = new Date().getFullYear();
     const res = await fetch(`https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`);

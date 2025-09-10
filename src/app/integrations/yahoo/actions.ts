@@ -16,8 +16,7 @@ function parseYahooTeamData(teamData: any[]) {
 }
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
   console.log(`Fetching access token for integrationId: ${integrationId}`);
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -112,8 +111,7 @@ export async function connectYahoo() {
 }
 
 export async function removeYahooIntegration(integrationId: number) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   // First, delete all teams associated with the integration
   const { error: deleteTeamsError } = await supabase
@@ -149,8 +147,7 @@ export async function removeYahooIntegration(integrationId: number) {
 }
 
 export async function getLeagues(integrationId: number) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('leagues')
     .select('*')
@@ -164,8 +161,7 @@ export async function getLeagues(integrationId: number) {
 }
 
 export async function getTeams(integrationId: number) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('teams')
     .select('*')
@@ -223,8 +219,7 @@ export async function getYahooUserTeams(integrationId: number) {
     });
 
     if (teamsToInsert.length > 0) {
-      const cookieStore = cookies();
-      const supabase = createClient(cookieStore);
+      const supabase = createClient();
       const { data: upsertedTeams, error: upsertError } = await supabase
         .from('teams')
         .upsert(teamsToInsert, { onConflict: 'team_key,user_integration_id' })
@@ -245,8 +240,7 @@ export async function getYahooUserTeams(integrationId: number) {
 }
 
 export async function getYahooIntegration() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -307,8 +301,7 @@ export async function getYahooLeagues(integrationId: number) {
     }));
 
     if (leaguesToInsert.length > 0) {
-      const cookieStore = cookies();
-      const supabase = createClient(cookieStore);
+      const supabase = createClient();
       const { data: upsertedLeagues, error: upsertError } = await supabase
         .from('leagues')
         .upsert(leaguesToInsert, { onConflict: 'league_id' })

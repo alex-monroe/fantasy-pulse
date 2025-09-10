@@ -63,8 +63,13 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   const myPlayers = groupPlayers(teams.flatMap(team => team.players));
   const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
 
-  const myPlayersByPosition = groupPlayersByPosition(myPlayers);
-  const opponentPlayersByPosition = groupPlayersByPosition(opponentPlayers);
+  const myStarters = myPlayers.filter(p => !p.on_bench);
+  const myBench = myPlayers.filter(p => p.on_bench);
+  const opponentStarters = opponentPlayers.filter(p => !p.on_bench);
+  const opponentBench = opponentPlayers.filter(p => p.on_bench);
+
+  const myPlayersByPosition = groupPlayersByPosition(myStarters);
+  const opponentPlayersByPosition = groupPlayersByPosition(opponentStarters);
   const positions = ['QB', 'WR', 'RB', 'TE', 'Other'];
 
   return (
@@ -143,6 +148,18 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                             </div>
                           )
                         ))}
+                        {myBench.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold tracking-tight mb-2">Bench</h3>
+                                <div className="space-y-2">
+                                    {myBench
+                                        .sort((a, b) => b.score - a.score)
+                                        .map(player => (
+                                            <PlayerCard key={`my-bench-${player.id}-${player.name}`} player={player} />
+                                        ))}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
                  <Card>
@@ -165,6 +182,18 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                             </div>
                           )
                         ))}
+                        {opponentBench.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold tracking-tight mb-2">Bench</h3>
+                                <div className="space-y-2">
+                                    {opponentBench
+                                        .sort((a, b) => b.score - a.score)
+                                        .map(player => (
+                                            <PlayerCard key={`opponent-bench-${player.id}-${player.name}`} player={player} />
+                                        ))}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -174,19 +203,14 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   )
 }
 
-export default function HomePage({ teams }: { teams: Team[] }) {
+export default function HomePage({ teams, user }: { teams: Team[], user: any }) {
   const router = useRouter();
 
   useEffect(() => {
-    const checkUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/login');
-      }
-    };
-    checkUser();
-  }, [router]);
+    if (!user) {
+      router.replace('/login');
+    }
+  }, [user, router]);
 
   const handleSignOut = async () => {
     const supabase = createClient();
