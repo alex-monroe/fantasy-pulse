@@ -367,7 +367,8 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         playerDetails[key] = detail[key];
       });
 
-      const selectedPosition = playerInfo.selected_position?.[1]?.position;
+      const selectedPositionObject = playerInfo.selected_position?.find((el: any) => el.position);
+      const selectedPosition = selectedPositionObject?.position;
 
       return {
         player_key: playerDetails.player_key,
