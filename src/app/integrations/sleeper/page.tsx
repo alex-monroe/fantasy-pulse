@@ -93,7 +93,7 @@ export default function SleeperPage() {
 
   useEffect(() => {
     if (integration) {
-      const fetchLeagues = async ().
+      const fetchLeagues = async () => {
         const dbResponse = await getLeagues(integration.id);
         if (dbResponse.error) {
           setError(dbResponse.error);
@@ -231,7 +231,7 @@ export default function SleeperPage() {
                             />
                             <CardTitle>{team.user.display_name}</CardTitle>
                           </div>
-                          <div className="text-2xl font-bold">{(team.points || 0).toFixed(2)}</div>
+                          <div className="text-2xl font-bold">{team.total_points.toFixed(2)}</div>
                         </CardHeader>
                         <CardContent>
                           <Table>

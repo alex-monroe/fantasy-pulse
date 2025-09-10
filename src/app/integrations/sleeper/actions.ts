@@ -230,10 +230,13 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
         };
       });
 
+      const totalPoints = matchupPlayers.reduce((acc: number, player: any) => acc + player.score, 0);
+
       return {
         ...matchup,
         user: user ? { display_name: user.display_name, avatar: user.avatar } : { display_name: 'Unknown User' },
         players: matchupPlayers,
+        total_points: totalPoints,
       };
     });
 
