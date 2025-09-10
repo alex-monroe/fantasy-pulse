@@ -8,6 +8,7 @@ import {
   getYahooUserTeams,
   getYahooRoster,
   getYahooMatchups,
+  getYahooPlayerScores,
 } from '@/app/integrations/yahoo/actions';
 import { Team, Player } from '@/lib/types';
 
@@ -67,25 +68,37 @@ export async function getTeams() {
         const userMatchup = matchups.find((matchup: any) => matchup.roster_id === userRoster.roster_id);
         if (!userMatchup) continue;
 
-        const opponentRoster = rosters.find((roster: any) => roster.roster_id === userMatchup.matchup_id);
-        if (!opponentRoster) continue;
+        const opponentMatchup = matchups.find(
+          (matchup: any) =>
+            matchup.matchup_id === userMatchup.matchup_id && matchup.roster_id !== userRoster.roster_id
+        );
+
+        const opponentRoster = opponentMatchup
+          ? rosters.find((roster: any) => roster.roster_id === opponentMatchup.roster_id)
+          : null;
 
         // Fetch all users in the league. This is done once per league.
         // The Sleeper API does not provide an endpoint to get all users for multiple leagues at once.
         const leagueUsersResponse = await fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`);
         const leagueUsers = await leagueUsersResponse.json();
 
-        const opponentUser = leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id);
+        const opponentUser = opponentRoster
+          ? leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id)
+          : null;
         const opponentName = opponentUser?.metadata?.team_name || opponentUser?.display_name || 'Opponent';
 
         const userPlayers = userRoster.players.map((playerId: string) => {
           const player = playersData[playerId];
+          const score =
+            userMatchup.players_points && userMatchup.players_points[playerId]
+              ? userMatchup.players_points[playerId]
+              : 0;
           return {
             id: playerId,
             name: player.full_name,
             position: player.position,
             realTeam: player.team,
-            score: 0,
+            score: score,
             gameStatus: 'pregame',
             onUserTeams: 0,
             onOpponentTeams: 0,
@@ -95,31 +108,38 @@ export async function getTeams() {
           };
         });
 
-        const opponentPlayers = opponentRoster.players.map((playerId: string) => {
-            const player = playersData[playerId];
-            return {
+        const opponentPlayers = opponentRoster
+          ? opponentRoster.players.map((playerId: string) => {
+              const player = playersData[playerId];
+              const score =
+                opponentMatchup.players_points && opponentMatchup.players_points[playerId]
+                  ? opponentMatchup.players_points[playerId]
+                  : 0;
+
+              return {
                 id: playerId,
                 name: player.full_name,
                 position: player.position,
                 realTeam: player.team,
-                score: 0,
+                score: score,
                 gameStatus: 'pregame',
                 onUserTeams: 0,
                 onOpponentTeams: 0,
                 gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
                 imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
                 on_bench: !opponentRoster.starters.includes(playerId),
-            };
-        });
+              };
+            })
+          : [];
 
         teams.push({
           id: league.id,
           name: league.name,
-          totalScore: 0,
+          totalScore: userMatchup.points,
           players: userPlayers,
           opponent: {
             name: opponentName,
-            totalScore: 0,
+            totalScore: opponentMatchup ? opponentMatchup.points : 0,
             players: opponentPlayers,
           },
         });
@@ -152,7 +172,29 @@ export async function getTeams() {
         );
         if (opponentRosterError || !opponentPlayers) continue;
 
-        const mapYahooPlayer = (p: any): Player => {
+        const { players: userPlayerScores, error: userScoresError } = await getYahooPlayerScores(
+          integration.id,
+          userTeam.team_key
+        );
+        if (userScoresError) {
+          console.error(`Could not fetch user player scores for team ${userTeam.team_key}`, userScoresError);
+        }
+
+        const { players: opponentPlayerScores, error: opponentScoresError } = await getYahooPlayerScores(
+          integration.id,
+          opponentTeam.team_key
+        );
+        if (opponentScoresError) {
+          console.error(
+            `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
+            opponentScoresError
+          );
+        }
+
+        const userScoresMap = new Map(userPlayerScores?.map(p => [p.player_key, p.totalPoints]));
+        const opponentScoresMap = new Map(opponentPlayerScores?.map(p => [p.player_key, p.totalPoints]));
+
+        const mapYahooPlayer = (p: any, scoresMap: Map<string, number>): Player => {
           const sleeperId = playerNameMap[p.name.toLowerCase()];
           const imageUrl = sleeperId
             ? `https://sleepercdn.com/content/nfl/players/thumb/${sleeperId}.jpg`
@@ -163,7 +205,7 @@ export async function getTeams() {
             name: p.name,
             position: p.display_position,
             realTeam: p.editorial_team_abbr,
-            score: 0,
+            score: scoresMap.get(p.player_key) || 0,
             gameStatus: 'pregame',
             onUserTeams: 0,
             onOpponentTeams: 0,
@@ -173,17 +215,17 @@ export async function getTeams() {
           };
         };
 
-        const mappedUserPlayers: Player[] = userPlayers.map(mapYahooPlayer);
-        const mappedOpponentPlayers: Player[] = opponentPlayers.map(mapYahooPlayer);
+        const mappedUserPlayers: Player[] = userPlayers.map(p => mapYahooPlayer(p, userScoresMap));
+        const mappedOpponentPlayers: Player[] = opponentPlayers.map(p => mapYahooPlayer(p, opponentScoresMap));
 
         teams.push({
           id: team.id,
           name: userTeam.name,
-          totalScore: 0,
+          totalScore: parseFloat(userTeam.totalPoints) || 0,
           players: mappedUserPlayers,
           opponent: {
             name: opponentTeam.name,
-            totalScore: 0,
+            totalScore: parseFloat(opponentTeam.totalPoints) || 0,
             players: mappedOpponentPlayers,
           },
         });
