@@ -169,6 +169,7 @@ export async function getTeams() {
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
             imageUrl: imageUrl,
+            on_bench: p.on_bench,
           };
         };
 
