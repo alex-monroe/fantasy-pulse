@@ -355,7 +355,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     // Log the raw roster data for debugging
-    // console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
+    console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
 
     if (!rosterData) {
       console.log('No roster data found in Yahoo API response.');
