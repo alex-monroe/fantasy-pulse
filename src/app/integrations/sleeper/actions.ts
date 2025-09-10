@@ -134,3 +134,111 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
     return { error: 'An unexpected error occurred' };
   }
 }
+
+export async function getMatchups(leagueId: string, week: string) {
+  try {
+    const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
+    if (!res.ok) {
+      const error = await res.json();
+      return { error: error.message || 'Failed to fetch matchups' };
+    }
+    const matchups = await res.json();
+    return { matchups };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+export async function getRosters(leagueId: string) {
+  try {
+    const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
+    if (!res.ok) {
+      const error = await res.json();
+      return { error: error.message || 'Failed to fetch rosters' };
+    }
+    const rosters = await res.json();
+    return { rosters };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+export async function getUsersInLeague(leagueId: string) {
+  try {
+    const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/users`);
+    if (!res.ok) {
+      const error = await res.json();
+      return { error: error.message || 'Failed to fetch users' };
+    }
+    const users = await res.json();
+    return { users };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+export async function getNflPlayers() {
+  try {
+    const res = await fetch(`https://api.sleeper.app/v1/players/nfl`);
+    if (!res.ok) {
+      const error = await res.json();
+      return { error: error.message || 'Failed to fetch nfl players' };
+    }
+    const players = await res.json();
+    return { players };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+export async function getLeagueMatchups(leagueId: string, week: string) {
+  try {
+    const [matchupsRes, rostersRes, usersRes, playersRes] = await Promise.all([
+      getMatchups(leagueId, week),
+      getRosters(leagueId),
+      getUsersInLeague(leagueId),
+      getNflPlayers(),
+    ]);
+
+    if (matchupsRes.error) return { error: matchupsRes.error };
+    if (rostersRes.error) return { error: rostersRes.error };
+    if (usersRes.error) return { error: usersRes.error };
+    if (playersRes.error) return { error: playersRes.error };
+
+    const { matchups } = matchupsRes;
+    const { rosters } = rostersRes;
+    const { users } = usersRes;
+    const { players } = playersRes;
+
+    const usersMap = new Map(users.map((user: any) => [user.user_id, user]));
+    const rostersMap = new Map(rosters.map((roster: any) => [roster.roster_id, roster]));
+
+    const enrichedMatchups = matchups.map((matchup: any) => {
+      const roster = rostersMap.get(matchup.roster_id);
+      if (!roster) return matchup;
+
+      const user = usersMap.get(roster.owner_id);
+      const matchupPlayers = matchup.players.map((playerId: string) => {
+        const playerDetails = players[playerId];
+        return {
+          player_id: playerId,
+          first_name: playerDetails?.first_name || 'Unknown',
+          last_name: playerDetails?.last_name || 'Player',
+          position: playerDetails?.position || 'N/A',
+          team: playerDetails?.team || 'N/A',
+          score: matchup.players_points[playerId] || 0,
+        };
+      });
+
+      return {
+        ...matchup,
+        user: user ? { display_name: user.display_name, avatar: user.avatar } : { display_name: 'Unknown User' },
+        players: matchupPlayers,
+      };
+    });
+
+    return { matchups: enrichedMatchups };
+  } catch (error) {
+    return { error: 'An unexpected error occurred while fetching league matchups' };
+  }
+}
