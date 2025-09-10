@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: 'Fantasy Football Pulse',
+  title: 'Roster Loom',
   description: 'Live fantasy football scores and insights.',
 };
 

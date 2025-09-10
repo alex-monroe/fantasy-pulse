@@ -1,4 +1,4 @@
-# **App Name**: Fantasy Football Pulse
+# **App Name**: Roster Loom
 
 ## Core Features:
 

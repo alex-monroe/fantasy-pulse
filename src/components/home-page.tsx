@@ -81,7 +81,7 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
               <Goal className="h-8 w-8" />
             </Button>
             <div className='group-data-[collapsible=icon]:hidden'>
-              <h1 className="text-xl font-semibold whitespace-nowrap">Fantasy Pulse</h1>
+              <h1 className="text-xl font-semibold whitespace-nowrap">Roster Loom</h1>
             </div>
           </div>
         </SidebarHeader>
