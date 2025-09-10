@@ -18,8 +18,7 @@ export async function getCurrentNflWeek() {
 }
 
 export async function getTeams() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
