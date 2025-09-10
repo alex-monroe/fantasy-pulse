@@ -179,13 +179,28 @@ export default function YahooPage() {
           {players.length > 0 && (
             <div className="mt-4">
               <h3 className="text-lg font-medium">Roster</h3>
-              <ul className="mt-2 space-y-2">
-                {players.map((player) => (
-                  <li key={player.player_key} className="p-2 border rounded-md">
-                    {player.name} ({player.display_position})
-                  </li>
-                ))}
-              </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <h4 className="font-semibold">Active</h4>
+                  <ul className="space-y-2 mt-2">
+                    {players.filter(p => p.selected_position.position !== 'BN').map((player) => (
+                      <li key={player.player_key} className="p-2 border rounded-md">
+                        {player.name} ({player.display_position})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold">Bench</h4>
+                  <ul className="space-y-2 mt-2">
+                    {players.filter(p => p.selected_position.position === 'BN').map((player) => (
+                      <li key={player.player_key} className="p-2 border rounded-md">
+                        {player.name} ({player.display_position})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
