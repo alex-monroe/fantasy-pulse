@@ -348,7 +348,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     // Log the raw roster data for debugging
-    // console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
+    console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
 
     if (!rosterData) {
       console.log('No roster data found in Yahoo API response.');
@@ -360,6 +360,8 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
       const playerInfo = p.player?.[1];
       if (!playerDetailsArray || !playerInfo) return null;
 
+      console.log('Processing playerInfo:', JSON.stringify(playerInfo, null, 2));
+
       // Convert array to a more readable object
       const playerDetails: { [key: string]: any } = {};
       playerDetailsArray.forEach((detail: any) => {
@@ -370,7 +372,9 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
       const selectedPositionObject = playerInfo.selected_position?.find((el: any) => el.position);
       const selectedPosition = selectedPositionObject?.position;
 
-      return {
+      console.log(`Player: ${playerDetails.name?.full}, selectedPosition: ${selectedPosition}`);
+
+      const player = {
         player_key: playerDetails.player_key,
         player_id: playerDetails.player_id,
         name: playerDetails.name?.full,
@@ -388,6 +392,9 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         eligible_positions: playerDetails.eligible_positions?.map((pos: any) => pos.position),
         on_bench: selectedPosition === 'BN',
       };
+
+      console.log(`Transformed Player: ${player.name}, on_bench: ${player.on_bench}`);
+      return player;
     }).filter(Boolean); // Filter out any null entries from failed parsing
 
     return { players };
