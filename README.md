@@ -1,6 +1,6 @@
-# Fantasy Pulse
+# Roster Loom
 
-Fantasy Pulse is a Next.js application for tracking fantasy football matchups.  
+Roster Loom is a Next.js application for tracking fantasy football matchups.
 The project uses the App Router and Supabase for authentication and data storage.
 
 To get started, take a look at `src/app/page.tsx`.
