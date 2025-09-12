@@ -13,7 +13,7 @@ export type Alert = {
 };
 
 export type Player = {
-  id:string;
+  id: string;
   name: string;
   position: string;
   realTeam: string;

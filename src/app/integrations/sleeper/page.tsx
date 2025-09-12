@@ -1,14 +1,7 @@
 'use client';
 
 import { useState, FormEvent, useEffect } from 'react';
-import {
-  connectSleeper,
-  getSleeperLeagues,
-  getSleeperIntegration,
-  getLeagues,
-  removeSleeperIntegration,
-  getLeagueMatchups,
-} from './actions';
+import { connectSleeper, removeIntegration, getIntegration, getLeaguesForIntegration, getLeagueMatchupsForIntegration } from '../actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,12 +24,9 @@ export default function SleeperPage() {
 
   useEffect(() => {
     const checkIntegration = async () => {
-      const { integration, error } = await getSleeperIntegration();
-      if (error) {
-        setError(error);
-      } else {
-        setIntegration(integration);
-      }
+      const { integration, error } = await getIntegration('sleeper');
+      if (error) setError(error);
+      else setIntegration(integration);
       setLoading(false);
     };
     checkIntegration();
@@ -45,70 +35,49 @@ export default function SleeperPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    const { user, error: userError } = await connectSleeper(username);
-    if (userError) {
-      setError(userError);
+    const { success, error } = await connectSleeper(username);
+    if (error) {
+      setError(error);
       return;
     }
-    const { integration, error: integrationError } = await getSleeperIntegration();
-    if (integrationError) {
-      setError(integrationError);
-    } else {
-      setIntegration(integration);
+    if (success) {
+      const { integration: newIntegration, error: integrationError } = await getIntegration('sleeper');
+      if (integrationError) setError(integrationError);
+      else setIntegration(newIntegration);
     }
   };
 
   const handleRemove = async () => {
     if (!integration) return;
-
     setIsRemoving(true);
     setError(null);
-
-    const { success, error } = await removeSleeperIntegration(integration.id);
-
-    if (error) {
-      setError(error);
-    } else if (success) {
+    const { success, error } = await removeIntegration(integration.id);
+    if (error) setError(error);
+    else if (success) {
       setIntegration(null);
       setLeagues([]);
       setUsername('');
       setSelectedLeague(null);
       setMatchups([]);
     }
-
     setIsRemoving(false);
   };
 
   const handleFetchMatchups = async (leagueId: string, week: string) => {
     setLoadingMatchups(true);
     setError(null);
-    const { matchups, error } = await getLeagueMatchups(leagueId, week);
-    if (error) {
-      setError(error);
-    } else {
-      setMatchups(matchups || []);
-    }
+    const { matchups, error } = await getLeagueMatchupsForIntegration(integration.id, leagueId, week);
+    if (error) setError(error as string);
+    else setMatchups(matchups || []);
     setLoadingMatchups(false);
   };
 
   useEffect(() => {
     if (integration) {
       const fetchLeagues = async () => {
-        const dbResponse = await getLeagues(integration.id);
-        if (dbResponse.error) {
-          setError(dbResponse.error);
-          return;
-        }
-        if (dbResponse.leagues && dbResponse.leagues.length > 0) {
-          setLeagues(dbResponse.leagues);
-        } else {
-          const sleeperResponse = await getSleeperLeagues(integration.provider_user_id, integration.id);
-          if (sleeperResponse.error) {
-            setError(sleeperResponse.error);
-          } else {
-            setLeagues(sleeperResponse.leagues || []);
-          }
-        }
+        const { leagues, error } = await getLeaguesForIntegration(integration.id);
+        if (error) setError(error as string);
+        else setLeagues(leagues || []);
       };
       fetchLeagues();
     }
@@ -116,8 +85,9 @@ export default function SleeperPage() {
 
   useEffect(() => {
     if (selectedLeague) {
-      handleFetchMatchups(selectedLeague.league_id, selectedWeek);
+      handleFetchMatchups(selectedLeague.id, selectedWeek);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeague, selectedWeek]);
 
   if (loading) {
@@ -126,9 +96,7 @@ export default function SleeperPage() {
 
   const groupedMatchups = matchups.reduce((acc, matchup) => {
     const matchupId = matchup.matchup_id;
-    if (!acc[matchupId]) {
-      acc[matchupId] = [];
-    }
+    if (!acc[matchupId]) acc[matchupId] = [];
     acc[matchupId].push(matchup);
     return acc;
   }, {});
@@ -139,9 +107,7 @@ export default function SleeperPage() {
         <CardHeader>
           <CardTitle>Connect to Sleeper</CardTitle>
           <CardDescription>
-            {integration
-              ? `Connected as ${integration.provider_user_id}.`
-              : "Enter your Sleeper username to connect your account."}
+            {integration ? `Connected as ${integration.provider_user_id}.` : "Enter your Sleeper username to connect your account."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,13 +115,7 @@ export default function SleeperPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="username">Sleeper Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
+                <Input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
               </div>
               <Button type="submit">Connect</Button>
             </form>
@@ -178,11 +138,7 @@ export default function SleeperPage() {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {leagues.map((league) => (
-                <Button
-                  key={league.league_id}
-                  onClick={() => setSelectedLeague(league)}
-                  variant={selectedLeague?.league_id === league.league_id ? 'default' : 'outline'}
-                >
+                <Button key={league.id} onClick={() => setSelectedLeague(league)} variant={selectedLeague?.id === league.id ? 'default' : 'outline'}>
                   {league.name}
                 </Button>
               ))}
@@ -198,23 +154,15 @@ export default function SleeperPage() {
             <div className="flex items-center space-x-2">
               <Label htmlFor="week-selector">Week:</Label>
               <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-                <SelectTrigger id="week-selector" className="w-[180px]">
-                  <SelectValue placeholder="Select a week" />
-                </SelectTrigger>
+                <SelectTrigger id="week-selector" className="w-[180px]"><SelectValue placeholder="Select a week" /></SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => (
-                    <SelectItem key={week} value={String(week)}>
-                      Week {week}
-                    </SelectItem>
-                  ))}
+                  {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => <SelectItem key={week} value={String(week)}>Week {week}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </CardHeader>
           <CardContent>
-            {loadingMatchups ? (
-              <p>Loading matchups...</p>
-            ) : (
+            {loadingMatchups ? <p>Loading matchups...</p> : (
               <div className="space-y-4">
                 {Object.values(groupedMatchups).map((matchupPair: any, index: number) => (
                   <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -222,13 +170,7 @@ export default function SleeperPage() {
                       <Card key={team.roster_id}>
                         <CardHeader className="flex flex-row items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <Image
-                              src={team.user.avatar ? `https://sleepercdn.com/avatars/thumbs/${team.user.avatar}` : 'https://via.placeholder.com/40'}
-                              alt={team.user.display_name}
-                              width={40}
-                              height={40}
-                              className="rounded-full"
-                            />
+                            <Image src={team.user.avatar ? `https://sleepercdn.com/avatars/thumbs/${team.user.avatar}` : 'https://via.placeholder.com/40'} alt={team.user.display_name} width={40} height={40} className="rounded-full" />
                             <CardTitle>{team.user.display_name}</CardTitle>
                           </div>
                           <div className="text-2xl font-bold">{team.total_points.toFixed(2)}</div>
