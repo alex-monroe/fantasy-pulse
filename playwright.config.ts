@@ -1,13 +1,32 @@
-import { defineConfig } from 'playwright/test';
+import { defineConfig, devices } from 'playwright/test';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 export default defineConfig({
   testDir: './e2e',
-  use: {
-    baseURL: 'http://localhost:9002',
-    video: 'on',
-  },
+  projects: [
+    {
+      name: 'e2e',
+      testIgnore: /main\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:9002',
+        video: 'on',
+      },
+    },
+    {
+      name: 'e2e-mock',
+      testMatch: /main\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:9002',
+        video: 'on',
+        env: {
+          E2E_TEST: 'true',
+        },
+      },
+    },
+  ],
   webServer: {
     command: 'npm run dev',
     port: 9002,

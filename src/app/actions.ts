@@ -11,6 +11,7 @@ import {
   getYahooPlayerScores,
 } from '@/app/integrations/yahoo/actions';
 import { Team, Player } from '@/lib/types';
+import { mockTeams } from '@/lib/mock-data';
 
 export async function getCurrentNflWeek() {
   const nflStateResponse = await fetch('https://api.sleeper.app/v1/state/nfl');
@@ -19,6 +20,10 @@ export async function getCurrentNflWeek() {
 }
 
 export async function getTeams() {
+  if (process.env.E2E_TEST === 'true') {
+    return { teams: mockTeams };
+  }
+
   const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -126,7 +131,7 @@ export async function getTeams() {
                 onUserTeams: 0,
                 onOpponentTeams: 0,
                 gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-                imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
+                imageUrl: `https://sleepercdn.com.com/content/nfl/players/thumb/${playerId}.jpg`,
                 on_bench: !opponentRoster.starters.includes(playerId),
               };
             })
