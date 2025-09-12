@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
+import logger from '@/utils/logger';
 
 function parseYahooTeamData(teamData: any[]) {
   const teamDetails: { [key: string]: any } = {};
@@ -17,11 +18,11 @@ function parseYahooTeamData(teamData: any[]) {
 
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const supabase = createClient();
-  console.log(`Fetching access token for integrationId: ${integrationId}`);
+  logger.info(`Fetching access token for integrationId: ${integrationId}`);
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.error('Authentication error: No user found.');
+    logger.error('Authentication error: No user found.');
     return { error: 'User not authenticated.' };
   }
 
@@ -33,12 +34,12 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
     .single();
 
   if (integrationError) {
-    console.error('Error fetching integration from Supabase:', integrationError);
+    logger.error({ integrationError }, 'Error fetching integration from Supabase');
     return { error: `Error fetching integration: ${integrationError.message}` };
   }
 
   if (!integration) {
-    console.error(`Integration not found for id: ${integrationId} and user_id: ${user.id}`);
+    logger.error(`Integration not found for id: ${integrationId} and user_id: ${user.id}`);
     return { error: 'Yahoo integration not found.' };
   }
 
@@ -76,7 +77,7 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Yahoo token refresh error:', data);
+        logger.error({ data }, 'Yahoo token refresh error');
         return { error: `Failed to refresh Yahoo token: ${data.error_description || response.statusText}` };
       }
 
@@ -192,16 +193,19 @@ export async function getYahooUserTeams(integrationId: number) {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Yahoo API Error fetching teams: ${response.status} ${response.statusText}`, errorBody);
+      logger.error(
+        { status: response.status, statusText: response.statusText, errorBody },
+        'Yahoo API Error fetching teams'
+      );
       return { error: `Failed to fetch teams from Yahoo: ${response.statusText}` };
     }
 
     const data = await response.json();
-    console.log('Yahoo API response for teams:', JSON.stringify(data, null, 2));
+    logger.debug({ data }, 'Yahoo API response for teams');
     const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
 
     if (!teamsFromYahoo) {
-      console.log('No teams found in Yahoo API response.');
+      logger.info('No teams found in Yahoo API response.');
       return { teams: [] };
     }
 
@@ -226,7 +230,7 @@ export async function getYahooUserTeams(integrationId: number) {
         .select();
 
       if (upsertError) {
-        console.error('Could not upsert teams.', upsertError.message);
+        logger.error(upsertError, 'Could not upsert teams.');
         return { error: `Failed to save teams to database: ${upsertError.message}` };
       }
       return { teams: upsertedTeams };
@@ -234,7 +238,7 @@ export async function getYahooUserTeams(integrationId: number) {
 
     return { teams: [] };
   } catch (error) {
-    console.error('An unexpected error occurred while fetching teams from Yahoo.', error);
+    logger.error(error, 'An unexpected error occurred while fetching teams from Yahoo.');
     return { error: 'An unexpected error occurred while fetching teams from Yahoo.' };
   }
 }
@@ -280,7 +284,10 @@ export async function getYahooLeagues(integrationId: number) {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      logger.error(
+        { status: response.status, statusText: response.statusText, errorBody },
+        'Yahoo API Error'
+      );
       return { error: `Failed to fetch leagues from Yahoo: ${response.statusText}` };
     }
 
@@ -308,7 +315,7 @@ export async function getYahooLeagues(integrationId: number) {
         .select();
 
       if (upsertError) {
-        console.error('Could not upsert leagues.', upsertError.message);
+        logger.error(upsertError, 'Could not upsert leagues.');
         return { error: `Failed to save leagues to database: ${upsertError.message}` };
       }
       return { leagues: upsertedLeagues };
@@ -340,18 +347,18 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      logger.error(
+        { status: response.status, statusText: response.statusText, errorBody },
+        'Yahoo API Error'
+      );
       return { error: `Failed to fetch roster from Yahoo: ${response.statusText}` };
     }
 
     const data = await response.json();
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
-    // Log the raw roster data for debugging
-    // console.log('Yahoo roster data:', JSON.stringify(rosterData, null, 2));
-
     if (!rosterData) {
-      console.log('No roster data found in Yahoo API response.');
+      logger.info('No roster data found in Yahoo API response.');
       return { players: [] };
     }
 
@@ -414,7 +421,10 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Yahoo API Error fetching matchups: ${response.status} ${response.statusText}`, errorBody);
+      logger.error(
+        { status: response.status, statusText: response.statusText, errorBody },
+        'Yahoo API Error fetching matchups'
+      );
       return { error: `Failed to fetch matchups from Yahoo: ${response.statusText}` };
     }
 
@@ -422,7 +432,7 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
     const matchupsData = data.fantasy_content?.team?.[1]?.matchups?.['0']?.matchup;
 
     if (!matchupsData) {
-      console.log('No matchups found in Yahoo API response.');
+      logger.info('No matchups found in Yahoo API response.');
       return { matchups: null };
     }
 
@@ -456,7 +466,7 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
 
     return { matchups: matchup };
   } catch (error) {
-    console.error('An unexpected error occurred while fetching matchups from Yahoo.', error);
+    logger.error(error, 'An unexpected error occurred while fetching matchups from Yahoo.');
     return { error: 'An unexpected error occurred while fetching matchups from Yahoo.' };
   }
 }
@@ -480,16 +490,18 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Yahoo API Error: ${response.status} ${response.statusText}`, errorBody);
+      logger.error(
+        { status: response.status, statusText: response.statusText, errorBody },
+        'Yahoo API Error'
+      );
       return { error: `Failed to fetch player scores from Yahoo: ${response.statusText}` };
     }
 
     const data = await response.json();
-    // console.log('Yahoo player scores data:', JSON.stringify(data, null, 2));
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     if (!rosterData) {
-      console.log('No roster data found in Yahoo API response.');
+      logger.info('No roster data found in Yahoo API response.');
       return { players: [] };
     }
 
