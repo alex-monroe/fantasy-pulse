@@ -69,7 +69,7 @@ export function IntegrationStatus() {
                                 <span className="mt-0.5">{alertIcons[alert.type]}</span>
                                 <div className="flex-1">
                                     <p className="text-sm">{alert.message}</p>
-                                    <p className="text-xs text-muted-foreground">{new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(alert.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                                 </div>
                             </div>
                         ))}
