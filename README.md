@@ -66,6 +66,10 @@ These instructions will get you a copy of the project up and running on your loc
 5.  **Get AI-powered recommendations:**
     Use the AI assistant to get personalized advice on your team.
 
+## Adding Additional Integrations
+
+To integrate fantasy providers beyond Yahoo and Sleeper, follow the guide in [docs/adding-integrations.md](docs/adding-integrations.md).
+
 ## Contributing
 
 Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for details.
