@@ -131,8 +131,8 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                                     <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">{team.totalScore.toFixed(1)}</p>
-                                    <p className="font-bold text-lg text-muted-foreground">{team.opponent.totalScore.toFixed(1)}</p>
+                                    <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
+                                    <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
                                 </div>
                             </div>
                         </Card>
