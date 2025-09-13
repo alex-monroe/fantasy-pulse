@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
 import logger from '@/utils/logger';
+import { fetchJson } from '@/lib/fetch-json';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -26,7 +27,7 @@ function parseYahooTeamData(teamData: any[]) {
  * @param integrationId - The ID of the integration.
  * @returns The access token or an error.
  */
-async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
+export async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const supabase = createClient();
   logger.info(`Fetching access token for integrationId: ${integrationId}`);
 
@@ -71,7 +72,7 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
     try {
-      const response = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
+      const { data, error } = await fetchJson<any>('https://api.login.yahoo.com/oauth2/get_token', {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${basicAuth}`,
@@ -84,11 +85,9 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        logger.error({ data }, 'Yahoo token refresh error');
-        return { error: `Failed to refresh Yahoo token: ${data.error_description || response.statusText}` };
+      if (error || !data) {
+        logger.error({ error }, 'Yahoo token refresh error');
+        return { error: `Failed to refresh Yahoo token: ${error}` };
       }
 
       const newExpiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
@@ -219,23 +218,17 @@ export async function getYahooUserTeams(integrationId: number) {
   const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/teams?format=json';
 
   try {
-    const response = await fetch(url, {
+    const { data, error } = await fetchJson<any>(url, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      logger.error(
-        { status: response.status, statusText: response.statusText, errorBody },
-        'Yahoo API Error fetching teams'
-      );
-      return { error: `Failed to fetch teams from Yahoo: ${response.statusText}` };
+    if (error) {
+      logger.error({ error }, 'Yahoo API Error fetching teams');
+      return { error: `Failed to fetch teams from Yahoo: ${error}` };
     }
-
-    const data = await response.json();
     logger.debug({ data }, 'Yahoo API response for teams');
     const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
 
@@ -319,23 +312,17 @@ export async function getYahooLeagues(integrationId: number) {
   const url = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json';
 
   try {
-    const response = await fetch(url, {
+    const { data, error } = await fetchJson<any>(url, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      logger.error(
-        { status: response.status, statusText: response.statusText, errorBody },
-        'Yahoo API Error'
-      );
-      return { error: `Failed to fetch leagues from Yahoo: ${response.statusText}` };
+    if (error) {
+      logger.error({ error }, 'Yahoo API Error fetching leagues');
+      return { error: `Failed to fetch leagues from Yahoo: ${error}` };
     }
-
-    const data = await response.json();
     const leaguesFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.leagues;
 
     if (!leaguesFromYahoo) {
@@ -389,23 +376,17 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
   const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster/players?format=json`;
 
   try {
-    const response = await fetch(url, {
+    const { data, error } = await fetchJson<any>(url, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      logger.error(
-        { status: response.status, statusText: response.statusText, errorBody },
-        'Yahoo API Error'
-      );
-      return { error: `Failed to fetch roster from Yahoo: ${response.statusText}` };
+    if (error) {
+      logger.error({ error }, 'Yahoo API Error');
+      return { error: `Failed to fetch roster from Yahoo: ${error}` };
     }
-
-    const data = await response.json();
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     if (!rosterData) {
@@ -469,23 +450,17 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
   const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/matchups;weeks=${week}?format=json`;
 
   try {
-    const response = await fetch(url, {
+    const { data, error } = await fetchJson<any>(url, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      logger.error(
-        { status: response.status, statusText: response.statusText, errorBody },
-        'Yahoo API Error fetching matchups'
-      );
-      return { error: `Failed to fetch matchups from Yahoo: ${response.statusText}` };
+    if (error) {
+      logger.error({ error }, 'Yahoo API Error fetching matchups');
+      return { error: `Failed to fetch matchups from Yahoo: ${error}` };
     }
-
-    const data = await response.json();
     const matchupsData = data.fantasy_content?.team?.[1]?.matchups?.['0']?.matchup;
 
     if (!matchupsData) {
@@ -544,23 +519,17 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
   const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;week=${week}/players/stats?format=json`;
 
   try {
-    const response = await fetch(url, {
+    const { data, error } = await fetchJson<any>(url, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      logger.error(
-        { status: response.status, statusText: response.statusText, errorBody },
-        'Yahoo API Error'
-      );
-      return { error: `Failed to fetch player scores from Yahoo: ${response.statusText}` };
+    if (error) {
+      logger.error({ error }, 'Yahoo API Error');
+      return { error: `Failed to fetch player scores from Yahoo: ${error}` };
     }
-
-    const data = await response.json();
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     if (!rosterData) {

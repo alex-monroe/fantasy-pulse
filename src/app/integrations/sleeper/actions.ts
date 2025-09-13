@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
+import { fetchJson } from '@/lib/fetch-json';
 
 /**
  * Connects a Sleeper account to the user's account.
@@ -17,12 +18,10 @@ export async function connectSleeper(username: string) {
   }
 
   try {
-    const res = await fetch(`https://api.sleeper.app/v1/user/${username}`);
-    if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message || 'Failed to fetch user' };
+    const { data: sleeperUser, error } = await fetchJson<any>(`https://api.sleeper.app/v1/user/${username}`);
+    if (error) {
+      return { error: error || 'Failed to fetch user' };
     }
-    const sleeperUser = await res.json();
     if (!sleeperUser) {
       return { error: 'User not found' };
     }
@@ -131,12 +130,10 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
   const supabase = createClient();
   try {
     const year = new Date().getFullYear();
-    const res = await fetch(`https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`);
-    if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message || 'Failed to fetch leagues' };
+    const { data: leagues, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`);
+    if (error) {
+      return { error };
     }
-    const leagues = await res.json();
 
     if (leagues && leagues.length > 0) {
       const leaguesToInsert = leagues.map((league: any) => ({
@@ -168,12 +165,10 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
  */
 export async function getMatchups(leagueId: string, week: string) {
   try {
-    const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
-    if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message || 'Failed to fetch matchups' };
+    const { data: matchups, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
+    if (error) {
+      return { error };
     }
-    const matchups = await res.json();
     return { matchups };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
@@ -187,12 +182,10 @@ export async function getMatchups(leagueId: string, week: string) {
  */
 export async function getRosters(leagueId: string) {
   try {
-    const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
-    if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message || 'Failed to fetch rosters' };
+    const { data: rosters, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
+    if (error) {
+      return { error };
     }
-    const rosters = await res.json();
     return { rosters };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
@@ -206,12 +199,10 @@ export async function getRosters(leagueId: string) {
  */
 export async function getUsersInLeague(leagueId: string) {
   try {
-    const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/users`);
-    if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message || 'Failed to fetch users' };
+    const { data: users, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`);
+    if (error) {
+      return { error };
     }
-    const users = await res.json();
     return { users };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
@@ -224,12 +215,10 @@ export async function getUsersInLeague(leagueId: string) {
  */
 export async function getNflPlayers() {
   try {
-    const res = await fetch(`https://api.sleeper.app/v1/players/nfl`);
-    if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message || 'Failed to fetch nfl players' };
+    const { data: players, error } = await fetchJson<Record<string, any>>(`https://api.sleeper.app/v1/players/nfl`);
+    if (error) {
+      return { error };
     }
-    const players = await res.json();
     return { players };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
