@@ -62,6 +62,52 @@ export type Player = {
 };
 
 /**
+ * Represents a user integration with a third-party provider.
+ */
+export interface UserIntegration {
+  /** The unique identifier for the user integration. */
+  id: number;
+  /** The user's unique identifier. */
+  user_id: string;
+  /** The name of the provider (e.g., 'sleeper', 'yahoo'). */
+  provider: string;
+  /** The user's identifier on the provider's platform. */
+  provider_user_id: string;
+  /** The access token for the provider's API. */
+  access_token?: string;
+  /** The refresh token for the provider's API. */
+  refresh_token?: string;
+  /** The expiration date of the access token. */
+  expires_at?: string;
+  /** The timestamp when the user integration was created. */
+  created_at: string;
+}
+
+/**
+ * Represents a fantasy football league.
+ */
+export interface League {
+  /** The unique identifier for the league. */
+  id: number;
+  /** The league's identifier on the provider's platform. */
+  league_id: string;
+  /** The name of the league. */
+  name: string;
+  /** The unique identifier for the user integration. */
+  user_integration_id: number;
+  /** The season of the league. */
+  season: string;
+  /** The total number of rosters in the league. */
+  total_rosters: number;
+  /** The status of the league. */
+  status: string;
+  /** The user's unique identifier. */
+  user_id: string;
+  /** The timestamp when the league was created. */
+  created_at: string;
+}
+
+/**
  * Represents a player grouped across multiple teams.
  */
 export type GroupedPlayer = Player & {
