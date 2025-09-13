@@ -270,7 +270,8 @@ export class YahooProvider implements Provider {
 
       const { players: userPlayerScores, error: userScoresError } = await this.getYahooPlayerScores(
         integration.id,
-        userTeam.team_key
+        userTeam.team_key,
+        week
       );
       if (userScoresError) {
         console.error(`Could not fetch user player scores for team ${userTeam.team_key}`, userScoresError);
@@ -278,7 +279,8 @@ export class YahooProvider implements Provider {
 
       const { players: opponentPlayerScores, error: opponentScoresError } = await this.getYahooPlayerScores(
         integration.id,
-        opponentTeam.team_key
+        opponentTeam.team_key,
+        week
       );
       if (opponentScoresError) {
         console.error(
@@ -549,13 +551,12 @@ export class YahooProvider implements Provider {
     }
   }
 
-  private async getYahooPlayerScores(integrationId: number, teamKey: string) {
+  private async getYahooPlayerScores(integrationId: number, teamKey: string, week: number) {
     const { access_token, error: tokenError } = await this.getRefreshedAccessToken({ id: integrationId } as UserIntegration);
     if (tokenError || !access_token) {
       return { error: tokenError || 'Failed to get Yahoo access token.' };
     }
 
-    const week = new Date().getFullYear();
     const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;week=${week}/players/stats?format=json`;
 
     try {
