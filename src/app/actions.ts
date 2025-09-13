@@ -9,7 +9,13 @@ import {
   getYahooMatchups,
   getYahooPlayerScores,
 } from '@/app/integrations/yahoo/actions';
-import { Team, Player } from '@/lib/types';
+import {
+  Team,
+  Player,
+  SleeperRoster,
+  SleeperMatchup,
+  SleeperLeagueUser,
+} from '@/lib/types';
 import { mockTeams } from '@/lib/mock-data';
 import { findBestMatch } from 'string-similarity';
 
@@ -46,40 +52,45 @@ export async function buildSleeperTeams(
     const rostersResponse = await fetch(
       `https://api.sleeper.app/v1/league/${league.league_id}/rosters`
     );
-    const rosters = await rostersResponse.json();
+    const rosters: SleeperRoster[] = await rostersResponse.json();
 
     const matchupsResponse = await fetch(
       `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
     );
-    const matchups = await matchupsResponse.json();
+    const matchups: SleeperMatchup[] = await matchupsResponse.json();
 
     const userRoster = rosters.find(
-      (roster: any) => roster.owner_id === integration.provider_user_id
+      (roster: SleeperRoster) =>
+        roster.owner_id === integration.provider_user_id
     );
     if (!userRoster) continue;
 
     const userMatchup = matchups.find(
-      (matchup: any) => matchup.roster_id === userRoster.roster_id
+      (matchup: SleeperMatchup) => matchup.roster_id === userRoster.roster_id
     );
     if (!userMatchup) continue;
 
     const opponentMatchup = matchups.find(
-      (matchup: any) =>
+      (matchup: SleeperMatchup) =>
         matchup.matchup_id === userMatchup.matchup_id &&
         matchup.roster_id !== userRoster.roster_id
     );
 
     const opponentRoster = opponentMatchup
-      ? rosters.find((roster: any) => roster.roster_id === opponentMatchup.roster_id)
+      ? rosters.find(
+          (roster: SleeperRoster) =>
+            roster.roster_id === opponentMatchup.roster_id
+        )
       : null;
 
     const leagueUsersResponse = await fetch(
       `https://api.sleeper.app/v1/league/${league.league_id}/users`
     );
-    const leagueUsers = await leagueUsersResponse.json();
+    const leagueUsers: SleeperLeagueUser[] = await leagueUsersResponse.json();
 
     const userLeagueInfo = leagueUsers.find(
-      (user: any) => user.user_id === integration.provider_user_id
+      (user: SleeperLeagueUser) =>
+        user.user_id === integration.provider_user_id
     );
     const userName =
       userLeagueInfo?.metadata?.team_name ||
@@ -87,7 +98,10 @@ export async function buildSleeperTeams(
       'My Team';
 
     const opponentUser = opponentRoster
-      ? leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id)
+      ? leagueUsers.find(
+          (user: SleeperLeagueUser) =>
+            user.user_id === opponentRoster.owner_id
+        )
       : null;
     const opponentName =
       opponentUser?.metadata?.team_name ||

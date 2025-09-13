@@ -91,3 +91,50 @@ export type Team = {
     players: Player[];
   };
 };
+
+/**
+ * Represents a roster from the Sleeper API.
+ */
+export interface SleeperRoster {
+  /** Unique roster identifier. */
+  roster_id: number;
+  /** Identifier of the roster owner. */
+  owner_id: string;
+  /** All player IDs on the roster. */
+  players: string[];
+  /** Starter player IDs. */
+  starters: string[];
+}
+
+/**
+ * Represents a matchup from the Sleeper API.
+ */
+export interface SleeperMatchup {
+  /** Roster ID participating in the matchup. */
+  roster_id: number;
+  /** Identifier of the matchup grouping. */
+  matchup_id: number;
+  /** Total points scored in the matchup. */
+  points: number;
+  /** Individual player points keyed by player ID. */
+  players_points: Record<string, number>;
+  /** Player IDs involved in the matchup. */
+  players: string[];
+}
+
+/**
+ * Represents a user within a Sleeper league.
+ */
+export interface SleeperLeagueUser {
+  /** Unique user identifier. */
+  user_id: string;
+  /** Display name for the user. */
+  display_name: string;
+  /** Optional avatar image identifier. */
+  avatar?: string;
+  /** Optional metadata including team name. */
+  metadata?: {
+    team_name?: string;
+    [key: string]: any;
+  };
+}

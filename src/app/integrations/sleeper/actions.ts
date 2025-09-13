@@ -3,6 +3,11 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { fetchJson } from '@/lib/fetch-json';
+import {
+  SleeperRoster,
+  SleeperMatchup,
+  SleeperLeagueUser,
+} from '@/lib/types';
 
 /**
  * Connects a Sleeper account to the user's account.
@@ -130,7 +135,9 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
   const supabase = createClient();
   try {
     const year = new Date().getFullYear();
-    const { data: leagues, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`);
+    const { data: leagues, error } = await fetchJson<any[]>(
+      `https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`
+    );
     if (error) {
       return { error };
     }
@@ -165,7 +172,9 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
  */
 export async function getMatchups(leagueId: string, week: string) {
   try {
-    const { data: matchups, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
+    const { data: matchups, error } = await fetchJson<SleeperMatchup[]>(
+      `https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`
+    );
     if (error) {
       return { error };
     }
@@ -182,7 +191,9 @@ export async function getMatchups(leagueId: string, week: string) {
  */
 export async function getRosters(leagueId: string) {
   try {
-    const { data: rosters, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
+    const { data: rosters, error } = await fetchJson<SleeperRoster[]>(
+      `https://api.sleeper.app/v1/league/${leagueId}/rosters`
+    );
     if (error) {
       return { error };
     }
@@ -199,7 +210,9 @@ export async function getRosters(leagueId: string) {
  */
 export async function getUsersInLeague(leagueId: string) {
   try {
-    const { data: users, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`);
+    const { data: users, error } = await fetchJson<SleeperLeagueUser[]>(
+      `https://api.sleeper.app/v1/league/${leagueId}/users`
+    );
     if (error) {
       return { error };
     }
@@ -250,10 +263,14 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
     const { users } = usersRes;
     const { players } = playersRes;
 
-    const usersMap = new Map(users.map((user: any) => [user.user_id, user]));
-    const rostersMap = new Map(rosters.map((roster: any) => [roster.roster_id, roster]));
+    const usersMap = new Map(
+      users.map((user: SleeperLeagueUser) => [user.user_id, user])
+    );
+    const rostersMap = new Map(
+      rosters.map((roster: SleeperRoster) => [roster.roster_id, roster])
+    );
 
-    const enrichedMatchups = matchups.map((matchup: any) => {
+    const enrichedMatchups = matchups.map((matchup: SleeperMatchup) => {
       const roster = rostersMap.get(matchup.roster_id);
       if (!roster) return matchup;
 
