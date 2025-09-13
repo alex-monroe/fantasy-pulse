@@ -11,6 +11,7 @@ import {
   getYahooPlayerScores,
 } from '@/app/integrations/yahoo/actions';
 import { Team, Player } from '@/lib/types';
+import { mockTeams } from '@/lib/mock-data';
 
 /**
  * Gets the current NFL week from the Sleeper API.
@@ -32,6 +33,10 @@ export async function getTeams() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { error: 'You must be logged in.' };
+  }
+
+  if (process.env.MOCK_EXTERNAL_APIS === 'true') {
+    return { teams: mockTeams };
   }
 
   const { data: integrations, error: integrationsError } = await supabase
