@@ -6,6 +6,8 @@ const password = 'test';
 
 test.describe('Main Page', () => {
   let user: any;
+  let sleeperIntegration: any;
+  let yahooIntegration: any;
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -25,15 +27,52 @@ test.describe('Main Page', () => {
     });
     if (error) throw error;
     user = data.user;
+
+    // Insert mock integrations and leagues
+    const { data: sleeper, error: sleeperError } = await supabase
+      .from('user_integrations')
+      .insert({ user_id: user.id, provider: 'sleeper', provider_user_id: 'sleeperUser' })
+      .select()
+      .single();
+    if (sleeperError) throw sleeperError;
+    sleeperIntegration = sleeper;
+
+    await supabase.from('leagues').insert({
+      league_id: 'league1',
+      name: 'Mock Sleeper League',
+      user_integration_id: sleeper.id,
+      user_id: user.id,
+      season: '2024',
+      total_rosters: 2,
+      status: 'in_season',
+    });
+
+    const { data: yahoo, error: yahooError } = await supabase
+      .from('user_integrations')
+      .insert({
+        user_id: user.id,
+        provider: 'yahoo',
+        provider_user_id: 'yahooUser',
+        access_token: 'token',
+        refresh_token: 'refresh',
+        expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+      })
+      .select()
+      .single();
+    if (yahooError) throw yahooError;
+    yahooIntegration = yahoo;
   });
 
   test.afterAll(async () => {
     if (user) {
+      await supabase.from('teams').delete().eq('user_integration_id', yahooIntegration.id);
+      await supabase.from('leagues').delete().eq('user_id', user.id);
+      await supabase.from('user_integrations').delete().eq('user_id', user.id);
       await supabase.auth.admin.deleteUser(user.id);
     }
   });
 
-  test('displays mock team data', async ({ page }) => {
+  test('displays teams from mocked APIs', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(password);
@@ -44,7 +83,7 @@ test.describe('Main Page', () => {
     await page.waitForTimeout(3000);
 
     await expect(page.getByText('Weekly Matchups')).toBeVisible();
-    await expect(page.getByText('Gridiron Gladiators')).toBeVisible();
-    await expect(page.getByText('Endzone Enforcers')).toBeVisible();
+    await expect(page.getByText('Sleeper Squad')).toBeVisible();
+    await expect(page.getByText('Yahoo Warriors')).toBeVisible();
   });
 });
