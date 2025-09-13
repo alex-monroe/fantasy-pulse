@@ -40,6 +40,9 @@ test.describe('Main Page', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
     await page.waitForURL('/');
 
+    // Wait briefly so test videos capture the rendered teams before assertions
+    await page.waitForTimeout(3000);
+
     await expect(page.getByText('Weekly Matchups')).toBeVisible();
     await expect(page.getByText('Gridiron Gladiators')).toBeVisible();
     await expect(page.getByText('Endzone Enforcers')).toBeVisible();
