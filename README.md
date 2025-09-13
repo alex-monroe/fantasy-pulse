@@ -73,3 +73,7 @@ To integrate fantasy providers beyond Yahoo and Sleeper, follow the guide in [do
 ## Contributing
 
 Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for details.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
