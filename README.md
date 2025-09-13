@@ -1,12 +1,11 @@
-# Fantasy Football Copilot
+# Roster Loom
 
-Fantasy Football Copilot is a powerful, AI-driven assistant that helps you dominate your fantasy football leagues. It provides in-depth analysis, personalized recommendations, and seamless integration with popular fantasy football platforms like Sleeper and Yahoo.
+Roster Loom is a one-stop destination for keeping track of your various fantasy football teams across different platforms.
 
 ## Features
 
-- **AI-Powered Insights:** Get personalized advice on your team, including waiver wire pickups, trade suggestions, and start/sit recommendations.
+- **All-in-one scoreboard:** Get at-a-glance summary of who you have playing, you you're playing against, and current matchup scores
 - **Multi-Platform Support:** Seamlessly connect and manage your teams from Sleeper and Yahoo Fantasy Football.
-- **In-Depth Player Analysis:** Access detailed player stats, projections, and news to make informed decisions.
 - **League-Wide Overview:** Keep track of all your leagues and teams in one place.
 
 ## Getting Started
