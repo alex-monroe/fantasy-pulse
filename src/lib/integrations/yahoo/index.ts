@@ -240,7 +240,7 @@ export class YahooProvider implements Provider {
   }
 
   public async getTeams(integration: UserIntegration, week: number): Promise<{ teams?: any[]; error?: string }> {
-    const { teams: yahooApiTeams, error: teamsError } = await this.getYahooUserTeams(integration.id);
+    const { teams: yahooApiTeams, error: teamsError } = await this.getYahooUserTeams(integration);
     if (teamsError || !yahooApiTeams) {
       return { error: 'Could not fetch teams for yahoo' };
     }
@@ -343,8 +343,8 @@ export class YahooProvider implements Provider {
     return { teams };
   }
 
-  private async getYahooUserTeams(integrationId: number) {
-    const { access_token, error: tokenError } = await this.getRefreshedAccessToken({ id: integrationId } as UserIntegration);
+  private async getYahooUserTeams(integration: UserIntegration) {
+    const { access_token, error: tokenError } = await this.getRefreshedAccessToken(integration);
     if (tokenError || !access_token) {
       return { error: tokenError || 'Failed to get Yahoo access token.' };
     }
@@ -381,7 +381,7 @@ export class YahooProvider implements Provider {
         const teamDetails = this.parseYahooTeamData(t.team[0]);
 
         return {
-          user_integration_id: integrationId,
+          user_integration_id: integration.id,
           team_key: teamDetails.team_key,
           team_id: teamDetails.team_id,
           name: teamDetails.name,
