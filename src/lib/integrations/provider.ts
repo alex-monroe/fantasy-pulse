@@ -8,5 +8,5 @@ export interface Provider {
   getLeagues(integrationId: number): Promise<{ leagues?: League[]; error?: string }>;
   getIntegration(): Promise<{ integration?: UserIntegration; error?: string }>;
   syncData(integration: UserIntegration): Promise<{ success: boolean; error?: string }>;
-  getTeams(integration: UserIntegration): Promise<{ teams?: Team[]; error?: string }>;
+  getTeams(integration: UserIntegration, week: number): Promise<{ teams?: Team[]; error?: string }>;
 }

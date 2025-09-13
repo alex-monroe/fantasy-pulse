@@ -92,11 +92,14 @@ describe('actions', () => {
       };
       (getProvider as jest.Mock).mockReturnValue(mockProvider);
 
+      (fetch as jest.Mock).mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
+
       const result = await getTeams();
 
       expect(result.teams).toBeDefined();
       expect(result.teams.length).toBe(1);
       expect(result.teams[0].name).toBe('Team A');
+      expect(mockProvider.getTeams).toHaveBeenCalledWith(expect.any(Object), 1);
     });
   });
 });

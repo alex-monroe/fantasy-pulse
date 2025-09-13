@@ -36,10 +36,11 @@ export async function getTeams() {
   }
 
   let allTeams: Team[] = [];
+  const week = await getCurrentNflWeek();
 
   for (const integration of integrations) {
     const provider = getProvider(integration.provider);
-    const { teams, error } = await provider.getTeams(integration);
+    const { teams, error } = await provider.getTeams(integration, week);
 
     if (error) {
       console.error(`Failed to get teams for ${integration.provider}`, error);

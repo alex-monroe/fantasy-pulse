@@ -134,8 +134,7 @@ export class SleeperProvider implements Provider {
     }
   }
 
-  public async getTeams(integration: UserIntegration): Promise<{ teams?: any[]; error?: string }> {
-    const week = new Date().getFullYear();
+  public async getTeams(integration: UserIntegration, week: number): Promise<{ teams?: any[]; error?: string }> {
     const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
     const playersData = await playersResponse.json();
 

@@ -239,7 +239,7 @@ export class YahooProvider implements Provider {
     return { access_token: integration.access_token };
   }
 
-  public async getTeams(integration: UserIntegration): Promise<{ teams?: any[]; error?: string }> {
+  public async getTeams(integration: UserIntegration, week: number): Promise<{ teams?: any[]; error?: string }> {
     const { teams: yahooApiTeams, error: teamsError } = await this.getYahooUserTeams(integration.id);
     if (teamsError || !yahooApiTeams) {
       return { error: 'Could not fetch teams for yahoo' };
@@ -247,7 +247,7 @@ export class YahooProvider implements Provider {
 
     const teams = [];
     for (const team of yahooApiTeams) {
-      const { matchups, error: matchupsError } = await this.getYahooMatchups(integration.id, team.team_key);
+      const { matchups, error: matchupsError } = await this.getYahooMatchups(integration.id, team.team_key, week);
       if (matchupsError || !matchups) {
         continue;
       }
@@ -407,13 +407,12 @@ export class YahooProvider implements Provider {
     }
   }
 
-  private async getYahooMatchups(integrationId: number, teamKey: string) {
+  private async getYahooMatchups(integrationId: number, teamKey: string, week: number) {
     const { access_token, error: tokenError } = await this.getRefreshedAccessToken({ id: integrationId } as UserIntegration);
     if (tokenError || !access_token) {
       return { error: tokenError || 'Failed to get Yahoo access token.' };
     }
 
-    const week = new Date().getFullYear();
     const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/matchups;weeks=${week}?format=json`;
 
     try {
