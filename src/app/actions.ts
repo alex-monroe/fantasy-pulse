@@ -90,6 +90,9 @@ export async function getTeams() {
         const leagueUsersResponse = await fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`);
         const leagueUsers = await leagueUsersResponse.json();
 
+        const userLeagueInfo = leagueUsers.find((user: any) => user.user_id === integration.provider_user_id);
+        const userName = userLeagueInfo?.metadata?.team_name || userLeagueInfo?.display_name || 'My Team';
+
         const opponentUser = opponentRoster
           ? leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id)
           : null;
@@ -142,7 +145,7 @@ export async function getTeams() {
 
         teams.push({
           id: league.id,
-          name: league.name,
+          name: userName,
           totalScore: userMatchup.points,
           players: userPlayers,
           opponent: {
