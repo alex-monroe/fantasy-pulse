@@ -4,9 +4,12 @@ dotenv.config({ path: '.env.local' });
 
 export default defineConfig({
   testDir: './e2e',
+  reporter: 'html',
+  outputDir: 'test-results/',
   use: {
     baseURL: 'http://localhost:9002',
     video: 'on',
+    trace: 'on-fail',
   },
   webServer: {
     command: 'npm run dev',
