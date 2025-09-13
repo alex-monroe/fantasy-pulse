@@ -5,6 +5,11 @@ import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
 import logger from '@/utils/logger';
 
+/**
+ * Parses the team data from the Yahoo API response.
+ * @param teamData - The team data from the Yahoo API response.
+ * @returns The parsed team data.
+ */
 function parseYahooTeamData(teamData: any[]) {
   const teamDetails: { [key: string]: any } = {};
   teamData.forEach((detail: any) => {
@@ -16,6 +21,11 @@ function parseYahooTeamData(teamData: any[]) {
   return teamDetails;
 }
 
+/**
+ * Gets the Yahoo access token for an integration.
+ * @param integrationId - The ID of the integration.
+ * @returns The access token or an error.
+ */
 async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
   const supabase = createClient();
   logger.info(`Fetching access token for integrationId: ${integrationId}`);
@@ -106,11 +116,21 @@ async function getYahooAccessToken(integrationId: number): Promise<{ access_toke
   return { access_token: integration.access_token };
 }
 
+/**
+ * Connects a Yahoo account to the user's account.
+ * @deprecated The OAuth flow handles the connection.
+ * @returns A success message.
+ */
 export async function connectYahoo() {
   // This function is deprecated. The OAuth flow handles the connection.
   return { success: true };
 }
 
+/**
+ * Removes a Yahoo integration from the user's account.
+ * @param integrationId - The ID of the integration to remove.
+ * @returns A success message or an error.
+ */
 export async function removeYahooIntegration(integrationId: number) {
   const supabase = createClient();
 
@@ -147,6 +167,11 @@ export async function removeYahooIntegration(integrationId: number) {
   return { success: true };
 }
 
+/**
+ * Gets the leagues for a Yahoo integration.
+ * @param integrationId - The ID of the integration.
+ * @returns A list of leagues or an error.
+ */
 export async function getLeagues(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -161,6 +186,11 @@ export async function getLeagues(integrationId: number) {
   return { leagues: data };
 }
 
+/**
+ * Gets the teams for a Yahoo integration.
+ * @param integrationId - The ID of the integration.
+ * @returns A list of teams or an error.
+ */
 export async function getTeams(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -175,6 +205,11 @@ export async function getTeams(integrationId: number) {
   return { teams: data };
 }
 
+/**
+ * Gets the user's teams from the Yahoo API and saves them to the database.
+ * @param integrationId - The ID of the integration.
+ * @returns A list of teams or an error.
+ */
 export async function getYahooUserTeams(integrationId: number) {
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
   if (tokenError || !access_token) {
@@ -243,6 +278,10 @@ export async function getYahooUserTeams(integrationId: number) {
   }
 }
 
+/**
+ * Gets the Yahoo integration for the current user.
+ * @returns The Yahoo integration or an error.
+ */
 export async function getYahooIntegration() {
   const supabase = createClient();
 
@@ -265,6 +304,11 @@ export async function getYahooIntegration() {
   return { integration: data };
 }
 
+/**
+ * Gets the user's leagues from the Yahoo API and saves them to the database.
+ * @param integrationId - The ID of the integration.
+ * @returns A list of leagues or an error.
+ */
 export async function getYahooLeagues(integrationId: number) {
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
 
@@ -327,6 +371,13 @@ export async function getYahooLeagues(integrationId: number) {
   }
 }
 
+/**
+ * Gets the roster for a team from the Yahoo API.
+ * @param integrationId - The ID of the integration.
+ * @param leagueId - The ID of the league.
+ * @param teamId - The ID of the team.
+ * @returns A list of players or an error.
+ */
 export async function getYahooRoster(integrationId: number, leagueId: string, teamId: string) {
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
 
@@ -402,6 +453,12 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
   }
 }
 
+/**
+ * Gets the matchups for a team from the Yahoo API.
+ * @param integrationId - The ID of the integration.
+ * @param teamKey - The key of the team.
+ * @returns The matchup for the team or an error.
+ */
 export async function getYahooMatchups(integrationId: number, teamKey: string) {
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
   if (tokenError || !access_token) {
@@ -471,6 +528,12 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
   }
 }
 
+/**
+ * Gets the player scores for a team from the Yahoo API.
+ * @param integrationId - The ID of the integration.
+ * @param teamKey - The key of the team.
+ * @returns A list of player scores or an error.
+ */
 export async function getYahooPlayerScores(integrationId: number, teamKey: string) {
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
   if (tokenError || !access_token) {

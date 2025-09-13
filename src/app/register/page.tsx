@@ -8,6 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
+/**
+ * The register page for the application.
+ * @returns The register page.
+ */
 export default function RegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');

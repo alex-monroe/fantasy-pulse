@@ -2,6 +2,11 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+/**
+ * Handles the OAuth callback from Yahoo.
+ * @param request - The incoming request.
+ * @returns A redirect to the Yahoo integration page or an error.
+ */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');

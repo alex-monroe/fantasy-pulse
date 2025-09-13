@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   description: 'Live fantasy football scores and insights.',
 };
 
+/**
+ * The root layout for the application.
+ * @param children - The children to render.
+ * @returns The root layout.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

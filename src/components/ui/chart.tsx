@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils"
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
 
+/**
+ * The configuration for a chart.
+ */
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode
@@ -24,6 +27,10 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
+/**
+ * A hook to access the chart's configuration.
+ * @returns The chart's configuration.
+ */
 function useChart() {
   const context = React.useContext(ChartContext)
 
@@ -34,6 +41,9 @@ function useChart() {
   return context
 }
 
+/**
+ * A container for a chart that provides a context for the chart's configuration and a responsive container for the chart itself.
+ */
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -67,6 +77,12 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "Chart"
 
+/**
+ * A component that applies the chart's style.
+ * @param id - The ID of the chart.
+ * @param config - The configuration of the chart.
+ * @returns A style element with the chart's CSS variables.
+ */
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color
@@ -100,8 +116,14 @@ ${colorConfig
   )
 }
 
+/**
+ * The tooltip for the chart.
+ */
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+/**
+ * The content of the chart's tooltip.
+ */
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
@@ -256,8 +278,14 @@ const ChartTooltipContent = React.forwardRef<
 )
 ChartTooltipContent.displayName = "ChartTooltip"
 
+/**
+ * The legend for the chart.
+ */
 const ChartLegend = RechartsPrimitive.Legend
 
+/**
+ * The content of the chart's legend.
+ */
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
@@ -316,7 +344,13 @@ const ChartLegendContent = React.forwardRef<
 )
 ChartLegendContent.displayName = "ChartLegend"
 
-// Helper to extract item config from a payload.
+/**
+ * A helper function to extract item configuration from a payload.
+ * @param config - The chart's configuration.
+ * @param payload - The payload from the chart.
+ * @param key - The key to extract from the payload.
+ * @returns The item's configuration.
+ */
 function getPayloadConfigFromPayload(
   config: ChartConfig,
   payload: unknown,
@@ -339,7 +373,7 @@ function getPayloadConfigFromPayload(
     key in payload &&
     typeof payload[key as keyof typeof payload] === "string"
   ) {
-    configLabelKey = payload[key as keyof typeof payload] as string
+    configLabelKey = payload[key as key of typeof payload] as string
   } else if (
     payloadPayload &&
     key in payloadPayload &&

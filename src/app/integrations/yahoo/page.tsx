@@ -5,6 +5,10 @@ import { getYahooIntegration, getLeagues, removeYahooIntegration, getYahooLeague
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+/**
+ * The page for managing the Yahoo integration.
+ * @returns The page for managing the Yahoo integration.
+ */
 export default function YahooPage() {
   const [error, setError] = useState<string | null>(null);
   const [leagues, setLeagues] = useState<any[]>([]);

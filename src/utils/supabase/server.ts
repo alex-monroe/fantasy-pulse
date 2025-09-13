@@ -1,6 +1,14 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+/**
+ * Creates a Supabase client for use on the server.
+ *
+ * @remarks
+ * This function uses Next.js `cookies` to manage authentication tokens.
+ *
+ * @returns The Supabase client.
+ */
 export function createClient() {
   const cookieStore = cookies()
 
