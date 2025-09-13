@@ -12,6 +12,7 @@ import {
 } from '@/app/integrations/yahoo/actions';
 import { Team, Player } from '@/lib/types';
 import { mockTeams } from '@/lib/mock-data';
+import { findBestMatch } from 'string-similarity';
 
 /**
  * Gets the current NFL week from the Sleeper API.
@@ -211,7 +212,12 @@ export async function getTeams() {
         const opponentScoresMap = new Map(opponentPlayerScores?.map(p => [p.player_key, p.totalPoints]));
 
         const mapYahooPlayer = (p: any, scoresMap: Map<string, number>): Player => {
-          const sleeperId = playerNameMap[p.name.toLowerCase()];
+          const bestMatch = findBestMatch(p.name.toLowerCase(), Object.keys(playerNameMap));
+          let sleeperId = null;
+          if (bestMatch.bestMatch.rating > 0.5) {
+            sleeperId = playerNameMap[bestMatch.bestMatch.target];
+          }
+
           const imageUrl = sleeperId
             ? `https://sleepercdn.com/content/nfl/players/thumb/${sleeperId}.jpg`
             : p.headshot;

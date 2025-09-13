@@ -316,5 +316,51 @@ describe('actions', () => {
         'Opponent scores fetch error'
       );
     });
+
+    it('should map yahoo players to sleeper players with fuzzy name matching', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({
+          json: () =>
+            Promise.resolve({
+              '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+            }),
+        });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock).mockResolvedValue({
+        players: [
+          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false },
+        ],
+        error: null,
+      });
+
+      (getYahooPlayerScores as jest.Mock).mockResolvedValue({
+        players: [{ player_key: 'p1', totalPoints: 25 }],
+        error: null,
+      });
+
+      const result = await getTeams();
+
+      expect(result.teams[0].players[0].imageUrl).toBe('https://sleepercdn.com/content/nfl/players/thumb/1.jpg');
+    });
   });
 });
