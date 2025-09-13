@@ -257,14 +257,16 @@ export class YahooProvider implements Provider {
       const { players: userPlayers, error: userRosterError } = await this.getYahooRoster(
         integration.id,
         team.league_id,
-        userTeam.team_id
+        userTeam.team_id,
+        week
       );
       if (userRosterError || !userPlayers) continue;
 
       const { players: opponentPlayers, error: opponentRosterError } = await this.getYahooRoster(
         integration.id,
         team.league_id,
-        opponentTeam.team_id
+        opponentTeam.team_id,
+        week
       );
       if (opponentRosterError || !opponentPlayers) continue;
 
@@ -477,7 +479,7 @@ export class YahooProvider implements Provider {
     }
   }
 
-  private async getYahooRoster(integrationId: number, leagueId: string, teamId: string) {
+  private async getYahooRoster(integrationId: number, leagueId: string, teamId: string, week: number) {
     const { access_token, error: tokenError } = await this.getRefreshedAccessToken({ id: integrationId } as UserIntegration);
 
     if (tokenError || !access_token) {
@@ -485,7 +487,7 @@ export class YahooProvider implements Provider {
     }
 
     const teamKey = `${leagueId}.t.${teamId}`;
-    const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster/players?format=json`;
+    const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;week=${week}/players?format=json`;
 
     try {
       const response = await fetch(url, {
