@@ -1,11 +1,17 @@
-import type { Team, Integration, Alert } from '@/lib/types';
+import type { Alert, Integration, Team } from '@/lib/types';
 
+/**
+ * Mock data for integrations.
+ */
 export const mockIntegrations: Integration[] = [
     { id: 'espn', name: 'ESPN', status: 'ok', lastUpdated: '2 minutes ago' },
     { id: 'yahoo', name: 'Yahoo Sports', status: 'ok', lastUpdated: '3 minutes ago' },
     { id: 'sleeper', name: 'Sleeper', status: 'error', lastUpdated: '1 hour ago' },
 ];
 
+/**
+ * Mock data for alerts.
+ */
 export const mockAlerts: Alert[] = [
     { id: 1, message: 'Successfully synced with ESPN.', timestamp: '2024-07-21T14:30:00Z', type: 'success' },
     { id: 2, message: 'Failed to sync with Sleeper. Please check credentials.', timestamp: '2024-07-21T13:45:00Z', type: 'error' },
@@ -14,6 +20,9 @@ export const mockAlerts: Alert[] = [
     { id: 5, message: 'Live scoring data is now active.', timestamp: '2024-07-21T14:28:00Z', type: 'info' },
 ];
 
+/**
+ * Mock data for teams.
+ */
 export const mockTeams: Team[] = [
   {
     id: 1,

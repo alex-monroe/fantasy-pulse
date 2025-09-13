@@ -20,6 +20,10 @@ const alertIcons: { [key in Alert['type']]: React.ReactNode } = {
     info: <AlertCircle className="h-4 w-4 text-accent" />,
 }
 
+/**
+ * A component that displays the status of the integrations.
+ * @returns A component that displays the status of the integrations.
+ */
 export function IntegrationStatus() {
     const { toast } = useToast();
 

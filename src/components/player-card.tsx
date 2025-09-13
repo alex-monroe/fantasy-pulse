@@ -16,6 +16,11 @@ const gameStatusConfig = {
     pregame: { text: 'Pregame', className: 'bg-accent/20 text-accent-foreground border-accent' },
 };
 
+/**
+ * A card that displays information about a player.
+ * @param player - The player to display.
+ * @returns A card that displays information about a player.
+ */
 export function PlayerCard({ player }: { player: Player & { count?: number } }) {
     const [currentScore, setCurrentScore] = useState(player.score);
     const [scoreChanged, setScoreChanged] = useState(false);

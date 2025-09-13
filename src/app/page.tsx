@@ -2,6 +2,10 @@ import { getTeams } from './actions';
 import HomePage from '@/components/home-page';
 import { createClient } from '@/utils/supabase/server';
 
+/**
+ * The home page of the application.
+ * @returns The home page.
+ */
 export default async function Home() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -17,6 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Image from 'next/image';
 
+/**
+ * The page for managing the Sleeper integration.
+ * @returns The page for managing the Sleeper integration.
+ */
 export default function SleeperPage() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);

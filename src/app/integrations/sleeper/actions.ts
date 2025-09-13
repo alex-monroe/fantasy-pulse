@@ -3,6 +3,11 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 
+/**
+ * Connects a Sleeper account to the user's account.
+ * @param username - The Sleeper username to connect.
+ * @returns The Sleeper user object or an error.
+ */
 export async function connectSleeper(username: string) {
   const supabase = createClient();
 
@@ -40,6 +45,11 @@ export async function connectSleeper(username: string) {
   }
 }
 
+/**
+ * Removes a Sleeper integration from the user's account.
+ * @param integrationId - The ID of the integration to remove.
+ * @returns A success message or an error.
+ */
 export async function removeSleeperIntegration(integrationId: number) {
   const supabase = createClient();
 
@@ -66,6 +76,11 @@ export async function removeSleeperIntegration(integrationId: number) {
   return { success: true };
 }
 
+/**
+ * Gets the leagues for a Sleeper integration.
+ * @param integrationId - The ID of the integration.
+ * @returns A list of leagues or an error.
+ */
 export async function getLeagues(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -80,6 +95,10 @@ export async function getLeagues(integrationId: number) {
   return { leagues: data };
 }
 
+/**
+ * Gets the Sleeper integration for the current user.
+ * @returns The Sleeper integration or an error.
+ */
 export async function getSleeperIntegration() {
   const supabase = createClient();
 
@@ -102,6 +121,12 @@ export async function getSleeperIntegration() {
   return { integration: data };
 }
 
+/**
+ * Gets the Sleeper leagues for a user and inserts them into the database.
+ * @param userId - The Sleeper user ID.
+ * @param integrationId - The ID of the integration.
+ * @returns A list of leagues or an error.
+ */
 export async function getSleeperLeagues(userId: string, integrationId: number) {
   const supabase = createClient();
   try {
@@ -135,6 +160,12 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
   }
 }
 
+/**
+ * Gets the matchups for a league and week.
+ * @param leagueId - The ID of the league.
+ * @param week - The week to get matchups for.
+ * @returns A list of matchups or an error.
+ */
 export async function getMatchups(leagueId: string, week: string) {
   try {
     const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
@@ -149,6 +180,11 @@ export async function getMatchups(leagueId: string, week: string) {
   }
 }
 
+/**
+ * Gets the rosters for a league.
+ * @param leagueId - The ID of the league.
+ * @returns A list of rosters or an error.
+ */
 export async function getRosters(leagueId: string) {
   try {
     const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
@@ -163,6 +199,11 @@ export async function getRosters(leagueId: string) {
   }
 }
 
+/**
+ * Gets the users in a league.
+ * @param leagueId - The ID of the league.
+ * @returns A list of users or an error.
+ */
 export async function getUsersInLeague(leagueId: string) {
   try {
     const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}/users`);
@@ -177,6 +218,10 @@ export async function getUsersInLeague(leagueId: string) {
   }
 }
 
+/**
+ * Gets all NFL players from the Sleeper API.
+ * @returns A list of NFL players or an error.
+ */
 export async function getNflPlayers() {
   try {
     const res = await fetch(`https://api.sleeper.app/v1/players/nfl`);
@@ -191,6 +236,12 @@ export async function getNflPlayers() {
   }
 }
 
+/**
+ * Gets the matchups for a league, including roster and user data.
+ * @param leagueId - The ID of the league.
+ * @param week - The week to get matchups for.
+ * @returns A list of enriched matchups or an error.
+ */
 export async function getLeagueMatchups(leagueId: string, week: string) {
   try {
     const [matchupsRes, rostersRes, usersRes, playersRes] = await Promise.all([

@@ -7,14 +7,29 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * A sheet is a container that slides in from the side of the screen.
+ */
 const Sheet = SheetPrimitive.Root
 
+/**
+ * A button that opens the sheet.
+ */
 const SheetTrigger = SheetPrimitive.Trigger
 
+/**
+ * A button that closes the sheet.
+ */
 const SheetClose = SheetPrimitive.Close
 
+/**
+ * A portal that renders the sheet's content in a new DOM node.
+ */
 const SheetPortal = SheetPrimitive.Portal
 
+/**
+ * A layer that covers the main content of the page when the sheet is open.
+ */
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
@@ -53,6 +68,9 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
 
+/**
+ * The content of the sheet.
+ */
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
@@ -74,6 +92,9 @@ const SheetContent = React.forwardRef<
 ))
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
+/**
+ * The header of the sheet.
+ */
 const SheetHeader = ({
   className,
   ...props
@@ -88,6 +109,9 @@ const SheetHeader = ({
 )
 SheetHeader.displayName = "SheetHeader"
 
+/**
+ * The footer of the sheet.
+ */
 const SheetFooter = ({
   className,
   ...props
@@ -102,6 +126,9 @@ const SheetFooter = ({
 )
 SheetFooter.displayName = "SheetFooter"
 
+/**
+ * The title of the sheet.
+ */
 const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
@@ -114,6 +141,9 @@ const SheetTitle = React.forwardRef<
 ))
 SheetTitle.displayName = SheetPrimitive.Title.displayName
 
+/**
+ * The description of the sheet.
+ */
 const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>

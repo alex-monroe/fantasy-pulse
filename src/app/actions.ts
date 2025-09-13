@@ -12,12 +12,20 @@ import {
 } from '@/app/integrations/yahoo/actions';
 import { Team, Player } from '@/lib/types';
 
+/**
+ * Gets the current NFL week from the Sleeper API.
+ * @returns The current NFL week.
+ */
 export async function getCurrentNflWeek() {
   const nflStateResponse = await fetch('https://api.sleeper.app/v1/state/nfl');
   const nflState = await nflStateResponse.json();
   return nflState.week;
 }
 
+/**
+ * Gets the user's teams from all integrated platforms.
+ * @returns A list of teams.
+ */
 export async function getTeams() {
   const supabase = createClient();
 

@@ -20,6 +20,12 @@ import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+/**
+ * Groups a list of players by their position.
+ *
+ * @param players - The list of players to group.
+ * @returns An object where the keys are the positions and the values are the lists of players.
+ */
 const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: GroupedPlayer[] } => {
   const positions = ['QB', 'WR', 'RB', 'TE'];
   const grouped: { [key: string]: GroupedPlayer[] } = {
@@ -44,6 +50,13 @@ const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: Grou
   return grouped;
 };
 
+/**
+ * The main content of the application.
+ *
+ * @param onSignOut - The function to call when the user signs out.
+ * @param teams - The list of teams to display.
+ * @returns The main content of the application.
+ */
 function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
   const groupPlayers = (players: Player[]): GroupedPlayer[] => {
     const playerMap = new Map<string, GroupedPlayer>();
@@ -203,6 +216,13 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   )
 }
 
+/**
+ * The home page of the application.
+ *
+ * @param teams - The list of teams to display.
+ * @param user - The current user.
+ * @returns The home page of the application.
+ */
 export default function HomePage({ teams, user }: { teams: Team[], user: any }) {
   const router = useRouter();
 

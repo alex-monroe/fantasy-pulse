@@ -1,44 +1,71 @@
 # Roster Loom
 
-Roster Loom is a Next.js application for tracking fantasy football matchups.
-The project uses the App Router and Supabase for authentication and data storage.
+Roster Loom is a one-stop destination for keeping track of your various fantasy football teams across different platforms.
 
-To get started, take a look at `src/app/page.tsx`.
+## Features
 
-## Architecture
+- **All-in-one scoreboard:** Get at-a-glance summary of who you have playing, you you're playing against, and current matchup scores
+- **Multi-Platform Support:** Seamlessly connect and manage your teams from Sleeper and Yahoo Fantasy Football.
+- **League-Wide Overview:** Keep track of all your leagues and teams in one place.
 
-The codebase is split between server-side and client-side modules.
+## Getting Started
 
-### Server-side
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
-- Files in `src/app` are server components by default. Server actions such as
-  `src/app/actions.ts` fetch data from Supabase and the Sleeper API.
-- API routes under `src/app/api/**` run as serverless functions. For example,
-  `src/app/api/auth/yahoo/route.ts` handles OAuth callbacks from Yahoo.
-- `src/middleware.ts` executes on the server to keep Supabase session cookies in sync.
-- Utilities like `src/utils/supabase/server.ts` create authenticated Supabase
-  clients for server code.
+### Prerequisites
 
-### Client-side
+- [Node.js](https://nodejs.org/) (v18 or later)
+- [npm](https://www.npmjs.com/)
 
-- Interactive components live in `src/components` and use the "use client"
-  directive (e.g. `src/components/home-page.tsx`).
-- Custom hooks in `src/hooks` and the browser Supabase client in
-  `src/utils/supabase/client.ts` run only in the browser.
-- Pages that import client components, such as `/login` or `/integrations`,
-  execute on the client for user interactions.
+### Installation
 
-## Supabase Auth
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/fantasy-football-copilot.git
+    cd fantasy-football-copilot
+    ```
 
-This project uses [Supabase](https://supabase.com) for authentication. Provide the following environment variables to enable the login flow:
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3.  **Set up environment variables:**
+    Create a `.env.local` file in the root of the project and add the necessary environment variables. You can use the `.env.example` file as a template.
 
-You can sign in at `/login` with an email and password, sign up for a new account at `/register`, and sign out from the main page header.
+    ```bash
+    cp .env.example .env.local
+    ```
 
-## To Do
+    You will need to add your Supabase credentials to the `.env.local` file:
+    - `NEXT_PUBLIC_SUPABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-* update live game states
-* fix player lookup with "Jr" or "III" in name
-* update favicon
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+
+    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Usage
+
+1.  **Register for an account:**
+    Go to the `/register` page to create a new account.
+
+2.  **Log in:**
+    Go to the `/login` page to log in to your account.
+
+3.  **Integrate your fantasy football accounts:**
+    - Navigate to the `/integrations` page.
+    - Connect your Sleeper and/or Yahoo Fantasy Football accounts.
+
+4.  **View your leagues and teams:**
+    Once your accounts are integrated, you can view your leagues and teams on the main dashboard.
+
+5.  **Get AI-powered recommendations:**
+    Use the AI assistant to get personalized advice on your team.
+
+## Contributing
+
+Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for details.
