@@ -206,6 +206,36 @@ export async function getTeams(integrationId: number) {
 
 /**
  * Gets the user's teams from the Yahoo API and saves them to the database.
+ * The API returns a deeply nested object. The teams are in the
+ * fantasy_content.users[0].user[1].games[0].game[1].teams object.
+ * The teams object is a collection of team objects, where each key is a number.
+ * {
+ *   "fantasy_content": {
+ *     "users": [
+ *       {
+ *         "user": [
+ *           {},
+ *           {
+ *             "games": [
+ *               {
+ *                 "game": [
+ *                   {},
+ *                   {
+ *                     "teams": {
+ *                       "0": { "team": [...] },
+ *                       "1": { "team": [...] },
+ *                       "count": 2
+ *                     }
+ *                   }
+ *                 ]
+ *               }
+ *             ]
+ *           }
+ *         ]
+ *       }
+ *     ]
+ *   }
+ * }
  * @param integrationId - The ID of the integration.
  * @returns A list of teams or an error.
  */
@@ -299,6 +329,34 @@ export async function getYahooIntegration() {
 
 /**
  * Gets the user's leagues from the Yahoo API and saves them to the database.
+ * The response from the Yahoo API is structured as follows:
+ * {
+ *   fantasy_content: {
+ *     users: [
+ *       {
+ *         user: [
+ *           {},
+ *           {
+ *             games: [
+ *               {
+ *                 game: [
+ *                   {},
+ *                   {
+ *                     leagues: {
+ *                       "0": { league: [...] },
+ *                       "1": { league: [...] },
+ *                       count: 2
+ *                     }
+ *                   }
+ *                 ]
+ *               }
+ *             ]
+ *           }
+ *         ]
+ *       }
+ *     ]
+ *   }
+ * }
  * @param integrationId - The ID of the integration.
  * @returns A list of leagues or an error.
  */
@@ -360,6 +418,27 @@ export async function getYahooLeagues(integrationId: number) {
 
 /**
  * Gets the roster for a team from the Yahoo API.
+ * The API returns a deeply nested object. The roster is in the
+ * fantasy_content.team[1].roster['0'].players object.
+ * The players object is a collection of player objects, where each key is a number.
+ * {
+ *   "fantasy_content": {
+ *     "team": [
+ *       [...],
+ *       {
+ *         "roster": {
+ *           "0": {
+ *             "players": {
+ *               "0": { "player": [...] },
+ *               "1": { "player": [...] },
+ *               "count": 2
+ *             }
+ *           }
+ *         }
+ *       }
+ *     ]
+ *   }
+ * }
  * @param integrationId - The ID of the integration.
  * @param leagueId - The ID of the league.
  * @param teamId - The ID of the team.
