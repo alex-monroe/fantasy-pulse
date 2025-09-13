@@ -85,5 +85,17 @@ test.describe('Main Page', () => {
     await expect(page.getByText('Weekly Matchups')).toBeVisible();
     await expect(page.getByText('Sleeper Squad')).toBeVisible();
     await expect(page.getByText('Yahoo Warriors')).toBeVisible();
+
+    // Verify matchup scores
+    await expect(page.getByText('10.0')).toBeVisible();
+    await expect(page.getByText('8.0')).toBeVisible();
+    await expect(page.getByText('100.0')).toBeVisible();
+    await expect(page.getByText('90.0')).toBeVisible();
+
+    // Verify player cards
+    await expect(page.getByText('Sleeper Player 1')).toBeVisible();
+    await expect(page.getByText('Sleeper Player 2')).toBeVisible();
+    await expect(page.getByText('Yahoo Player 1')).toBeVisible();
+    await expect(page.getByText('Yahoo Player 2')).toBeVisible();
   });
 });
