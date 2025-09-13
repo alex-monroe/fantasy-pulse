@@ -159,5 +159,162 @@ describe('actions', () => {
       expect(result.teams[0].name).toBe('Yahoo User Team');
       expect(result.teams[0].totalScore).toBe(120);
     });
+
+    it('should continue if getLeagues returns an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-1', provider: 'sleeper', provider_user_id: 'sleeper-user-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: null,
+        error: 'Failed to fetch leagues',
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toEqual([]);
+    });
+
+    it('should continue if getYahooUserTeams returns an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: null,
+        error: 'Failed to fetch yahoo teams',
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toEqual([]);
+    });
+
+    it('should continue if getYahooMatchups returns an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: null,
+        error: 'Failed to fetch yahoo matchups',
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toEqual([]);
+    });
+
+    it('should log an error if getYahooPlayerScores for user fails', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120', team_key: 'user-team-key' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110', team_key: 'opp-team-key' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock).mockResolvedValue({
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        error: null,
+      });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: null,
+          error: 'User scores fetch error',
+        })
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        });
+
+      await getTeams();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch user player scores for team user-team-key',
+        'User scores fetch error'
+      );
+    });
+
+    it('should log an error if getYahooPlayerScores for opponent fails', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120', team_key: 'user-team-key' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110', team_key: 'opp-team-key' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock).mockResolvedValue({
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        error: null,
+      });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: null,
+          error: 'Opponent scores fetch error',
+        });
+
+      await getTeams();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch opponent player scores for team opp-team-key',
+        'Opponent scores fetch error'
+      );
+    });
   });
 });
