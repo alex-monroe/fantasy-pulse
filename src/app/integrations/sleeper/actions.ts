@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { fetchJson } from '@/lib/fetch-json';
+import logger from '@/utils/logger';
 
 /**
  * Connects a Sleeper account to the user's account.
@@ -165,12 +166,16 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
  */
 export async function getMatchups(leagueId: string, week: string) {
   try {
-    const { data: matchups, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
+    const url = `https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`;
+    const { data: matchups, error } = await fetchJson<any[]>(url);
     if (error) {
+      logger.error({ error }, 'Sleeper API error fetching player scores');
       return { error };
     }
+    logger.debug({ matchups }, 'Sleeper API response for player scores');
     return { matchups };
   } catch (error) {
+    logger.error({ error }, 'An unexpected error occurred while fetching player scores from Sleeper');
     return { error: 'An unexpected error occurred' };
   }
 }

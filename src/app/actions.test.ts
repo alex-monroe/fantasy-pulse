@@ -32,6 +32,8 @@ jest.mock('@/app/integrations/ottoneu/actions', () => ({
   getOttoneuTeamInfo: jest.fn(),
 }));
 
+jest.mock('@/utils/logger', () => ({ info: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+
 global.fetch = jest.fn();
 
 describe('actions', () => {

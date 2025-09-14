@@ -2,6 +2,7 @@ import { getMatchups } from './actions';
 import { fetchJson } from '@/lib/fetch-json';
 
 jest.mock('@/lib/fetch-json', () => ({ fetchJson: jest.fn() }));
+jest.mock('@/utils/logger', () => ({ info: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 
 describe('sleeper actions', () => {
   beforeEach(() => {

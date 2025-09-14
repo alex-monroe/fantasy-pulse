@@ -15,6 +15,7 @@ import {
 } from '@/app/integrations/ottoneu/actions';
 import { Team, Player } from '@/lib/types';
 import { findBestMatch } from 'string-similarity';
+import logger from '@/utils/logger';
 
 /**
  * Gets the current NFL week from the Sleeper API.
@@ -55,6 +56,10 @@ export async function buildSleeperTeams(
       `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
     );
     const matchups = await matchupsResponse.json();
+    logger.debug(
+      { matchups },
+      'Sleeper API response for player scores'
+    );
 
     const userRoster = rosters.find(
       (roster: any) => roster.owner_id === integration.provider_user_id
