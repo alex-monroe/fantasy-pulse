@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom'
 import React from 'react'
+import { TextEncoder, TextDecoder } from 'util'
+
+// Polyfill TextEncoder/TextDecoder for jsdom
+// @ts-ignore
+global.TextEncoder = TextEncoder
+// @ts-ignore
+global.TextDecoder = TextDecoder
 
 // Mock next/image to simply render an img tag
 jest.mock('next/image', () => ({

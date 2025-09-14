@@ -38,11 +38,11 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
     const teamName = teamNameMatch ? teamNameMatch[1].trim() : 'Unknown Team';
     const leagueName = leagueNameMatch ? leagueNameMatch[1].trim() : 'Unknown League';
 
-    const matchupRegex = /<h4>Week\s+(\d+)\s+Matchup<\/h4>[\s\S]*?<div class=["']other-game-home-team["']>([^<]+)<span class=["']other-game-score home-score["']>([^<]*)<\/span><\/div>[\s\S]*?<div class=["']other-game-away-team["']>([^<]+)<span class=["']other-game-score away-score["']>([^<]*)<\/span><\/div>/i;
+    const matchupRegex = /<h4>Week\s+(\d+)\s+Matchup<\/h4>[\s\S]*?<a[^>]+href=["'](\/football\/\d+\/game\/\d+)["'][^>]*>[\s\S]*?<div class=["']other-game-home-team["']>([^<]+)<span class=["']other-game-score home-score["']>([^<]*)<\/span><\/div>[\s\S]*?<div class=["']other-game-away-team["']>([^<]+)<span class=["']other-game-score away-score["']>([^<]*)<\/span><\/div>[\s\S]*?<\/a>/i;
     const matchupMatch = html.match(matchupRegex);
     let result: any = { teamName, leagueName, leagueId, teamId };
     if (matchupMatch) {
-      const [, week, homeName, homeScore, awayName, awayScore] = matchupMatch;
+      const [, week, url, homeName, homeScore, awayName, awayScore] = matchupMatch;
       const home = { name: homeName.trim(), score: parseFloat(homeScore) || 0 };
       const away = { name: awayName.trim(), score: parseFloat(awayScore) || 0 };
       let opponentName = away.name;
@@ -58,6 +58,7 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
         opponentName,
         teamScore,
         opponentScore,
+        url,
       };
     }
     return result;
