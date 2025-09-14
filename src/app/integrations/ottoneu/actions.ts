@@ -21,7 +21,6 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
       return { error: 'Failed to fetch team page.' };
     }
     const html = await res.text();
-    console.log('Fetched Ottoneu page:', html);
     const teamNameMatch = html.match(
       /<span class=["']teamName["']>([^<]+)<\/span>/
     );
@@ -35,7 +34,6 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
         /<span class=["']desktop-navigation["']>([^<]+)<\/span>/
       );
     }
-    console.log('League name match result:', leagueNameMatch);
 
     const teamName = teamNameMatch ? teamNameMatch[1].trim() : 'Unknown Team';
     const leagueName = leagueNameMatch ? leagueNameMatch[1].trim() : 'Unknown League';
