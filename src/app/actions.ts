@@ -2,13 +2,17 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
-import { getLeagues } from '@/app/integrations/sleeper/actions';
+import { getLeagues as getSleeperLeagues } from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
   getYahooRoster,
   getYahooMatchups,
   getYahooPlayerScores,
 } from '@/app/integrations/yahoo/actions';
+import {
+  getLeagues as getOttoneuLeagues,
+  getOttoneuTeamInfo,
+} from '@/app/integrations/ottoneu/actions';
 import { Team, Player } from '@/lib/types';
 import { findBestMatch } from 'string-similarity';
 
@@ -34,7 +38,7 @@ export async function buildSleeperTeams(
   week: number,
   playersData: any
 ): Promise<Team[]> {
-  const { leagues, error: leaguesError } = await getLeagues(integration.id);
+  const { leagues, error: leaguesError } = await getSleeperLeagues(integration.id);
   if (leaguesError || !leagues) {
     return [];
   }
@@ -280,6 +284,43 @@ export async function buildYahooTeams(
 }
 
 /**
+ * Builds teams for an Ottoneu integration.
+ * @param integration The Ottoneu integration record.
+ * @returns A list of teams from Ottoneu.
+ */
+export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
+  const { leagues, error } = await getOttoneuLeagues(integration.id);
+  if (error || !leagues || leagues.length === 0) {
+    return [];
+  }
+
+  const league = leagues[0];
+  const info = await getOttoneuTeamInfo(
+    `https://ottoneu.fangraphs.com/football/${league.league_id}/team/${integration.provider_user_id}`
+  );
+
+  if ('error' in info) {
+    return [];
+  }
+
+  const teamId = parseInt(info.teamId, 10);
+
+  return [
+    {
+      id: Number.isNaN(teamId) ? 0 : teamId,
+      name: info.teamName,
+      totalScore: info.matchup?.teamScore ?? 0,
+      players: [],
+      opponent: {
+        name: info.matchup?.opponentName ?? 'Opponent',
+        totalScore: info.matchup?.opponentScore ?? 0,
+        players: [],
+      },
+    },
+  ];
+}
+
+/**
  * Gets the user's teams from all integrated platforms.
  * @returns A list of teams.
  */
@@ -324,6 +365,9 @@ export async function getTeams() {
     } else if (integration.provider === 'yahoo') {
       const yahooTeams = await buildYahooTeams(integration, playerNameMap);
       teams.push(...yahooTeams);
+    } else if (integration.provider === 'ottoneu') {
+      const ottoneuTeams = await buildOttoneuTeams(integration);
+      teams.push(...ottoneuTeams);
     }
   }
 
