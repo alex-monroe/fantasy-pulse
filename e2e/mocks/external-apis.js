@@ -33,8 +33,8 @@ global.fetch = async (input, init) => {
 
   if (url === 'https://api.sleeper.app/v1/league/league1/matchups/1') {
     return jsonResponse([
-      { roster_id: 1, matchup_id: 1, players_points: { p1: 10 } },
-      { roster_id: 2, matchup_id: 1, players_points: { p2: 8 } },
+      { roster_id: 1, matchup_id: 1, players_points: { p1: 10 }, players: ['p1'] },
+      { roster_id: 2, matchup_id: 1, players_points: { p2: 8 }, players: ['p2'] },
     ]);
   }
 

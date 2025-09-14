@@ -98,12 +98,9 @@ export async function buildSleeperTeams(
       opponentUser?.display_name ||
       'Opponent';
 
-    const userPlayers = userRoster.players.map((playerId: string) => {
+    const userPlayers = userMatchup.players.map((playerId: string) => {
       const player = playersData[playerId];
-      const score =
-        userMatchup.players_points && userMatchup.players_points[playerId]
-          ? userMatchup.players_points[playerId]
-          : 0;
+      const score = userMatchup.players_points?.[playerId] ?? 0;
       return {
         id: playerId,
         name: player.full_name,
@@ -119,30 +116,27 @@ export async function buildSleeperTeams(
       };
     });
 
-    const opponentPlayers = opponentRoster
-      ? opponentRoster.players.map((playerId: string) => {
-          const player = playersData[playerId];
-          const score =
-            opponentMatchup.players_points &&
-            opponentMatchup.players_points[playerId]
-              ? opponentMatchup.players_points[playerId]
-              : 0;
+    const opponentPlayers =
+      opponentMatchup && opponentMatchup.players
+        ? opponentMatchup.players.map((playerId: string) => {
+            const player = playersData[playerId];
+            const score = opponentMatchup.players_points?.[playerId] ?? 0;
 
-          return {
-            id: playerId,
-            name: player.full_name,
-            position: player.position,
-            realTeam: player.team,
-            score: score,
-            gameStatus: 'pregame',
-            onUserTeams: 0,
-            onOpponentTeams: 0,
-            gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-            imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-            on_bench: !opponentRoster.starters.includes(playerId),
-          };
-        })
-      : [];
+            return {
+              id: playerId,
+              name: player.full_name,
+              position: player.position,
+              realTeam: player.team,
+              score: score,
+              gameStatus: 'pregame',
+              onUserTeams: 0,
+              onOpponentTeams: 0,
+              gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+              imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
+              on_bench: !opponentRoster.starters.includes(playerId),
+            };
+          })
+        : [];
 
     teams.push({
       id: league.id,
