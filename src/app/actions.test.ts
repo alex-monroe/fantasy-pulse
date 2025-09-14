@@ -145,6 +145,7 @@ describe('actions', () => {
           players: [
             {
               player_key: 'p1',
+              player_id: 'p1',
               name: 'Player One',
               display_position: 'QB',
               editorial_team_abbr: 'TEAMC',
@@ -158,6 +159,7 @@ describe('actions', () => {
           players: [
             {
               player_key: 'p2',
+              player_id: 'p2',
               name: 'Player Two',
               display_position: 'WR',
               editorial_team_abbr: 'TEAMD',
@@ -170,11 +172,11 @@ describe('actions', () => {
 
       (getYahooPlayerScores as jest.Mock)
         .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+          players: [{ player_key: 'p1', player_id: 'p1', totalPoints: 25 }],
           error: null,
         })
         .mockResolvedValueOnce({
-          players: [{ player_key: 'p2', totalPoints: 15 }],
+          players: [{ player_key: 'p2', player_id: 'p2', totalPoints: 15 }],
           error: null,
         });
 
@@ -275,14 +277,14 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock)
         .mockResolvedValue({
-          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+          players: [{ player_key: 'p1', player_id: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
           error: null,
         });
 
 
       (getYahooPlayerScores as jest.Mock)
         .mockResolvedValue({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+          players: [{ player_key: 'p1', player_id: 'p1', totalPoints: 25 }],
           error: null,
         });
 
@@ -292,6 +294,7 @@ describe('actions', () => {
       expect(result.teams.length).toBe(1);
       expect(result.teams[0].name).toBe('Yahoo User Team');
       expect(result.teams[0].totalScore).toBe(120);
+      expect(result.teams[0].players[0].score).toBe(25);
     });
 
     it('should continue if getLeagues returns an error', async () => {
@@ -384,7 +387,7 @@ describe('actions', () => {
       });
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        players: [{ player_key: 'p1', player_id: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
         error: null,
       });
 
@@ -394,7 +397,7 @@ describe('actions', () => {
           error: 'User scores fetch error',
         })
         .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+          players: [{ player_key: 'p1', player_id: 'p1', totalPoints: 25 }],
           error: null,
         });
 
@@ -430,13 +433,13 @@ describe('actions', () => {
       });
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        players: [{ player_key: 'p1', player_id: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
         error: null,
       });
 
       (getYahooPlayerScores as jest.Mock)
         .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+          players: [{ player_key: 'p1', player_id: 'p1', totalPoints: 25 }],
           error: null,
         })
         .mockResolvedValueOnce({
@@ -482,13 +485,13 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
         players: [
-          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false },
+          { player_key: 'p1', player_id: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false },
         ],
         error: null,
       });
 
       (getYahooPlayerScores as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', totalPoints: 25 }],
+        players: [{ player_key: 'p1', player_id: 'p1', totalPoints: 25 }],
         error: null,
       });
 

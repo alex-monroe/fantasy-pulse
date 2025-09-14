@@ -218,10 +218,10 @@ export async function buildYahooTeams(
     }
 
     const userScoresMap = new Map(
-      userPlayerScores?.map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      userPlayerScores?.map((p: any) => [p.player_id, Number(p.totalPoints ?? 0)])
     );
     const opponentScoresMap = new Map(
-      opponentPlayerScores?.map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      opponentPlayerScores?.map((p: any) => [p.player_id, Number(p.totalPoints ?? 0)])
     );
 
     const mapYahooPlayer = (
@@ -246,7 +246,7 @@ export async function buildYahooTeams(
         name: p.name,
         position: p.display_position,
         realTeam: p.editorial_team_abbr,
-        score: scoresMap.get(p.player_key) || 0,
+        score: scoresMap.get(p.player_id) || 0,
         gameStatus: 'pregame',
         onUserTeams: 0,
         onOpponentTeams: 0,
