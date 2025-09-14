@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
 import logger from '@/utils/logger';
 import { fetchJson } from '@/lib/fetch-json';
-import { env } from '@/lib/env';
+import { getEnv } from '@/lib/env';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -58,9 +58,7 @@ export async function getYahooAccessToken(integrationId: number): Promise<{ acce
   // Check if the token is expired or close to expiring (e.g., within 60 seconds)
   if (integration.expires_at && new Date(integration.expires_at).getTime() < Date.now() + 60000) {
     // Token is expired, refresh it
-    const clientId = env.YAHOO_CLIENT_ID;
-    const clientSecret = env.YAHOO_CLIENT_SECRET;
-    const redirectUri = env.YAHOO_REDIRECT_URI;
+    const { YAHOO_CLIENT_ID: clientId, YAHOO_CLIENT_SECRET: clientSecret, YAHOO_REDIRECT_URI: redirectUri } = getEnv();
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 

@@ -1,4 +1,4 @@
-describe('env validation', () => {
+describe('getEnv', () => {
   const OLD_ENV = process.env;
 
   beforeEach(() => {
@@ -10,13 +10,13 @@ describe('env validation', () => {
     process.env = OLD_ENV;
   });
 
-  it('exports env when variables are valid', async () => {
+  it('returns env when variables are valid', async () => {
     process.env.YAHOO_CLIENT_ID = 'id';
     process.env.YAHOO_CLIENT_SECRET = 'secret';
     process.env.YAHOO_REDIRECT_URI = 'https://example.com';
 
-    const { env } = await import('./env');
-    expect(env.YAHOO_CLIENT_ID).toBe('id');
+    const { getEnv } = await import('./env');
+    expect(getEnv().YAHOO_CLIENT_ID).toBe('id');
   });
 
   it('throws error when variables are missing', async () => {
@@ -24,7 +24,8 @@ describe('env validation', () => {
     delete process.env.YAHOO_CLIENT_SECRET;
     delete process.env.YAHOO_REDIRECT_URI;
 
-    await expect(import('./env')).rejects.toThrow(/Invalid environment variables/);
+    const { getEnv } = await import('./env');
+    expect(() => getEnv()).toThrow(/Invalid environment variables/);
   });
 
   it('throws error when redirect uri is invalid', async () => {
@@ -32,6 +33,7 @@ describe('env validation', () => {
     process.env.YAHOO_CLIENT_SECRET = 'secret';
     process.env.YAHOO_REDIRECT_URI = 'not-a-url';
 
-    await expect(import('./env')).rejects.toThrow(/YAHOO_REDIRECT_URI/);
+    const { getEnv } = await import('./env');
+    expect(() => getEnv()).toThrow(/YAHOO_REDIRECT_URI/);
   });
 });
