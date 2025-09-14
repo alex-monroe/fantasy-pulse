@@ -21,8 +21,19 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
       return { error: 'Failed to fetch team page.' };
     }
     const html = await res.text();
-    const teamNameMatch = html.match(/<span class="teamName">([^<]+)<\/span>/);
-    const leagueNameMatch = html.match(/<span class="desktop-navigation">([^<]+)<\/span>/);
+    const teamNameMatch = html.match(
+      /<span class="teamName">([^<]+)<\/span>/
+    );
+    const leagueNameRegex = new RegExp(
+      `<a[^>]+href="/football/${leagueId}/"[^>]*>\\s*<span class="desktop-navigation">([^<]+)<\\/span>`,
+      'i'
+    );
+    let leagueNameMatch = html.match(leagueNameRegex);
+    if (!leagueNameMatch) {
+      leagueNameMatch = html.match(
+        /<span class="desktop-navigation">([^<]+)<\/span>/
+      );
+    }
 
     const teamName = teamNameMatch ? teamNameMatch[1].trim() : 'Unknown Team';
     const leagueName = leagueNameMatch ? leagueNameMatch[1].trim() : 'Unknown League';

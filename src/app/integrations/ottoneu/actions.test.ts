@@ -12,7 +12,7 @@ describe('ottoneu actions', () => {
       ok: true,
       text: () =>
         Promise.resolve(
-          '<span class="teamName">My Team</span><span class="desktop-navigation">My League</span>'
+          '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a>'
         ),
     });
     const result = await getOttoneuTeamInfo(
