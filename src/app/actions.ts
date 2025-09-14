@@ -414,11 +414,15 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
   ];
 }
 
-export const teamBuilders = {
+const teamBuilders = {
   buildSleeperTeams,
   buildYahooTeams,
   buildOttoneuTeams,
 };
+
+export async function getTeamBuilders() {
+  return teamBuilders;
+}
 
 /**
  * Gets the user's teams from all integrated platforms.
@@ -455,11 +459,11 @@ export async function getTeams() {
 
   const integrationPromises = integrations.map((integration) => {
     if (integration.provider === 'sleeper') {
-      return teamBuilders['buildSleeperTeams'](integration, week, playersData);
+      return teamBuilders.buildSleeperTeams(integration, week, playersData);
     } else if (integration.provider === 'yahoo') {
-      return teamBuilders['buildYahooTeams'](integration, playerNameMap);
+      return teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {
-      return teamBuilders['buildOttoneuTeams'](integration);
+      return teamBuilders.buildOttoneuTeams(integration);
     }
     return Promise.resolve([]);
   });

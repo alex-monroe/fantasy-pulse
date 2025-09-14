@@ -1,4 +1,5 @@
-import { getTeams, buildSleeperTeams, buildYahooTeams, teamBuilders } from './actions';
+import * as actions from './actions';
+const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
@@ -640,18 +641,20 @@ describe('actions', () => {
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
 
+      const builders = await actions.getTeamBuilders();
+
       const sleeperSpy = jest
-        .spyOn(teamBuilders, 'buildSleeperTeams')
+        .spyOn(builders, 'buildSleeperTeams')
         .mockImplementation(
           () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
         );
       const yahooSpy = jest
-        .spyOn(teamBuilders, 'buildYahooTeams')
+        .spyOn(builders, 'buildYahooTeams')
         .mockImplementation(
           () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
         );
       const ottoneuSpy = jest
-        .spyOn(teamBuilders, 'buildOttoneuTeams')
+        .spyOn(builders, 'buildOttoneuTeams')
         .mockImplementation(
           () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
         );
@@ -684,13 +687,15 @@ describe('actions', () => {
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
 
+      const builders = await actions.getTeamBuilders();
+
       const sleeperSpy = jest
-        .spyOn(teamBuilders, 'buildSleeperTeams')
+        .spyOn(builders, 'buildSleeperTeams')
         .mockResolvedValue([
           { id: 1, name: 'S', totalScore: 0, players: [], opponent: { name: '', totalScore: 0, players: [] } } as any,
         ]);
       const yahooSpy = jest
-        .spyOn(teamBuilders, 'buildYahooTeams')
+        .spyOn(builders, 'buildYahooTeams')
         .mockRejectedValue(new Error('fail'));
 
       const result = await getTeams();
