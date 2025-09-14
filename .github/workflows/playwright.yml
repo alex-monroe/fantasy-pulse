@@ -33,6 +33,7 @@ jobs:
       run: npx playwright install --with-deps
 
     - name: Run Playwright tests
+      id: tests
       run: npx playwright test
       continue-on-error: true
       env:
@@ -74,3 +75,7 @@ jobs:
       if: always()
       id: deployment
       uses: actions/deploy-pages@v4
+
+    - name: Check test status
+      if: steps.tests.outcome == 'failure'
+      run: exit 1
