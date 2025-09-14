@@ -609,6 +609,7 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
       logger.error({ error }, 'Yahoo API Error');
       return { error: `Failed to fetch player scores from Yahoo: ${error}` };
     }
+    logger.info({ data }, 'Yahoo player scores API response');
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     if (!rosterData) {
