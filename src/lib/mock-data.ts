@@ -7,6 +7,7 @@ export const mockIntegrations: Integration[] = [
     { id: 'espn', name: 'ESPN', status: 'ok', lastUpdated: '2 minutes ago' },
     { id: 'yahoo', name: 'Yahoo Sports', status: 'ok', lastUpdated: '3 minutes ago' },
     { id: 'sleeper', name: 'Sleeper', status: 'error', lastUpdated: '1 hour ago' },
+    { id: 'ottoneu', name: 'Ottoneu', status: 'ok', lastUpdated: '5 minutes ago' },
 ];
 
 /**
