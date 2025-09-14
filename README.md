@@ -5,7 +5,7 @@ Roster Loom is a one-stop destination for keeping track of your various fantasy 
 ## Features
 
 - **All-in-one scoreboard:** Get at-a-glance summary of who you have playing, you you're playing against, and current matchup scores
-- **Multi-Platform Support:** Seamlessly connect and manage your teams from Sleeper and Yahoo Fantasy Football.
+- **Multi-Platform Support:** Seamlessly connect and manage your teams from Sleeper, Yahoo, and Ottoneu Fantasy Football.
 - **League-Wide Overview:** Keep track of all your leagues and teams in one place.
 
 ## Getting Started
@@ -58,7 +58,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 3.  **Integrate your fantasy football accounts:**
     - Navigate to the `/integrations` page.
-    - Connect your Sleeper and/or Yahoo Fantasy Football accounts.
+    - Connect your Sleeper, Yahoo, and/or Ottoneu Fantasy Football accounts.
 
 4.  **View your leagues and teams:**
     Once your accounts are integrated, you can view your leagues and teams on the main dashboard.

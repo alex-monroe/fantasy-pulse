@@ -36,6 +36,16 @@ export default function IntegrationsPage() {
               </CardHeader>
             </Card>
           </Link>
+          <Link href="/integrations/ottoneu">
+            <Card className="hover:bg-muted">
+              <CardHeader>
+                <CardTitle>Ottoneu</CardTitle>
+                <CardDescription>
+                  Connect by providing your public team URL.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
         </CardContent>
       </Card>
     </main>

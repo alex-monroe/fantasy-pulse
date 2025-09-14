@@ -24,6 +24,7 @@ describe('IntegrationStatus', () => {
     expect(screen.getByText('ESPN')).toBeInTheDocument()
     expect(screen.getByText('Yahoo Sports')).toBeInTheDocument()
     expect(screen.getByText('Sleeper')).toBeInTheDocument()
+    expect(screen.getByText('Ottoneu')).toBeInTheDocument()
     expect(screen.getByText('Alert Log')).toBeInTheDocument()
     expect(screen.getByText('Successfully synced with ESPN.')).toBeInTheDocument()
     expect(screen.getByText('Live scoring data is now active.')).toBeInTheDocument()
