@@ -115,3 +115,8 @@ The response from the `getYahooRoster` function is structured as follows:
   }
 }
 ```
+
+### Player Scores
+
+An example response from the Yahoo player scores API is available at
+[docs/examples/yahoo-player-scores-response.json](../../../../docs/examples/yahoo-player-scores-response.json).
