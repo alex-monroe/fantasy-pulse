@@ -1,7 +1,8 @@
 import { test, expect } from 'playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { v4 as uuid } from 'uuid';
 
-const email = 'test@test.com';
+const email = `test-${uuid()}@test.com`;
 const password = 'test';
 
 test.describe('Main Page', () => {
@@ -14,11 +15,6 @@ test.describe('Main Page', () => {
   );
 
   test.beforeAll(async () => {
-    const { data: { users } } = await supabase.auth.admin.listUsers();
-    const existing = users.find(u => u.email === email);
-    if (existing) {
-      await supabase.auth.admin.deleteUser(existing.id);
-    }
 
     const { data, error } = await supabase.auth.admin.createUser({
       email,
