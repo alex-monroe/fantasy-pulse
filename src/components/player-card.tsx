@@ -5,16 +5,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { User, Users } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-
-const gameStatusConfig = {
-    possession: { text: 'Possession', className: 'bg-primary/20 text-primary-foreground border-primary' },
-    sidelines: { text: 'Sidelines', className: 'bg-secondary' },
-    final: { text: 'Final', className: 'bg-muted text-muted-foreground' },
-    pregame: { text: 'Pregame', className: 'bg-accent/20 text-accent-foreground border-accent' },
-};
 
 /**
  * A card that displays information about a player.
@@ -29,7 +22,7 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
         setCurrentScore(player.score);
         const interval = setInterval(() => {
             const scoreChange = Math.random() > 0.9 ? parseFloat((Math.random() * 7).toFixed(1)) : 0;
-            if (scoreChange > 0 && player.gameStatus === 'possession') {
+            if (scoreChange > 0) {
                 setCurrentScore(prev => parseFloat((prev + scoreChange).toFixed(1)));
                 setScoreChanged(true);
                 setTimeout(() => setScoreChanged(false), 1000);
@@ -38,8 +31,6 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
 
         return () => clearInterval(interval);
     }, [player]);
-
-    const statusInfo = useMemo(() => gameStatusConfig[player.gameStatus], [player.gameStatus]);
 
     return (
         <TooltipProvider>
@@ -89,9 +80,6 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
                     )}>
                         {currentScore.toFixed(1)}
                     </p>
-                    <Badge variant="outline" className={cn("capitalize text-xs h-5 mt-0.5", statusInfo.className)}>
-                        {statusInfo.text}
-                    </Badge>
                 </div>
             </Card>
         </TooltipProvider>

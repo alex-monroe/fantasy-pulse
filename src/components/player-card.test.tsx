@@ -34,6 +34,6 @@ describe('PlayerCard', () => {
     expect(screen.getByText('Test Player')).toBeInTheDocument()
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
-    expect(screen.getByText('Possession')).toBeInTheDocument()
+    expect(screen.queryByText('Possession')).not.toBeInTheDocument()
   })
 })
