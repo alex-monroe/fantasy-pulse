@@ -466,7 +466,11 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
       logger.error({ error }, 'Yahoo API Error');
       return { error: `Failed to fetch roster from Yahoo: ${error}` };
     }
-    const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
+    // Yahoo's roster response nests player data under `fantasy_content.roster['0'].players`.
+    // The previous implementation attempted to retrieve the roster from
+    // `team[1].roster`, which does not exist in the current API response
+    // structure and resulted in an empty player list.
+    const rosterData = data.fantasy_content?.roster?.['0']?.players;
 
     if (!rosterData) {
       logger.info('No roster data found in Yahoo API response.');
@@ -609,34 +613,52 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
       logger.error({ error }, 'Yahoo API Error');
       return { error: `Failed to fetch player scores from Yahoo: ${error}` };
     }
-    const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
+    // Yahoo's roster response nests player data under `fantasy_content.roster['0'].players`.
+    // The previous implementation attempted to retrieve the roster from
+    // `team[1].roster`, which does not exist in the current API response
+    // structure and resulted in an empty player list.
+    const rosterDataRoot = data.fantasy_content?.roster;
 
-    if (!rosterData) {
+    if (!rosterDataRoot) {
       logger.info('No roster data found in Yahoo API response.');
       return { players: [] };
     }
 
-    const players = Object.values(rosterData).filter((p: any) => p.player).map((p: any) => {
-      const playerDetailsArray = p.player[0];
-      const playerStats = p.player[1]?.player_points?.total;
+    // Flatten the roster structure into a simple array of player entries.
+    const rosterEntries: any[] = [];
+    Object.values(rosterDataRoot).forEach((entry: any) => {
+      if (entry?.player) {
+        rosterEntries.push(entry);
+      } else if (entry?.players) {
+        Object.values(entry.players).forEach((p: any) => {
+          if (p?.player) {
+            rosterEntries.push(p);
+          }
+        });
+      }
+    });
 
-      const playerDetails: { [key: string]: any } = {};
-      playerDetailsArray.forEach((detail: any) => {
-        if (detail) {
-          const key = Object.keys(detail)[0];
-          playerDetails[key] = detail[key];
-        }
-      });
+    const players = rosterEntries
+      .map((p: any) => {
+        // `p.player` is an array whose first element contains an array of
+        // player details. The remaining elements include selected_position,
+        // player_stats, player_points, etc. We need to flatten the details
+        // array and then extract the points separately.
+        const playerInfo = p.player;
+        const detailsArray = playerInfo[0];
+        const playerDetails = parseYahooTeamData(detailsArray);
+        const pointsEntry = playerInfo.find((d: any) => d.player_points);
 
-      return {
-        player_key: playerDetails.player_key,
-        player_id: playerDetails.player_id,
-        name: playerDetails.name?.full,
-        headshot: playerDetails.headshot?.url,
-        position_type: playerDetails.position_type,
-        totalPoints: playerStats,
-      };
-    }).filter(Boolean);
+        return {
+          player_key: playerDetails.player_key,
+          player_id: playerDetails.player_id,
+          name: playerDetails.name?.full,
+          headshot: playerDetails.headshot?.url,
+          position_type: playerDetails.position_type,
+          totalPoints: pointsEntry?.player_points?.total,
+        };
+      })
+      .filter(Boolean);
 
     return { players };
   } catch (error) {
