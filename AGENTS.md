@@ -87,3 +87,7 @@ npm install
 ```
 
 After running the command, be sure to commit the updated `package-lock.json` file along with your other changes. If you forget to do this, you will need to pull the latest changes, run `npm install`, and then push the updated `package-lock.json` file.
+
+## Yahoo Player Scores Example
+
+Use `src/app/integrations/yahoo/player-scores.example.json` as a reference when developing against the Yahoo player scores API.
