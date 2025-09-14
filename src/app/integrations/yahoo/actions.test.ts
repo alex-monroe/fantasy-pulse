@@ -1,7 +1,7 @@
-import * as actions from './actions';
-import { fetchJson } from '@/lib/fetch-json';
-import { createClient } from '@/utils/supabase/server';
 import playerScoresExample from './player-scores.example.json';
+let actions: typeof import('./actions');
+let fetchJson: jest.Mock;
+let createClient: jest.Mock;
 const rosterExample = {
   fantasy_content: {
     team: [
@@ -49,23 +49,29 @@ describe('yahoo actions', () => {
     }),
   } as any;
 
-  beforeEach(() => {
-    (createClient as jest.Mock).mockReturnValue(mockSupabase);
-    mockSupabase.from().single.mockResolvedValue({ data: { access_token: 'old', refresh_token: 'refresh', expires_at: new Date(Date.now() - 1000).toISOString() }, error: null });
-    (fetchJson as jest.Mock).mockReset();
+  beforeEach(async () => {
+    jest.resetModules();
     process.env.YAHOO_CLIENT_ID = 'id';
     process.env.YAHOO_CLIENT_SECRET = 'secret';
-    process.env.YAHOO_REDIRECT_URI = 'uri';
+    process.env.YAHOO_REDIRECT_URI = 'http://uri';
+
+    fetchJson = (await import('@/lib/fetch-json')).fetchJson as jest.Mock;
+    createClient = (await import('@/utils/supabase/server')).createClient as jest.Mock;
+    actions = await import('./actions');
+
+    createClient.mockReturnValue(mockSupabase);
+    mockSupabase.from().single.mockResolvedValue({ data: { access_token: 'old', refresh_token: 'refresh', expires_at: new Date(Date.now() - 1000).toISOString() }, error: null });
+    fetchJson.mockReset();
   });
 
   it('refreshes token successfully', async () => {
-    (fetchJson as jest.Mock).mockResolvedValue({ data: { access_token: 'new', refresh_token: 'r', expires_in: 3600 } });
+    fetchJson.mockResolvedValue({ data: { access_token: 'new', refresh_token: 'r', expires_in: 3600 } });
     const result = await actions.getYahooAccessToken(1);
     expect(result).toEqual({ access_token: 'new' });
   });
 
   it('returns error when refresh fails', async () => {
-    (fetchJson as jest.Mock).mockResolvedValue({ error: 'bad' });
+    fetchJson.mockResolvedValue({ error: 'bad' });
     const result = await actions.getYahooAccessToken(1);
     expect(result).toEqual({ error: 'Failed to refresh Yahoo token: bad' });
   });
@@ -81,7 +87,7 @@ describe('yahoo actions', () => {
       error: null,
     });
 
-    (fetchJson as jest.Mock).mockResolvedValue({ data: playerScoresExample });
+    fetchJson.mockResolvedValue({ data: playerScoresExample });
     const result = await actions.getYahooPlayerScores(1, 'teamKey');
 
     expect(result.players[0]).toMatchObject({
@@ -102,7 +108,7 @@ describe('yahoo actions', () => {
       error: null,
     });
 
-    (fetchJson as jest.Mock).mockResolvedValue({ data: rosterExample });
+    fetchJson.mockResolvedValue({ data: rosterExample });
     const result = await actions.getYahooRoster(1, '123.l.456', '1');
 
     expect(result.players[0]).toMatchObject({
