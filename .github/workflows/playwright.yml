@@ -15,6 +15,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+      pull-requests: write
 
     steps:
     - name: Checkout repository
@@ -47,7 +48,7 @@ jobs:
         REPORT_DIR="playwright-report-${{ github.run_id }}"
         mkdir -p "$REPORT_DIR"
         cp -r playwright-report/* "$REPORT_DIR/"
-        cp -r test-results "$REPORT_DIR/"
+        if [ -d test-results ]; then cp -r test-results "$REPORT_DIR/"; fi
 
     - name: Checkout existing GitHub Pages
       if: always()
@@ -87,6 +88,21 @@ jobs:
       if: always()
       id: deployment
       uses: actions/deploy-pages@v4
+
+    - name: Comment with report link
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      env:
+        REPORT_URL: "${{ steps.deployment.outputs.page_url }}${{ github.run_id }}/"
+      with:
+        script: |
+          const reportUrl = process.env.REPORT_URL;
+          const prNumber = context.payload.pull_request.number;
+          await github.rest.issues.createComment({
+            ...context.repo,
+            issue_number: prNumber,
+            body: `Playwright report for this run: ${reportUrl}`
+          });
 
     - name: Check test status
       if: steps.tests.outcome == 'failure'
