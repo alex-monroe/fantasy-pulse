@@ -9,6 +9,7 @@ test.describe('Main Page', () => {
   let user: any;
   let sleeperIntegration: any;
   let yahooIntegration: any;
+  let ottoneuIntegration: any;
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -57,11 +58,40 @@ test.describe('Main Page', () => {
       .single();
     if (yahooError) throw yahooError;
     yahooIntegration = yahoo;
+
+    const { data: ottoneu, error: ottoneuError } = await supabase
+      .from('user_integrations')
+      .insert({
+        user_id: user.id,
+        provider: 'ottoneu',
+        provider_user_id: '2514',
+      })
+      .select()
+      .single();
+    if (ottoneuError) throw ottoneuError;
+    ottoneuIntegration = ottoneu;
+
+    await supabase.from('leagues').insert({
+      league_id: '309',
+      name: 'The SOFA',
+      user_integration_id: ottoneu.id,
+      user_id: user.id,
+      season: '2024',
+      total_rosters: 2,
+      status: 'in_season',
+    });
   });
 
   test.afterAll(async () => {
     if (user) {
-      await supabase.from('teams').delete().eq('user_integration_id', yahooIntegration.id);
+      await supabase
+        .from('teams')
+        .delete()
+        .eq('user_integration_id', yahooIntegration.id);
+      await supabase
+        .from('teams')
+        .delete()
+        .eq('user_integration_id', ottoneuIntegration.id);
       await supabase.from('leagues').delete().eq('user_id', user.id);
       await supabase.from('user_integrations').delete().eq('user_id', user.id);
       await supabase.auth.admin.deleteUser(user.id);
@@ -81,17 +111,22 @@ test.describe('Main Page', () => {
     await expect(page.getByText('Weekly Matchups')).toBeVisible();
     await expect(page.getByText('Sleeper Squad')).toBeVisible();
     await expect(page.getByText('Yahoo Warriors')).toBeVisible();
+    await expect(page.getByText('The Witchcraft')).toBeVisible();
 
     // Verify matchup scores
     await expect(page.getByText('10.0')).toBeVisible();
     await expect(page.getByText('8.0')).toBeVisible();
     await expect(page.getByText('100.0')).toBeVisible();
     await expect(page.getByText('90.0')).toBeVisible();
+    await expect(page.getByText('13.90')).toBeVisible();
+    await expect(page.getByText('0.00')).toBeVisible();
 
     // Verify player cards
     await expect(page.getByText('Sleeper Player 1')).toBeVisible();
     await expect(page.getByText('Sleeper Player 2')).toBeVisible();
     await expect(page.getByText('Yahoo Player 1')).toBeVisible();
     await expect(page.getByText('Yahoo Player 2')).toBeVisible();
+    await expect(page.getByText('Josh Allen')).toBeVisible();
+    await expect(page.getByText('Breece Hall')).toBeVisible();
   });
 });
