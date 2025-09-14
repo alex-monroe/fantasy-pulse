@@ -15,7 +15,7 @@ export default function IntegrationsPage() {
             Connect your fantasy football accounts to get started.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/integrations/sleeper">
             <Card className="hover:bg-muted">
               <CardHeader>
@@ -32,6 +32,16 @@ export default function IntegrationsPage() {
                 <CardTitle>Yahoo</CardTitle>
                 <CardDescription>
                   Connect your Yahoo account to import your leagues.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link href="/integrations/ottoneu">
+            <Card className="hover:bg-muted">
+              <CardHeader>
+                <CardTitle>Ottoneu</CardTitle>
+                <CardDescription>
+                  Connect your Ottoneu team by providing a public team link.
                 </CardDescription>
               </CardHeader>
             </Card>
