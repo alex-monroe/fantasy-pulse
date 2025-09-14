@@ -13,7 +13,6 @@ const gameStatusConfig = {
     possession: { text: 'Possession', className: 'bg-primary/20 text-primary-foreground border-primary' },
     sidelines: { text: 'Sidelines', className: 'bg-secondary' },
     final: { text: 'Final', className: 'bg-muted text-muted-foreground' },
-    pregame: { text: 'Pregame', className: 'bg-accent/20 text-accent-foreground border-accent' },
 };
 
 /**
@@ -89,9 +88,11 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
                     )}>
                         {currentScore.toFixed(1)}
                     </p>
-                    <Badge variant="outline" className={cn("capitalize text-xs h-5 mt-0.5", statusInfo.className)}>
-                        {statusInfo.text}
-                    </Badge>
+                    {statusInfo && (
+                        <Badge variant="outline" className={cn("capitalize text-xs h-5 mt-0.5", statusInfo.className)}>
+                            {statusInfo.text}
+                        </Badge>
+                    )}
                 </div>
             </Card>
         </TooltipProvider>
