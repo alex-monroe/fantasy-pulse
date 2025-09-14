@@ -5,8 +5,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { User, Users } from "lucide-react";
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 /**
@@ -15,23 +13,6 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
  * @returns A card that displays information about a player.
  */
 export function PlayerCard({ player }: { player: Player & { count?: number } }) {
-    const [currentScore, setCurrentScore] = useState(player.score);
-    const [scoreChanged, setScoreChanged] = useState(false);
-
-    useEffect(() => {
-        setCurrentScore(player.score);
-        const interval = setInterval(() => {
-            const scoreChange = Math.random() > 0.9 ? parseFloat((Math.random() * 7).toFixed(1)) : 0;
-            if (scoreChange > 0) {
-                setCurrentScore(prev => parseFloat((prev + scoreChange).toFixed(1)));
-                setScoreChanged(true);
-                setTimeout(() => setScoreChanged(false), 1000);
-            }
-        }, 5000);
-
-        return () => clearInterval(interval);
-    }, [player]);
-
     return (
         <TooltipProvider>
             <Card className="flex items-center p-2 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm">
@@ -74,11 +55,8 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
                     )}
                 </div>
                  <div className="text-right">
-                    <p className={cn(
-                        "text-xl font-bold transition-all duration-500",
-                        scoreChanged ? 'text-accent scale-110' : 'text-foreground'
-                    )}>
-                        {currentScore.toFixed(1)}
+                    <p className="text-xl font-bold text-foreground">
+                        {player.score.toFixed(1)}
                     </p>
                 </div>
             </Card>
