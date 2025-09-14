@@ -6,13 +6,20 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { User, Users } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useLivePlayerScore } from "@/hooks/use-live-player-score";
 
 /**
  * A card that displays information about a player.
  * @param player - The player to display.
  * @returns A card that displays information about a player.
  */
-export function PlayerCard({ player }: { player: Player & { count?: number } }) {
+export function PlayerCard({ player, liveScore }: { player: Player & { count?: number }; liveScore?: number }) {
+    const score = useLivePlayerScore(
+        player.id,
+        liveScore ?? player.score,
+        liveScore !== undefined ? async () => liveScore : undefined
+    );
+
     return (
         <TooltipProvider>
             <Card className="flex items-center p-2 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm">
@@ -54,9 +61,9 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
                         </Tooltip>
                     )}
                 </div>
-                 <div className="text-right">
+                <div className="text-right">
                     <p className="text-xl font-bold text-foreground">
-                        {player.score.toFixed(1)}
+                        {score.toFixed(1)}
                     </p>
                 </div>
             </Card>

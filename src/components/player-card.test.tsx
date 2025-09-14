@@ -4,7 +4,7 @@ import type { Player } from '@/lib/types'
 
 describe('PlayerCard', () => {
   const player: Player = {
-    id: 1,
+    id: '1',
     name: 'Test Player',
     position: 'QB',
     realTeam: 'TB',
@@ -26,5 +26,15 @@ describe('PlayerCard', () => {
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
     expect(screen.queryByText('Possession')).not.toBeInTheDocument()
+  })
+
+  it('updates when liveScore changes', async () => {
+    const { rerender } = render(<PlayerCard player={player} liveScore={10.5} />)
+
+    expect(screen.getByText('10.5')).toBeInTheDocument()
+
+    rerender(<PlayerCard player={player} liveScore={20.1} />)
+
+    expect(await screen.findByText('20.1')).toBeInTheDocument()
   })
 })
