@@ -38,7 +38,29 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
     const teamName = teamNameMatch ? teamNameMatch[1].trim() : 'Unknown Team';
     const leagueName = leagueNameMatch ? leagueNameMatch[1].trim() : 'Unknown League';
 
-    return { teamName, leagueName, leagueId, teamId };
+    const matchupRegex = /<h4>Week\s+(\d+)\s+Matchup<\/h4>[\s\S]*?<div class=["']other-game-home-team["']>([^<]+)<span class=["']other-game-score home-score["']>([^<]*)<\/span><\/div>[\s\S]*?<div class=["']other-game-away-team["']>([^<]+)<span class=["']other-game-score away-score["']>([^<]*)<\/span><\/div>/i;
+    const matchupMatch = html.match(matchupRegex);
+    let result: any = { teamName, leagueName, leagueId, teamId };
+    if (matchupMatch) {
+      const [, week, homeName, homeScore, awayName, awayScore] = matchupMatch;
+      const home = { name: homeName.trim(), score: parseFloat(homeScore) || 0 };
+      const away = { name: awayName.trim(), score: parseFloat(awayScore) || 0 };
+      let opponentName = away.name;
+      let teamScore = home.score;
+      let opponentScore = away.score;
+      if (away.name.toLowerCase() === teamName.toLowerCase()) {
+        opponentName = home.name;
+        teamScore = away.score;
+        opponentScore = home.score;
+      }
+      result.matchup = {
+        week: Number(week),
+        opponentName,
+        teamScore,
+        opponentScore,
+      };
+    }
+    return result;
   } catch {
     return { error: 'Failed to fetch team page.' };
   }
