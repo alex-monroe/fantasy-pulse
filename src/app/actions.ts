@@ -207,6 +207,7 @@ export async function buildYahooTeams(
         userScoresError
       );
     }
+    console.log('Yahoo user player scores response', userPlayerScores);
 
     const { players: opponentPlayerScores, error: opponentScoresError } =
       await getYahooPlayerScores(integration.id, opponentTeam.team_key);
@@ -216,13 +217,19 @@ export async function buildYahooTeams(
         opponentScoresError
       );
     }
+    console.log(
+      'Yahoo opponent player scores response',
+      opponentPlayerScores
+    );
 
     const userScoresMap = new Map(
       userPlayerScores?.map((p: any) => [p.player_id, Number(p.totalPoints ?? 0)])
     );
+    console.log('Yahoo user scores map', userScoresMap);
     const opponentScoresMap = new Map(
       opponentPlayerScores?.map((p: any) => [p.player_id, Number(p.totalPoints ?? 0)])
     );
+    console.log('Yahoo opponent scores map', opponentScoresMap);
 
     const mapYahooPlayer = (
       p: any,
