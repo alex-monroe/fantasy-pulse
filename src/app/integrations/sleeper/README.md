@@ -76,3 +76,7 @@ The response from the `getNflPlayers` function is an object where each key is a 
   ...
 }
 ```
+
+### Matchups
+
+Sleeper matchup responses provide scoring data for each roster in a given week. Use the sample response in [`matchups.example.json`](./matchups.example.json) as a reference when working on or testing matchup logic.
