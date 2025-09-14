@@ -1,9 +1,21 @@
+const fs = require('fs');
+const path = require('path');
+
 const originalFetch = global.fetch;
 
 function jsonResponse(data) {
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function htmlResponseFromFile(filename) {
+  const filePath = path.resolve(__dirname, `../goldens/${filename}`);
+  const html = fs.readFileSync(filePath, 'utf-8');
+  return new Response(html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html' },
   });
 }
 
@@ -43,6 +55,15 @@ global.fetch = async (input, init) => {
       { user_id: 'sleeperUser', display_name: 'Sleeper User', metadata: { team_name: 'Sleeper Squad' } },
       { user_id: 'opponentUser', display_name: 'Opponent User', metadata: { team_name: 'Opponent Squad' } },
     ]);
+  }
+
+  // Ottoneu page mocks
+  if (url === 'https://ottoneu.fangraphs.com/football/309/team/2514') {
+    return htmlResponseFromFile('ottoneu_team_page.html');
+  }
+
+  if (url === 'https://ottoneu.fangraphs.com/football/309/game/7282725') {
+    return htmlResponseFromFile('ottoneu_matchup_page.html');
   }
 
   // Yahoo API mocks
