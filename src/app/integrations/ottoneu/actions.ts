@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { JSDOM } from 'jsdom';
 
 /**
  * Fetches and parses an Ottoneu team page for basic info.
@@ -21,45 +22,62 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
       return { error: 'Failed to fetch team page.' };
     }
     const html = await res.text();
-    const teamNameMatch = html.match(
-      /<span class=["']teamName["']>([^<]+)<\/span>/
-    );
-    const leagueNameRegex = new RegExp(
-      `<a[^>]*href=["']/football/${leagueId}/["'][^>]*>\\s*<span class=["']desktop-navigation["']>([^<]+)<\\/span>`,
-      'i'
-    );
-    let leagueNameMatch = html.match(leagueNameRegex);
-    if (!leagueNameMatch) {
-      leagueNameMatch = html.match(
-        /<span class=["']desktop-navigation["']>([^<]+)<\/span>/
-      );
-    }
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
 
-    const teamName = teamNameMatch ? teamNameMatch[1].trim() : 'Unknown Team';
-    const leagueName = leagueNameMatch ? leagueNameMatch[1].trim() : 'Unknown League';
+    const teamName =
+      document.querySelector('.teamName')?.textContent?.trim() ||
+      'Unknown Team';
+    const leagueName =
+      document.querySelector(
+        `a[href="/football/${leagueId}/"] .desktop-navigation`
+      )?.textContent?.trim() ||
+      document.querySelector('.desktop-navigation')?.textContent?.trim() ||
+      'Unknown League';
 
-    const matchupRegex = /<h4>Week\s+(\d+)\s+Matchup<\/h4>[\s\S]*?<a[^>]+href=["'](\/football\/\d+\/game\/\d+)["'][^>]*>[\s\S]*?<div class=["']other-game-home-team["']>([^<]+)<span class=["']other-game-score home-score["']>([^<]*)<\/span><\/div>[\s\S]*?<div class=["']other-game-away-team["']>([^<]+)<span class=["']other-game-score away-score["']>([^<]*)<\/span><\/div>[\s\S]*?<\/a>/i;
-    const matchupMatch = html.match(matchupRegex);
-    let result: any = { teamName, leagueName, leagueId, teamId };
-    if (matchupMatch) {
-      const [, week, url, homeName, homeScore, awayName, awayScore] = matchupMatch;
-      const home = { name: homeName.trim(), score: parseFloat(homeScore) || 0 };
-      const away = { name: awayName.trim(), score: parseFloat(awayScore) || 0 };
-      let opponentName = away.name;
-      let teamScore = home.score;
-      let opponentScore = away.score;
-      if (away.name.toLowerCase() === teamName.toLowerCase()) {
-        opponentName = home.name;
-        teamScore = away.score;
-        opponentScore = home.score;
+    const result: any = { teamName, leagueName, leagueId, teamId };
+
+    const matchupHeader = Array.from(document.querySelectorAll('h4')).find(
+      (el) => /Week\s+\d+\s+Matchup/i.test(el.textContent || '')
+    );
+
+    if (matchupHeader) {
+      const weekMatch = matchupHeader.textContent?.match(/Week\s+(\d+)/i);
+      const week = weekMatch ? Number(weekMatch[1]) : undefined;
+      const matchupSection = matchupHeader.closest('.page-header__section');
+      const gameLink = matchupSection?.querySelector('.other-games a');
+      if (gameLink && week) {
+        const url = gameLink.getAttribute('href') || '';
+        const homeEl = gameLink.querySelector('.other-game-home-team');
+        const awayEl = gameLink.querySelector('.other-game-away-team');
+        const homeScoreEl = homeEl?.querySelector('.home-score');
+        const awayScoreEl = awayEl?.querySelector('.away-score');
+        const homeScore = parseFloat(homeScoreEl?.textContent || '0');
+        const awayScore = parseFloat(awayScoreEl?.textContent || '0');
+        const homeName = (homeEl?.textContent || '')
+          .replace(homeScoreEl?.textContent || '', '')
+          .trim();
+        const awayName = (awayEl?.textContent || '')
+          .replace(awayScoreEl?.textContent || '', '')
+          .trim();
+
+        let opponentName = awayName;
+        let teamScore = homeScore;
+        let opponentScore = awayScore;
+        if (awayName.toLowerCase() === teamName.toLowerCase()) {
+          opponentName = homeName;
+          teamScore = awayScore;
+          opponentScore = homeScore;
+        }
+
+        result.matchup = {
+          week,
+          opponentName,
+          teamScore,
+          opponentScore,
+          url,
+        };
       }
-      result.matchup = {
-        week: Number(week),
-        opponentName,
-        teamScore,
-        opponentScore,
-        url,
-      };
     }
     return result;
   } catch {
