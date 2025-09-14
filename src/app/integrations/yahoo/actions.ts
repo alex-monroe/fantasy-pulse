@@ -259,7 +259,7 @@ export async function getYahooUserTeams(integrationId: number) {
       logger.error({ error }, 'Yahoo API Error fetching teams');
       return { error: `Failed to fetch teams from Yahoo: ${error}` };
     }
-    logger.debug({ data }, 'Yahoo API response for teams');
+    logger.info({ data }, 'Yahoo API response for teams');
     const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
 
     if (!teamsFromYahoo) {
@@ -609,7 +609,7 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
       logger.error({ error }, 'Yahoo API Error');
       return { error: `Failed to fetch player scores from Yahoo: ${error}` };
     }
-    logger.debug({ data }, 'Yahoo API response for player scores');
+    logger.info({ data }, 'Yahoo API response for player scores');
     const rosterData = data.fantasy_content?.team?.[1]?.roster?.['0']?.players;
 
     if (!rosterData) {
