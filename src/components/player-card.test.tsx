@@ -20,15 +20,6 @@ describe('PlayerCard', () => {
     imageUrl: 'https://example.com/player.jpg',
   }
 
-  beforeEach(() => {
-    jest.useFakeTimers()
-  })
-
-  afterEach(() => {
-    jest.runOnlyPendingTimers()
-    jest.useRealTimers()
-  })
-
   it('renders player information', () => {
     render(<PlayerCard player={player} />)
     expect(screen.getByText('Test Player')).toBeInTheDocument()
