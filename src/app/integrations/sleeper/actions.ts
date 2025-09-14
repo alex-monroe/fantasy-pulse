@@ -165,7 +165,8 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
  */
 export async function getMatchups(leagueId: string, week: string) {
   try {
-    const { data: matchups, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`);
+    const url = `https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`;
+    const { data: matchups, error } = await fetchJson<any[]>(url);
     if (error) {
       return { error };
     }

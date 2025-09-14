@@ -91,3 +91,7 @@ After running the command, be sure to commit the updated `package-lock.json` fil
 ## Yahoo Player Scores Example
 
 Use `src/app/integrations/yahoo/player-scores.example.json` as a reference when developing against the Yahoo player scores API.
+
+## Sleeper Matchups Example
+
+Use `src/app/integrations/sleeper/matchups.example.json` as a reference when developing or updating Sleeper matchup logic.
