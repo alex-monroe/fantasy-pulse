@@ -56,7 +56,7 @@ export async function buildSleeperTeams(
       `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
     );
     const matchups = await matchupsResponse.json();
-    logger.debug(
+    logger.info(
       { matchups },
       'Sleeper API response for player scores'
     );
