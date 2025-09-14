@@ -45,7 +45,6 @@ export async function connectOttoneu(teamUrl: string) {
       .insert({
         user_id: user.id,
         provider: 'ottoneu',
-        provider_user_id: teamId,
       })
       .select()
       .single();
