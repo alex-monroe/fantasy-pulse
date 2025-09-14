@@ -1,4 +1,4 @@
-import { getTeams, buildSleeperTeams, buildYahooTeams } from './actions';
+import { getTeams, buildSleeperTeams, buildYahooTeams, teamBuilders } from './actions';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
@@ -621,6 +621,84 @@ describe('actions', () => {
       expect(result.teams[0].totalScore).toBe(10);
       expect(result.teams[0].opponent.name).toBe('Opponent');
       expect(result.teams[0].opponent.totalScore).toBe(20);
+    });
+  });
+
+  describe('getTeams execution', () => {
+    it('fetches all providers in parallel', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'sleeper', provider_user_id: 's1' },
+          { id: 2, provider: 'yahoo', provider_user_id: 'y1' },
+          { id: 3, provider: 'ottoneu', provider_user_id: 'o1' },
+        ],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+
+      const sleeperSpy = jest
+        .spyOn(teamBuilders, 'buildSleeperTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
+      const yahooSpy = jest
+        .spyOn(teamBuilders, 'buildYahooTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
+      const ottoneuSpy = jest
+        .spyOn(teamBuilders, 'buildOttoneuTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
+
+      const start = Date.now();
+      await getTeams();
+      const elapsed = Date.now() - start;
+
+      expect(sleeperSpy).toHaveBeenCalled();
+      expect(yahooSpy).toHaveBeenCalled();
+      expect(ottoneuSpy).toHaveBeenCalled();
+      expect(elapsed).toBeLessThan(120);
+
+      sleeperSpy.mockRestore();
+      yahooSpy.mockRestore();
+      ottoneuSpy.mockRestore();
+    });
+
+    it('continues when a provider throws an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'sleeper', provider_user_id: 's1' },
+          { id: 2, provider: 'yahoo', provider_user_id: 'y1' },
+        ],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+
+      const sleeperSpy = jest
+        .spyOn(teamBuilders, 'buildSleeperTeams')
+        .mockResolvedValue([
+          { id: 1, name: 'S', totalScore: 0, players: [], opponent: { name: '', totalScore: 0, players: [] } } as any,
+        ]);
+      const yahooSpy = jest
+        .spyOn(teamBuilders, 'buildYahooTeams')
+        .mockRejectedValue(new Error('fail'));
+
+      const result = await getTeams();
+
+      expect(result.teams).toHaveLength(1);
+
+      sleeperSpy.mockRestore();
+      yahooSpy.mockRestore();
     });
   });
 });

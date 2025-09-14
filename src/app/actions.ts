@@ -414,6 +414,12 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
   ];
 }
 
+export const teamBuilders = {
+  buildSleeperTeams,
+  buildYahooTeams,
+  buildOttoneuTeams,
+};
+
 /**
  * Gets the user's teams from all integrated platforms.
  * @returns A list of teams.
@@ -435,7 +441,6 @@ export async function getTeams() {
     return { error: integrationsError.message };
   }
 
-  const teams: Team[] = [];
   const week = await getCurrentNflWeek();
   const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
   const playersData = await playersResponse.json();
@@ -448,22 +453,27 @@ export async function getTeams() {
     }
   }
 
-  for (const integration of integrations) {
+  const integrationPromises = integrations.map((integration) => {
     if (integration.provider === 'sleeper') {
-      const sleeperTeams = await buildSleeperTeams(
-        integration,
-        week,
-        playersData
-      );
-      teams.push(...sleeperTeams);
+      return teamBuilders['buildSleeperTeams'](integration, week, playersData);
     } else if (integration.provider === 'yahoo') {
-      const yahooTeams = await buildYahooTeams(integration, playerNameMap);
-      teams.push(...yahooTeams);
+      return teamBuilders['buildYahooTeams'](integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {
-      const ottoneuTeams = await buildOttoneuTeams(integration);
-      teams.push(...ottoneuTeams);
+      return teamBuilders['buildOttoneuTeams'](integration);
     }
-  }
+    return Promise.resolve([]);
+  });
+
+  const results = await Promise.all(
+    integrationPromises.map((p) =>
+      p.catch((error) => {
+        console.error('Failed to build teams', error);
+        return [] as Team[];
+      })
+    )
+  );
+
+  const teams = results.flat();
 
   return { teams };
 }
