@@ -41,17 +41,9 @@ jobs:
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
-    - name: Upload Playwright video
-      if: always()
-      id: upload-video
-      uses: actions/upload-artifact@v4
-      with:
-        name: playwright-video
-        path: test-results/**/*.webm
-        if-no-files-found: ignore
-    - name: Add Playwright video to summary
-      if: ${{ always() && steps.upload-video.outputs.artifact-url }}
-      run: echo "### Playwright Video\n[Download video](${{ steps.upload-video.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+    - name: Copy test results to report directory
+      if: always() # Run this even if tests fail
+      run: cp -r test-results/* playwright-report/
 
     - name: Upload Playwright report as an artifact
       uses: actions/upload-artifact@v4
