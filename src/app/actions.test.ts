@@ -75,8 +75,20 @@ describe('actions', () => {
       { owner_id: 'sleeper-user-2', roster_id: 2, players: ['2'], starters: ['2'] },
     ];
     const mockMatchups = [
-      { roster_id: 1, matchup_id: 1, points: 100, players_points: { '1': 20 } },
-      { roster_id: 2, matchup_id: 1, points: 90, players_points: { '2': 15 } },
+      {
+        roster_id: 1,
+        matchup_id: 1,
+        points: 100,
+        players_points: { '1': 20 },
+        players: ['1'],
+      },
+      {
+        roster_id: 2,
+        matchup_id: 1,
+        points: 90,
+        players_points: { '2': 15 },
+        players: ['2'],
+      },
     ];
     const mockLeagueUsers = [
       { user_id: 'sleeper-user-1', display_name: 'User A', metadata: { team_name: 'Team A' } },
@@ -212,8 +224,20 @@ describe('actions', () => {
     ];
 
     const mockMatchups = [
-      { roster_id: 1, matchup_id: 1, points: 100, players_points: { '1': 20 } },
-      { roster_id: 2, matchup_id: 1, points: 90, players_points: { '2': 15 } },
+      {
+        roster_id: 1,
+        matchup_id: 1,
+        points: 100,
+        players_points: { '1': 20 },
+        players: ['1'],
+      },
+      {
+        roster_id: 2,
+        matchup_id: 1,
+        points: 90,
+        players_points: { '2': 15 },
+        players: ['2'],
+      },
     ];
 
     const mockLeagueUsers = [

@@ -266,7 +266,7 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
           last_name: playerDetails?.last_name || 'Player',
           position: playerDetails?.position || 'N/A',
           team: playerDetails?.team || 'N/A',
-          score: matchup.players_points[playerId] || 0,
+          score: matchup.players_points?.[playerId] ?? 0,
         };
       });
 
