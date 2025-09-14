@@ -7,6 +7,10 @@ import {
   getYahooMatchups,
   getYahooPlayerScores,
 } from '@/app/integrations/yahoo/actions';
+import {
+  getLeagues as getOttoneuLeagues,
+  getOttoneuTeamInfo,
+} from '@/app/integrations/ottoneu/actions';
 
 jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
@@ -21,6 +25,11 @@ jest.mock('@/app/integrations/yahoo/actions', () => ({
   getYahooRoster: jest.fn(),
   getYahooMatchups: jest.fn(),
   getYahooPlayerScores: jest.fn(),
+}));
+
+jest.mock('@/app/integrations/ottoneu/actions', () => ({
+  getLeagues: jest.fn(),
+  getOttoneuTeamInfo: jest.fn(),
 }));
 
 global.fetch = jest.fn();
@@ -47,6 +56,8 @@ describe('actions', () => {
     (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
     (getYahooPlayerScores as jest.Mock).mockClear();
+    (getOttoneuLeagues as jest.Mock).mockClear();
+    (getOttoneuTeamInfo as jest.Mock).mockClear();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -495,6 +506,45 @@ describe('actions', () => {
       const result = await getTeams();
 
       expect(result.teams[0].players[0].imageUrl).toBe('https://sleepercdn.com/content/nfl/players/thumb/1.jpg');
+    });
+  });
+
+  describe('getTeams with Ottoneu integration', () => {
+    it('builds teams from Ottoneu', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'ottoneu', provider_user_id: '2514' },
+        ],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+        matchup: {
+          opponentName: 'Opponent',
+          teamScore: 10,
+          opponentScore: 20,
+        },
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toHaveLength(1);
+      expect(result.teams[0]).toMatchObject({
+        name: 'My Team',
+        totalScore: 10,
+        opponent: { name: 'Opponent', totalScore: 20 },
+      });
     });
   });
 });

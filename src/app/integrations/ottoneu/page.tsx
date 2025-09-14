@@ -21,6 +21,7 @@ export default function OttoneuPage() {
   const [integration, setIntegration] = useState<any | null>(null);
   const [teamName, setTeamName] = useState('');
   const [leagueName, setLeagueName] = useState('');
+  const [matchup, setMatchup] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -40,6 +41,9 @@ export default function OttoneuPage() {
           if ('teamName' in info) {
             setTeamName(info.teamName);
           }
+          if ('matchup' in info) {
+            setMatchup(info.matchup);
+          }
         }
       }
     };
@@ -56,6 +60,10 @@ export default function OttoneuPage() {
     }
     setTeamName(teamName);
     setLeagueName(leagueName);
+    const info = await getOttoneuTeamInfo(teamUrl);
+    if ('matchup' in info) {
+      setMatchup(info.matchup);
+    }
     const { integration } = await getOttoneuIntegration();
     setIntegration(integration);
   };
@@ -72,6 +80,7 @@ export default function OttoneuPage() {
       setTeamUrl('');
       setTeamName('');
       setLeagueName('');
+      setMatchup(null);
     }
     setIsRemoving(false);
   };
@@ -106,6 +115,12 @@ export default function OttoneuPage() {
             <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
               {isRemoving ? 'Removing...' : 'Remove Integration'}
             </Button>
+          )}
+          {matchup && (
+            <div className="mt-4 text-sm">
+              <p>Week {matchup.week} vs {matchup.opponentName}</p>
+              <p className="font-semibold">{matchup.teamScore.toFixed(2)} - {matchup.opponentScore.toFixed(2)}</p>
+            </div>
           )}
           {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
         </CardContent>
