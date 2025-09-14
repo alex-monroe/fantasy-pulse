@@ -26,6 +26,25 @@ describe('ottoneu actions', () => {
     });
   });
 
+  it('handles single quotes in markup', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          "<span class='teamName'>My Team</span><a href='/football/309/'><span class='desktop-navigation'>My League</span></a>"
+        ),
+    });
+    const result = await getOttoneuTeamInfo(
+      'https://ottoneu.fangraphs.com/football/309/team/2514'
+    );
+    expect(result).toEqual({
+      teamName: 'My Team',
+      leagueName: 'My League',
+      leagueId: '309',
+      teamId: '2514',
+    });
+  });
+
   it('returns error on invalid url', async () => {
     const result = await getOttoneuTeamInfo('https://example.com');
     expect(result).toEqual({ error: 'Invalid Ottoneu team URL.' });
