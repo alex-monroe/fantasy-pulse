@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Image from 'next/image';
+import { SleeperLeague, SleeperEnrichedMatchup, SleeperMatchupPlayer } from '@/lib/types';
 
 /**
  * The page for managing the Sleeper integration.
@@ -24,13 +25,13 @@ import Image from 'next/image';
 export default function SleeperPage() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [leagues, setLeagues] = useState<any[]>([]);
+  const [leagues, setLeagues] = useState<SleeperLeague[]>([]);
   const [integration, setIntegration] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
-  const [selectedLeague, setSelectedLeague] = useState<any | null>(null);
+  const [selectedLeague, setSelectedLeague] = useState<SleeperLeague | null>(null);
   const [selectedWeek, setSelectedWeek] = useState('1');
-  const [matchups, setMatchups] = useState<any[]>([]);
+  const [matchups, setMatchups] = useState<SleeperEnrichedMatchup[]>([]);
   const [loadingMatchups, setLoadingMatchups] = useState(false);
 
   useEffect(() => {
@@ -128,7 +129,7 @@ export default function SleeperPage() {
     return <main className="p-4">Loading...</main>;
   }
 
-  const groupedMatchups = matchups.reduce((acc, matchup) => {
+  const groupedMatchups = matchups.reduce<Record<number, SleeperEnrichedMatchup[]>>((acc, matchup) => {
     const matchupId = matchup.matchup_id;
     if (!acc[matchupId]) {
       acc[matchupId] = [];
@@ -220,9 +221,9 @@ export default function SleeperPage() {
               <p>Loading matchups...</p>
             ) : (
               <div className="space-y-4">
-                {Object.values(groupedMatchups).map((matchupPair: any, index: number) => (
+                {Object.values(groupedMatchups).map((matchupPair, index) => (
                   <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {matchupPair.map((team: any) => (
+                    {matchupPair.map((team) => (
                       <Card key={team.roster_id}>
                         <CardHeader className="flex flex-row items-center justify-between">
                           <div className="flex items-center space-x-2">
@@ -248,7 +249,7 @@ export default function SleeperPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {team.players.map((player: any) => (
+                              {team.players.map((player: SleeperMatchupPlayer) => (
                                 <TableRow key={player.player_id}>
                                   <TableCell>{player.first_name} {player.last_name}</TableCell>
                                   <TableCell>{player.position}</TableCell>

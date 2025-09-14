@@ -1,4 +1,5 @@
 import { getTeams, buildSleeperTeams, buildYahooTeams } from './actions';
+import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
 import {
@@ -67,15 +68,15 @@ describe('actions', () => {
   });
 
   describe('buildSleeperTeams', () => {
-    const mockPlayersData = {
+    const mockPlayersData: Record<string, SleeperPlayer> = {
       '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
       '2': { full_name: 'Player Two', position: 'WR', team: 'TEAMB' },
     };
-    const mockRosters = [
+    const mockRosters: SleeperRoster[] = [
       { owner_id: 'sleeper-user-1', roster_id: 1, players: ['1'], starters: ['1'] },
       { owner_id: 'sleeper-user-2', roster_id: 2, players: ['2'], starters: ['2'] },
     ];
-    const mockMatchups = [
+    const mockMatchups: SleeperMatchup[] = [
       {
         roster_id: 1,
         matchup_id: 1,
@@ -91,7 +92,7 @@ describe('actions', () => {
         players: ['2'],
       },
     ];
-    const mockLeagueUsers = [
+    const mockLeagueUsers: SleeperUser[] = [
       { user_id: 'sleeper-user-1', display_name: 'User A', metadata: { team_name: 'Team A' } },
       { user_id: 'sleeper-user-2', display_name: 'User B', metadata: { team_name: 'Team B' } },
     ];
@@ -99,7 +100,7 @@ describe('actions', () => {
     it('returns empty array when getLeagues fails', async () => {
       (getLeagues as jest.Mock).mockResolvedValue({ leagues: null, error: 'err' });
       const result = await buildSleeperTeams(
-        { id: 'int-1', provider_user_id: 'sleeper-user-1' },
+        { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
         mockPlayersData
       );
@@ -108,7 +109,7 @@ describe('actions', () => {
 
     it('builds sleeper teams correctly', async () => {
       (getLeagues as jest.Mock).mockResolvedValue({
-        leagues: [{ id: 'league-1', league_id: 'sleeper-league-1' }],
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
         error: null,
       });
 
@@ -118,7 +119,7 @@ describe('actions', () => {
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
 
       const result = await buildSleeperTeams(
-        { id: 'int-1', provider_user_id: 'sleeper-user-1' },
+        { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
         mockPlayersData
       );

@@ -13,7 +13,15 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
-import { Team, Player } from '@/lib/types';
+import {
+  Team,
+  Player,
+  SleeperLeague,
+  SleeperRoster,
+  SleeperMatchup,
+  SleeperUser,
+  SleeperPlayer,
+} from '@/lib/types';
 import { findBestMatch } from 'string-similarity';
 import { JSDOM } from 'jsdom';
 
@@ -35,9 +43,9 @@ export async function getCurrentNflWeek() {
  * @returns A list of teams from Sleeper.
  */
 export async function buildSleeperTeams(
-  integration: any,
+  integration: { id: number; provider_user_id: string },
   week: number,
-  playersData: any
+  playersData: Record<string, SleeperPlayer>
 ): Promise<Team[]> {
   const { leagues, error: leaguesError } = await getSleeperLeagues(integration.id);
   if (leaguesError || !leagues) {
@@ -46,44 +54,44 @@ export async function buildSleeperTeams(
 
   const teams: Team[] = [];
 
-  for (const league of leagues) {
+  for (const league of leagues as SleeperLeague[]) {
     const rostersResponse = await fetch(
       `https://api.sleeper.app/v1/league/${league.league_id}/rosters`
     );
-    const rosters = await rostersResponse.json();
+    const rosters: SleeperRoster[] = await rostersResponse.json();
 
     const matchupsResponse = await fetch(
       `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
     );
-    const matchups = await matchupsResponse.json();
+    const matchups: SleeperMatchup[] = await matchupsResponse.json();
 
     const userRoster = rosters.find(
-      (roster: any) => roster.owner_id === integration.provider_user_id
+      (roster) => roster.owner_id === integration.provider_user_id
     );
     if (!userRoster) continue;
 
     const userMatchup = matchups.find(
-      (matchup: any) => matchup.roster_id === userRoster.roster_id
+      (matchup) => matchup.roster_id === userRoster.roster_id
     );
     if (!userMatchup) continue;
 
     const opponentMatchup = matchups.find(
-      (matchup: any) =>
+      (matchup) =>
         matchup.matchup_id === userMatchup.matchup_id &&
         matchup.roster_id !== userRoster.roster_id
     );
 
     const opponentRoster = opponentMatchup
-      ? rosters.find((roster: any) => roster.roster_id === opponentMatchup.roster_id)
+      ? rosters.find((roster) => roster.roster_id === opponentMatchup.roster_id) || null
       : null;
 
     const leagueUsersResponse = await fetch(
       `https://api.sleeper.app/v1/league/${league.league_id}/users`
     );
-    const leagueUsers = await leagueUsersResponse.json();
+    const leagueUsers: SleeperUser[] = await leagueUsersResponse.json();
 
     const userLeagueInfo = leagueUsers.find(
-      (user: any) => user.user_id === integration.provider_user_id
+      (user) => user.user_id === integration.provider_user_id
     );
     const userName =
       userLeagueInfo?.metadata?.team_name ||
@@ -91,7 +99,7 @@ export async function buildSleeperTeams(
       'My Team';
 
     const opponentUser = opponentRoster
-      ? leagueUsers.find((user: any) => user.user_id === opponentRoster.owner_id)
+      ? leagueUsers.find((user) => user.user_id === opponentRoster.owner_id) || null
       : null;
     const opponentName =
       opponentUser?.metadata?.team_name ||

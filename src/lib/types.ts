@@ -91,3 +91,98 @@ export type Team = {
     players: Player[];
   };
 };
+
+/**
+ * Represents a Sleeper league.
+ */
+export interface SleeperLeague {
+  /** Internal database identifier. */
+  id?: number;
+  /** Sleeper league identifier. */
+  league_id: string;
+  /** Display name of the league. */
+  name?: string;
+  /** Season year of the league. */
+  season?: string;
+  /** Number of rosters in the league. */
+  total_rosters?: number;
+  /** Current status of the league. */
+  status?: string;
+}
+
+/**
+ * Represents a Sleeper roster.
+ */
+export interface SleeperRoster {
+  /** Unique roster identifier. */
+  roster_id: number;
+  /** User identifier for the roster owner. */
+  owner_id: string;
+  /** Player IDs on the roster. */
+  players: string[];
+  /** Starter player IDs. */
+  starters: string[];
+}
+
+/**
+ * Represents a Sleeper matchup.
+ */
+export interface SleeperMatchup {
+  /** Roster participating in the matchup. */
+  roster_id: number;
+  /** Matchup grouping identifier. */
+  matchup_id: number;
+  /** Fantasy points scored by the roster. */
+  points: number;
+  /** Player IDs involved in the matchup. */
+  players: string[];
+  /** Points scored by each player. */
+  players_points?: Record<string, number>;
+}
+
+/**
+ * Represents a Sleeper user within a league.
+ */
+export interface SleeperUser {
+  user_id: string;
+  display_name: string;
+  avatar?: string;
+  metadata?: {
+    team_name?: string;
+  };
+}
+
+/**
+ * Represents details for an NFL player from Sleeper.
+ */
+export interface SleeperPlayer {
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  position?: string;
+  team?: string;
+}
+
+/**
+ * Represents a player within a Sleeper matchup.
+ */
+export interface SleeperMatchupPlayer {
+  player_id: string;
+  first_name: string;
+  last_name: string;
+  position: string;
+  team: string;
+  score: number;
+}
+
+/**
+ * Represents a Sleeper matchup enriched with user and player information.
+ */
+export interface SleeperEnrichedMatchup extends SleeperMatchup {
+  user: {
+    display_name: string;
+    avatar?: string;
+  };
+  players: SleeperMatchupPlayer[];
+  total_points: number;
+}

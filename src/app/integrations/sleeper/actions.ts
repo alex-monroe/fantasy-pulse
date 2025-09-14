@@ -3,6 +3,14 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { fetchJson } from '@/lib/fetch-json';
+import {
+  SleeperLeague,
+  SleeperMatchup,
+  SleeperRoster,
+  SleeperUser,
+  SleeperPlayer,
+  SleeperEnrichedMatchup,
+} from '@/lib/types';
 
 /**
  * Connects a Sleeper account to the user's account.
@@ -18,7 +26,9 @@ export async function connectSleeper(username: string) {
   }
 
   try {
-    const { data: sleeperUser, error } = await fetchJson<any>(`https://api.sleeper.app/v1/user/${username}`);
+    const { data: sleeperUser, error } = await fetchJson<SleeperUser>(
+      `https://api.sleeper.app/v1/user/${username}`
+    );
     if (error) {
       return { error: error || 'Failed to fetch user' };
     }
@@ -130,13 +140,15 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
   const supabase = createClient();
   try {
     const year = new Date().getFullYear();
-    const { data: leagues, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`);
+    const { data: leagues, error } = await fetchJson<SleeperLeague[]>(
+      `https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`
+    );
     if (error) {
       return { error };
     }
 
     if (leagues && leagues.length > 0) {
-      const leaguesToInsert = leagues.map((league: any) => ({
+      const leaguesToInsert = leagues.map((league: SleeperLeague) => ({
         league_id: league.league_id,
         name: league.name,
         user_integration_id: integrationId,
@@ -166,7 +178,7 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
 export async function getMatchups(leagueId: string, week: string) {
   try {
     const url = `https://api.sleeper.app/v1/league/${leagueId}/matchups/${week}`;
-    const { data: matchups, error } = await fetchJson<any[]>(url);
+    const { data: matchups, error } = await fetchJson<SleeperMatchup[]>(url);
     if (error) {
       return { error };
     }
@@ -183,7 +195,9 @@ export async function getMatchups(leagueId: string, week: string) {
  */
 export async function getRosters(leagueId: string) {
   try {
-    const { data: rosters, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`);
+    const { data: rosters, error } = await fetchJson<SleeperRoster[]>(
+      `https://api.sleeper.app/v1/league/${leagueId}/rosters`
+    );
     if (error) {
       return { error };
     }
@@ -200,7 +214,9 @@ export async function getRosters(leagueId: string) {
  */
 export async function getUsersInLeague(leagueId: string) {
   try {
-    const { data: users, error } = await fetchJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`);
+    const { data: users, error } = await fetchJson<SleeperUser[]>(
+      `https://api.sleeper.app/v1/league/${leagueId}/users`
+    );
     if (error) {
       return { error };
     }
@@ -216,7 +232,9 @@ export async function getUsersInLeague(leagueId: string) {
  */
 export async function getNflPlayers() {
   try {
-    const { data: players, error } = await fetchJson<Record<string, any>>(`https://api.sleeper.app/v1/players/nfl`);
+    const { data: players, error } = await fetchJson<Record<string, SleeperPlayer>>(
+      `https://api.sleeper.app/v1/players/nfl`
+    );
     if (error) {
       return { error };
     }
@@ -251,12 +269,12 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
     const { users } = usersRes;
     const { players } = playersRes;
 
-    const usersMap = new Map(users.map((user: any) => [user.user_id, user]));
-    const rostersMap = new Map(rosters.map((roster: any) => [roster.roster_id, roster]));
+    const usersMap = new Map(users.map((user) => [user.user_id, user]));
+    const rostersMap = new Map(rosters.map((roster) => [roster.roster_id, roster]));
 
-    const enrichedMatchups = matchups.map((matchup: any) => {
+    const enrichedMatchups: SleeperEnrichedMatchup[] = matchups.map((matchup) => {
       const roster = rostersMap.get(matchup.roster_id);
-      if (!roster) return matchup;
+      if (!roster) return matchup as unknown as SleeperEnrichedMatchup;
 
       const user = usersMap.get(roster.owner_id);
       const matchupPlayers = matchup.players.map((playerId: string) => {
@@ -271,7 +289,10 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
         };
       });
 
-      const totalPoints = matchupPlayers.reduce((acc: number, player: any) => acc + player.score, 0);
+      const totalPoints = matchupPlayers.reduce(
+        (acc: number, player: { score: number }) => acc + player.score,
+        0
+      );
 
       return {
         ...matchup,
