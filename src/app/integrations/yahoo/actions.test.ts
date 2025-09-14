@@ -2,6 +2,34 @@ import * as actions from './actions';
 import { fetchJson } from '@/lib/fetch-json';
 import { createClient } from '@/utils/supabase/server';
 import playerScoresExample from './player-scores.example.json';
+const rosterExample = {
+  fantasy_content: {
+    team: [
+      null,
+      {
+        roster: {
+          '0': {
+            players: {
+              '0': {
+                player: [
+                  [
+                    { player_key: 'p3' },
+                    { player_id: 'p3' },
+                    { name: { full: 'Yahoo Player 1' } },
+                    { display_position: 'QB' },
+                    { headshot: { url: '' } },
+                    { editorial_team_abbr: 'KC' },
+                  ],
+                  { selected_position: [null, { position: 'QB' }] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
 
 jest.mock('@/lib/fetch-json', () => ({ fetchJson: jest.fn() }));
 jest.mock('@/utils/supabase/server', () => ({ createClient: jest.fn() }));
@@ -60,6 +88,27 @@ describe('yahoo actions', () => {
       player_key: '461.p.40896',
       name: 'Jayden Daniels',
       totalPoints: '19.70',
+    });
+  });
+
+  it('parses roster correctly', async () => {
+    // Return a non-expired token so getYahooAccessToken does not attempt to refresh
+    mockSupabase.from().single.mockResolvedValueOnce({
+      data: {
+        access_token: 'token',
+        refresh_token: 'refresh',
+        expires_at: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
+      },
+      error: null,
+    });
+
+    (fetchJson as jest.Mock).mockResolvedValue({ data: rosterExample });
+    const result = await actions.getYahooRoster(1, '123.l.456', '1');
+
+    expect(result.players[0]).toMatchObject({
+      player_key: 'p3',
+      name: 'Yahoo Player 1',
+      display_position: 'QB',
     });
   });
 });

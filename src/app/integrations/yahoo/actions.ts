@@ -418,8 +418,9 @@ export async function getYahooLeagues(integrationId: number) {
 
 /**
  * Gets the roster for a team from the Yahoo API.
- * The API returns a deeply nested object. The roster is in the
- * fantasy_content.team[1].roster['0'].players object.
+ * The API returns a deeply nested object. In most responses, the roster is in
+ * the `fantasy_content.team[1].roster['0'].players` object, though some
+ * responses may expose the roster at `fantasy_content.roster['0'].players`.
  * The players object is a collection of player objects, where each key is a number.
  * {
  *   "fantasy_content": {
@@ -466,11 +467,14 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
       logger.error({ error }, 'Yahoo API Error');
       return { error: `Failed to fetch roster from Yahoo: ${error}` };
     }
-    // Yahoo's roster response nests player data under `fantasy_content.roster['0'].players`.
-    // The previous implementation attempted to retrieve the roster from
-    // `team[1].roster`, which does not exist in the current API response
-    // structure and resulted in an empty player list.
-    const rosterData = data.fantasy_content?.roster?.['0']?.players;
+    // Yahoo's roster response typically nests player data under
+    // `fantasy_content.team[1].roster['0'].players`. Some examples (such as
+    // the official API docs) also show the roster available directly under
+    // `fantasy_content.roster`. Handle both structures to avoid returning an
+    // empty list when the nesting differs.
+    const rosterData =
+      data.fantasy_content?.team?.[1]?.roster?.['0']?.players ??
+      data.fantasy_content?.roster?.['0']?.players;
 
     if (!rosterData) {
       logger.info('No roster data found in Yahoo API response.');
@@ -613,11 +617,13 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
       logger.error({ error }, 'Yahoo API Error');
       return { error: `Failed to fetch player scores from Yahoo: ${error}` };
     }
-    // Yahoo's roster response nests player data under `fantasy_content.roster['0'].players`.
-    // The previous implementation attempted to retrieve the roster from
-    // `team[1].roster`, which does not exist in the current API response
-    // structure and resulted in an empty player list.
-    const rosterDataRoot = data.fantasy_content?.roster;
+    // Similar to the basic roster endpoint, player stats can be nested in two
+    // different ways depending on the Yahoo API response. Prefer the
+    // `team[1].roster` structure but fall back to a top-level `roster` key if
+    // present.
+    const rosterDataRoot =
+      data.fantasy_content?.team?.[1]?.roster ??
+      data.fantasy_content?.roster;
 
     if (!rosterDataRoot) {
       logger.info('No roster data found in Yahoo API response.');
