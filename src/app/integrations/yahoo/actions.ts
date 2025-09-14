@@ -616,9 +616,14 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
       return { players: [] };
     }
 
-    const players = Object.values(rosterData).filter((p: any) => p.player).map((p: any) => {
-      const playerDetailsArray = p.player[0];
-      const playerStats = p.player[1]?.player_points?.total;
+    const players = Object.values(rosterData)
+      .filter((p: any) => p.player)
+      .map((p: any) => {
+        const playerDetailsArray = p.player[0];
+        const playerPointsEntry = p.player.find(
+          (entry: any) => entry && entry.player_points
+        );
+        const playerStats = playerPointsEntry?.player_points?.total;
 
       const playerDetails: { [key: string]: any } = {};
       playerDetailsArray.forEach((detail: any) => {
