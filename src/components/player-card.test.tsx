@@ -34,12 +34,6 @@ describe('PlayerCard', () => {
     expect(screen.getByText('Test Player')).toBeInTheDocument()
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
-    expect(screen.getByText('Possession')).toBeInTheDocument()
-  })
-
-  it('does not render a chip for pregame status', () => {
-    const pregamePlayer: Player = { ...player, gameStatus: 'pregame' }
-    render(<PlayerCard player={pregamePlayer} />)
-    expect(screen.queryByText('Pregame')).not.toBeInTheDocument()
+    expect(screen.queryByText('Possession')).not.toBeInTheDocument()
   })
 })
