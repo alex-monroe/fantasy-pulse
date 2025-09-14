@@ -61,7 +61,7 @@ export async function connectOttoneu(teamUrl: string) {
         user_integration_id: integration.id,
         league_id: leagueId,
         name: teamName,
-      }, { onConflict: 'league_id,user_integration_id' });
+      }, { onConflict: 'league_id' });
     if (leagueError) {
       return { error: leagueError.message };
     }
@@ -74,7 +74,7 @@ export async function connectOttoneu(teamUrl: string) {
         team_key: teamId,
         league_id: leagueId,
         name: teamName,
-      }, { onConflict: 'team_id,user_integration_id' });
+      }, { onConflict: 'team_key,user_integration_id' });
     if (teamError) {
       return { error: teamError.message };
     }
