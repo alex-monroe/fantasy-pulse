@@ -15,6 +15,7 @@ import {
 } from '@/app/integrations/ottoneu/actions';
 import { Team, Player } from '@/lib/types';
 import { findBestMatch } from 'string-similarity';
+import { JSDOM } from 'jsdom';
 
 /**
  * Gets the current NFL week from the Sleeper API.
@@ -302,19 +303,110 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
   if ('error' in info) {
     return [];
   }
-
   const teamId = parseInt(info.teamId, 10);
+
+  let userPlayers: Player[] = [];
+  let opponentPlayers: Player[] = [];
+
+  if (info.matchup?.url) {
+    try {
+      const res = await fetch(`https://ottoneu.fangraphs.com${info.matchup.url}`);
+      if (res.ok) {
+        const html = await res.text();
+        const dom = new JSDOM(html);
+        const document = dom.window.document;
+
+        const homeName =
+          document.querySelector('.game-page-home-team-name')?.textContent?.trim() || '';
+        const awayName =
+          document.querySelector('.game-page-away-team-name')?.textContent?.trim() || '';
+        const isHome = homeName.toLowerCase() === info.teamName.toLowerCase();
+
+        const rows = Array.from(
+          document.querySelectorAll('.game-details-table tbody tr')
+        );
+
+        const parsePlayer = (
+          cell: Element,
+          pointsCell: Element,
+          positionCell: Element
+        ): Player => {
+          const id = cell.getAttribute('data-player-id') || '';
+          const name =
+            cell.querySelector('a')?.textContent?.trim() || '';
+          const meta =
+            cell.querySelector('.smaller')?.textContent?.trim() || '';
+          const realTeam = meta.split(' ')[0] || '';
+          const score = parseFloat(pointsCell.textContent?.trim() || '0') || 0;
+          const posDisplay = positionCell.textContent?.trim() || '';
+          const onBench =
+            posDisplay === 'BN' ||
+            (cell.getAttribute('data-position') || '').toLowerCase() === 'bench';
+
+          return {
+            id,
+            name,
+            position: cell.getAttribute('data-position') || '',
+            realTeam,
+            score,
+            gameStatus: 'pregame',
+            onUserTeams: 0,
+            onOpponentTeams: 0,
+            gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+            imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`,
+            on_bench: onBench,
+          };
+        };
+
+        rows.forEach((row) => {
+          const positionCell = row.querySelector('.game-details-position') as Element | null;
+          const homeCell = row.querySelector(
+            '.home-team-position-player'
+          ) as Element | null;
+          const homePoints = row.querySelector(
+            '.game-page-home-team-text.game-page-points'
+          ) as Element | null;
+          const awayCell = row.querySelector(
+            '.away-team-position-player'
+          ) as Element | null;
+          const awayPoints = row.querySelector(
+            '.game-page-away-team-text.game-page-points'
+          ) as Element | null;
+
+          if (homeCell && homePoints && positionCell) {
+            const player = parsePlayer(homeCell, homePoints, positionCell);
+            if (isHome) {
+              userPlayers.push(player);
+            } else {
+              opponentPlayers.push(player);
+            }
+          }
+
+          if (awayCell && awayPoints && positionCell) {
+            const player = parsePlayer(awayCell, awayPoints, positionCell);
+            if (isHome) {
+              opponentPlayers.push(player);
+            } else {
+              userPlayers.push(player);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch Ottoneu matchup page', e);
+    }
+  }
 
   return [
     {
       id: Number.isNaN(teamId) ? 0 : teamId,
       name: info.teamName,
       totalScore: info.matchup?.teamScore ?? 0,
-      players: [],
+      players: userPlayers,
       opponent: {
         name: info.matchup?.opponentName ?? 'Opponent',
         totalScore: info.matchup?.opponentScore ?? 0,
-        players: [],
+        players: opponentPlayers,
       },
     },
   ];

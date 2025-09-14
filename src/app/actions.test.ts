@@ -519,9 +519,43 @@ describe('actions', () => {
         error: null,
       });
 
+      const matchupHtml = `
+        <div class="game-page-home-team-name">My Team</div>
+        <div class="game-page-away-team-name">Opponent</div>
+        <table class="game-details-table"><tbody>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-1"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-1" data-position="QB" data-player-id="1">
+              <span class="player-link-desktop"><a href="#">Player One</a> <span class="smaller">CHI QB</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-1">5</td>
+            <td class="game-details-position"><span class="position">QB</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-2">3</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-2" data-position="QB" data-player-id="2">
+              <span class="player-link-desktop"><a href="#">Player Two</a> <span class="smaller">BUF QB</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-2"></td>
+          </tr>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-3"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-3" data-position="Bench" data-player-id="3">
+              <span class="player-link-desktop"><a href="#">Bench Guy</a> <span class="smaller">DAL WR</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-3">0</td>
+            <td class="game-details-position"><span class="position">BN</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-4">0</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-4" data-position="Bench" data-player-id="4">
+              <span class="player-link-desktop"><a href="#">Opp Bench</a> <span class="smaller">NYG RB</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-4"></td>
+          </tr>
+        </tbody></table>
+      `;
+
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) })
+        .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(matchupHtml) });
 
       (getOttoneuLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ league_id: '309' }],
@@ -535,16 +569,32 @@ describe('actions', () => {
           opponentName: 'Opponent',
           teamScore: 10,
           opponentScore: 20,
+          url: '/football/309/game/1',
         },
       });
 
       const result = await getTeams();
       expect(result.teams).toHaveLength(1);
-      expect(result.teams[0]).toMatchObject({
-        name: 'My Team',
-        totalScore: 10,
-        opponent: { name: 'Opponent', totalScore: 20 },
+      expect(result.teams[0].players).toHaveLength(2);
+      expect(result.teams[0].players[0]).toMatchObject({
+        id: '1',
+        name: 'Player One',
+        position: 'QB',
+        realTeam: 'CHI',
+        score: 5,
+        on_bench: false,
       });
+      expect(result.teams[0].players[1].on_bench).toBe(true);
+      expect(result.teams[0].opponent.players).toHaveLength(2);
+      expect(result.teams[0].opponent.players[0]).toMatchObject({
+        id: '2',
+        name: 'Player Two',
+        score: 3,
+      });
+      expect(result.teams[0].name).toBe('My Team');
+      expect(result.teams[0].totalScore).toBe(10);
+      expect(result.teams[0].opponent.name).toBe('Opponent');
+      expect(result.teams[0].opponent.totalScore).toBe(20);
     });
   });
 });

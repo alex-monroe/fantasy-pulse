@@ -66,6 +66,7 @@ describe('ottoneu actions', () => {
         opponentName: 'Opponent',
         teamScore: 13.9,
         opponentScore: 0,
+        url: '/football/309/game/1',
       },
     });
   });
