@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
 import logger from '@/utils/logger';
 import { fetchJson } from '@/lib/fetch-json';
+import { env } from '@/lib/env';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -57,17 +58,9 @@ export async function getYahooAccessToken(integrationId: number): Promise<{ acce
   // Check if the token is expired or close to expiring (e.g., within 60 seconds)
   if (integration.expires_at && new Date(integration.expires_at).getTime() < Date.now() + 60000) {
     // Token is expired, refresh it
-    const clientId = process.env.YAHOO_CLIENT_ID;
-    const clientSecret = process.env.YAHOO_CLIENT_SECRET;
-    const redirectUri = process.env.YAHOO_REDIRECT_URI;
-
-    if (!clientId || !clientSecret || !redirectUri) {
-      const missingVars = [];
-      if (!clientId) missingVars.push('YAHOO_CLIENT_ID');
-      if (!clientSecret) missingVars.push('YAHOO_CLIENT_SECRET');
-      if (!redirectUri) missingVars.push('YAHOO_REDIRECT_URI');
-      return { error: `Yahoo integration is not configured. Missing environment variables: ${missingVars.join(', ')}` };
-    }
+    const clientId = env.YAHOO_CLIENT_ID;
+    const clientSecret = env.YAHOO_CLIENT_SECRET;
+    const redirectUri = env.YAHOO_REDIRECT_URI;
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -80,7 +73,7 @@ export async function getYahooAccessToken(integrationId: number): Promise<{ acce
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
-          redirect_uri: process.env.YAHOO_REDIRECT_URI!,
+          redirect_uri: redirectUri,
           refresh_token: integration.refresh_token!,
         }),
       });
