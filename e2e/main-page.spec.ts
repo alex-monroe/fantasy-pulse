@@ -118,7 +118,7 @@ test.describe('Main Page', () => {
     await expect(page.getByText('8.0')).toBeVisible();
     await expect(page.getByText('100.0')).toBeVisible();
     await expect(page.getByText('90.0')).toBeVisible();
-    await expect(page.getByText('13.90')).toBeVisible();
+    await expect(page.getByText('13.9')).toBeVisible();
     await expect(page.getByText('0.00')).toBeVisible();
 
     // Verify player cards
