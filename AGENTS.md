@@ -2,6 +2,10 @@
 
 This document provides instructions for agents on how to set up and run this project.
 
+## Frontend Verification
+
+Skip the `frontend_verification` tool. Do not use it to verify frontend changes.
+
 ## E2E Tests
 
 Do not run the e2e tests to validate behavior. They are not reliable.
