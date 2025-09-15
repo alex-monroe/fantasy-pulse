@@ -67,6 +67,8 @@ export type Player = {
 export type GroupedPlayer = Player & {
   /** The number of teams the player belongs to. */
   count: number;
+  /** The colors of the matchups this player is in. */
+  matchupColors: string[];
 };
 
 /**
