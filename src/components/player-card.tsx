@@ -1,9 +1,8 @@
 'use client';
 
-import type { Player } from "@/lib/types";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import type { GroupedPlayer } from "@/lib/types";
+import { Card } from "@/components/ui/card";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
 import { User, Users } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
@@ -12,20 +11,22 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
  * @param player - The player to display.
  * @returns A card that displays information about a player.
  */
-export function PlayerCard({ player }: { player: Player & { count?: number } }) {
+export function PlayerCard({ player }: { player: GroupedPlayer }) {
     return (
         <TooltipProvider>
             <Card className="flex items-center p-1 sm:p-2 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm">
                 <Image src={player.imageUrl} alt={player.name} width={40} height={40} data-ai-hint="player portrait" className="rounded-full border hidden sm:block" />
                 <div className="flex-1 mx-2 min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold leading-tight">{player.name}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xs sm:text-sm font-semibold leading-tight">{player.name}</p>
+                        <div className="flex items-center gap-1">
+                            {player.matchupColors.map((color, index) => (
+                                <div key={index} className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                            ))}
+                        </div>
+                    </div>
                     <p className="text-xs text-muted-foreground">{player.position} - {player.realTeam}</p>
                 </div>
-                {player.count && player.count > 1 && (
-                    <Badge variant="secondary" className="mr-2">
-                        {player.count}
-                    </Badge>
-                )}
                 <div className="flex items-center gap-2 text-muted-foreground mr-2">
                     {player.onUserTeams > 0 && (
                         <Tooltip>

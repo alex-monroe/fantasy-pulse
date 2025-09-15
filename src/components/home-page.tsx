@@ -58,23 +58,40 @@ const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: Grou
  * @returns The main content of the application.
  */
 function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
-  const groupPlayers = (players: Player[]): GroupedPlayer[] => {
-    const playerMap = new Map<string, GroupedPlayer>();
+  const colors = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
+
+  const groupPlayers = (
+    players: Player[],
+    existingPlayers: Map<string, GroupedPlayer>,
+    color: string
+  ) => {
     players.forEach(player => {
       if (player && player.name && player.realTeam) {
         const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
-        if (playerMap.has(key)) {
-          playerMap.get(key)!.count++;
+        if (existingPlayers.has(key)) {
+          const existingPlayer = existingPlayers.get(key)!;
+          existingPlayer.count++;
+          if (!existingPlayer.matchupColors.includes(color)) {
+            existingPlayer.matchupColors.push(color);
+          }
         } else {
-          playerMap.set(key, { ...player, count: 1 });
+          existingPlayers.set(key, { ...player, count: 1, matchupColors: [color] });
         }
       }
     });
-    return Array.from(playerMap.values());
   };
 
-  const myPlayers = groupPlayers(teams.flatMap(team => team.players));
-  const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
+  const myPlayersMap = new Map<string, GroupedPlayer>();
+  const opponentPlayersMap = new Map<string, GroupedPlayer>();
+
+  teams.forEach((team, index) => {
+    const color = colors[index % colors.length];
+    groupPlayers(team.players, myPlayersMap, color);
+    groupPlayers(team.opponent.players, opponentPlayersMap, color);
+  });
+
+  const myPlayers = Array.from(myPlayersMap.values());
+  const opponentPlayers = Array.from(opponentPlayersMap.values());
 
   const myStarters = myPlayers.filter(p => !p.on_bench);
   const myBench = myPlayers.filter(p => p.on_bench);
@@ -123,12 +140,15 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
-                    {teams.map(team => (
+                    {teams.map((team, index) => (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-semibold">{team.name}</p>
-                                    <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                                    <div>
+                                        <p className="font-semibold">{team.name}</p>
+                                        <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
