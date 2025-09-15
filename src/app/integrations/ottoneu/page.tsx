@@ -120,6 +120,11 @@ export default function OttoneuPage() {
             <div className="mt-4 text-sm">
               <p>Week {matchup.week} vs {matchup.opponentName}</p>
               <p className="font-semibold">{matchup.teamScore.toFixed(2)} - {matchup.opponentScore.toFixed(2)}</p>
+              <Button asChild className="mt-2">
+                <a href={`/integrations/ottoneu/${integration.league_id}/${integration.provider_user_id}/matchup`}>
+                  View Matchup
+                </a>
+              </Button>
             </div>
           )}
           {error && <p className="mt-4 text-sm text-red-500">{error}</p>}

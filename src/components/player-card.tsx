@@ -20,6 +20,9 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                     <div className="flex items-center gap-2">
                         <p className="text-xs sm:text-sm font-semibold leading-tight">{player.name}</p>
                         <div className="flex items-center gap-1">
+                            {player.onUserTeams?.length > 0 && player.onOpponentTeams?.length > 0 && (
+                                <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                            )}
                             {player.matchupColors.map((color, index) => (
                                 <div key={index} className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                             ))}

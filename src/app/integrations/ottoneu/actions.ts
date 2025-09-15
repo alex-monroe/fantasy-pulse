@@ -86,6 +86,45 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
 }
 
 /**
+ * Gets all the teams in an Ottoneu league.
+ * @param leagueId - The league ID.
+ * @returns The teams in the league or an error.
+ */
+export async function getOttoneuLeagueTeams(leagueId: string) {
+  try {
+    const res = await fetch(
+      `https://ottoneu.fangraphs.com/football/${leagueId}/teams`
+    );
+    if (!res.ok) {
+      return { error: 'Failed to fetch league teams page.' };
+    }
+    const html = await res.text();
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+
+    const teams: any[] = [];
+    const options = document.querySelectorAll('.teamsDropdown option');
+
+    options.forEach((option) => {
+      const teamId = option.getAttribute('value');
+      const teamName = option.textContent?.trim();
+
+      if (teamId && teamName && teamId !== '0') {
+        teams.push({
+          id: teamId,
+          name: teamName,
+        });
+      }
+    });
+
+    return { teams };
+  } catch (e) {
+    console.error('Failed to fetch Ottoneu league teams', e);
+    return { error: 'Failed to fetch league teams page.' };
+  }
+}
+
+/**
  * Connects an Ottoneu team to the user's account.
  * @param teamUrl - The public team URL.
  * @returns The parsed team info or an error.
@@ -201,3 +240,49 @@ export async function getLeagues(integrationId: number) {
   return { leagues: data };
 }
 
+/**
+ * Gets the roster for an Ottoneu team.
+ * @param leagueId - The league ID.
+ * @param teamId - The team ID.
+ * @returns The roster or an error.
+ */
+export async function getOttoneuRoster(leagueId: string, teamId: string) {
+  try {
+    const res = await fetch(
+      `https://ottoneu.fangraphs.com/football/${leagueId}/team/${teamId}`
+    );
+    if (!res.ok) {
+      return { error: 'Failed to fetch roster page.' };
+    }
+    const html = await res.text();
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+
+    const roster: any[] = [];
+    const rows = document.querySelectorAll('.sortable tbody tr');
+
+    rows.forEach((row) => {
+      const playerLink = row.querySelector('a');
+      const playerId = playerLink
+        ?.getAttribute('href')
+        ?.match(/player_card\/nfl\/(\d+)/)?.[1];
+      const playerName = playerLink?.textContent?.trim();
+      const position = row.querySelector('td:nth-child(2)')?.textContent?.trim();
+      const salary = row.querySelector('td:nth-child(3)')?.textContent?.trim();
+
+      if (playerId && playerName && position && salary) {
+        roster.push({
+          id: playerId,
+          name: playerName,
+          position,
+          salary,
+        });
+      }
+    });
+
+    return { roster };
+  } catch (e) {
+    console.error('Failed to fetch Ottoneu roster', e);
+    return { error: 'Failed to fetch roster page.' };
+  }
+}
