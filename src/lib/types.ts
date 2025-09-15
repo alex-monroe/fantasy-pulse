@@ -59,6 +59,10 @@ export type Player = {
   imageUrl: string;
   /** Whether the player is on the bench. */
   on_bench: boolean;
+  /** The color associated with the player's team. */
+  teamColor?: string;
+  /** The ID of the player's team. */
+  teamId?: number;
 };
 
 /**
@@ -77,14 +81,20 @@ export type Team = {
   id: number;
   /** The name of the team. */
   name: string;
+  /** The color associated with the team. */
+  color?: string;
   /** The total score of the team. */
   totalScore: number;
   /** The list of players on the team. */
   players: Player[];
   /** The opponent's team. */
   opponent: {
+    /** The unique identifier for the opponent's team. */
+    id: number;
     /** The name of the opponent's team. */
     name: string;
+    /** The color associated with the opponent's team. */
+    color?: string;
     /** The total score of the opponent's team. */
     totalScore: number;
     /** The list of players on the opponent's team. */

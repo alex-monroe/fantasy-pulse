@@ -57,7 +57,30 @@ const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: Grou
  * @param teams - The list of teams to display.
  * @returns The main content of the application.
  */
-function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
+function AppContent({ onSignOut, teams: initialTeams }: { onSignOut: () => void, teams: Team[] }) {
+  const colors = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'];
+  const teamColorMap = new Map<number, string>();
+
+  let colorIndex = 0;
+  const teamsWithColors = initialTeams.map(team => {
+    if (!teamColorMap.has(team.id)) {
+      teamColorMap.set(team.id, colors[colorIndex % colors.length]);
+      colorIndex++;
+    }
+    if (team.opponent && !teamColorMap.has(team.opponent.id)) {
+      teamColorMap.set(team.opponent.id, colors[colorIndex % colors.length]);
+      colorIndex++;
+    }
+    return {
+      ...team,
+      color: teamColorMap.get(team.id)!,
+      opponent: {
+        ...team.opponent,
+        color: teamColorMap.get(team.opponent.id)!,
+      },
+    };
+  });
+
   const groupPlayers = (players: Player[]): GroupedPlayer[] => {
     const playerMap = new Map<string, GroupedPlayer>();
     players.forEach(player => {
@@ -73,8 +96,8 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
     return Array.from(playerMap.values());
   };
 
-  const myPlayers = groupPlayers(teams.flatMap(team => team.players));
-  const opponentPlayers = groupPlayers(teams.flatMap(team => team.opponent.players));
+  const myPlayers = groupPlayers(teamsWithColors.flatMap(team => team.players.map(p => ({ ...p, teamId: team.id, teamColor: team.color }))));
+  const opponentPlayers = groupPlayers(teamsWithColors.flatMap(team => team.opponent.players.map(p => ({ ...p, teamId: team.opponent.id, teamColor: team.opponent.color }))));
 
   const myStarters = myPlayers.filter(p => !p.on_bench);
   const myBench = myPlayers.filter(p => p.on_bench);
@@ -123,12 +146,18 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
-                    {teams.map(team => (
+                    {teamsWithColors.map(team => (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="font-semibold">{team.name}</p>
-                                    <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn("w-3 h-3 rounded-full", team.color)} />
+                                        <p className="font-semibold">{team.name}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className={cn("w-3 h-3 rounded-full", team.opponent.color)} />
+                                        <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
