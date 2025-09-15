@@ -5,7 +5,7 @@ This document outlines the steps to add live scoring updates to the app, making 
 - [ ] **Design Data Flow**
   1. Identify scoring data required from each integration (e.g., Yahoo, Sleeper).
   2. Define a normalized score model that maps provider-specific fields to a common format.
-  3. Decide on refresh strategy: short-interval polling, server-sent events (SSE), or WebSocket streaming.
+  3. Confirm polling as the refresh strategy and determine appropriate intervals.
 
 - [ ] **Backend API**
   1. Create a service layer that fetches live scores from each integration's API.
@@ -14,10 +14,11 @@ This document outlines the steps to add live scoring updates to the app, making 
   4. Implement caching or rate limiting to respect provider limits.
 
 - [ ] **Real-Time Updates**
-  1. Implement the chosen refresh strategy:
-     - **Polling:** Schedule periodic fetches on the server and broadcast updates to clients.
-     - **SSE/WebSocket:** Stream updates to connected clients when new data arrives.
-  2. Add a publish/subscribe mechanism so the API can notify the UI of new scores.
+  1. Implement server-side polling that aggregates and broadcasts updates to clients.
+  2. Ensure polling runs only during active NFL games:
+     - Use an NFL schedule service or provider data to detect game windows.
+     - Stop or pause polling outside those windows to conserve resources.
+  3. Add a publish/subscribe mechanism so the API can notify the UI of new scores.
 
 - [ ] **Interactive UI**
   1. Build a scoreboard component that displays current player scores.
@@ -37,6 +38,6 @@ This document outlines the steps to add live scoring updates to the app, making 
 
 - [ ] **Deployment & Configuration**
   1. Document any new environment variables or configuration required for provider APIs.
-  2. Ensure production infrastructure (e.g., Supabase, Vercel) supports the chosen real-time strategy.
-  3. Monitor performance and adjust polling intervals or streaming strategies as needed.
+  2. Ensure production infrastructure (e.g., Supabase, Vercel) supports the polling workflow.
+  3. Monitor performance and adjust polling intervals as needed.
 
