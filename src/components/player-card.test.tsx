@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import { PlayerCard } from '@/components/player-card'
-import type { Player } from '@/lib/types'
+import type { GroupedPlayer } from '@/lib/types'
 
 describe('PlayerCard', () => {
-  const player: Player = {
-    id: 1,
+  const player: GroupedPlayer = {
+    id: '1',
     name: 'Test Player',
     position: 'QB',
     realTeam: 'TB',
@@ -18,6 +18,10 @@ describe('PlayerCard', () => {
       fieldPosition: 'TB 20',
     },
     imageUrl: 'https://example.com/player.jpg',
+    on_bench: false,
+    count: 1,
+    matchupColors: ['#000000'],
+    isDoubleAgent: false,
   }
 
   it('renders player information', () => {
@@ -26,5 +30,21 @@ describe('PlayerCard', () => {
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
     expect(screen.queryByText('Possession')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('double-agent-badge')).not.toBeInTheDocument()
+  })
+
+  it('renders a double agent badge when the player is on user and opponent teams', () => {
+    const doubleAgent: GroupedPlayer = {
+      ...player,
+      id: '2',
+      name: 'Double Agent',
+      onOpponentTeams: 2,
+      isDoubleAgent: true,
+    }
+
+    render(<PlayerCard player={doubleAgent} />)
+
+    expect(screen.getByText('Double Agent')).toBeInTheDocument()
+    expect(screen.getByTestId('double-agent-badge')).toBeInTheDocument()
   })
 })

@@ -2,6 +2,8 @@
 
 import type { GroupedPlayer } from "@/lib/types";
 import { Card } from "@/components/ui/card";
+import { badgeVariants } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { User, Users } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -19,6 +21,29 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                 <div className="flex-1 mx-2 min-w-0">
                     <div className="flex items-center gap-2">
                         <p className="text-xs sm:text-sm font-semibold leading-tight">{player.name}</p>
+                        {player.isDoubleAgent && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span
+                                        data-testid="double-agent-badge"
+                                        aria-label="Also rostered by opponents this week"
+                                        tabIndex={0}
+                                        className={cn(
+                                            badgeVariants({ variant: "secondary" }),
+                                            "gap-1 px-1.5 py-0.5 text-[10px] sm:text-xs"
+                                        )}
+                                    >
+                                        <span role="img" aria-hidden="true" className="text-sm leading-none">
+                                            🕵️
+                                        </span>
+                                        <span className="sr-only">Double agent</span>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Also rostered by opponents this week</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
                         <div className="flex items-center gap-1">
                             {player.matchupColors.map((color, index) => (
                                 <div key={index} className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />

@@ -69,6 +69,8 @@ export type GroupedPlayer = Player & {
   count: number;
   /** The colors of the matchups this player is in. */
   matchupColors: string[];
+  /** Indicates the player is rostered by both you and an opponent. */
+  isDoubleAgent: boolean;
 };
 
 /**

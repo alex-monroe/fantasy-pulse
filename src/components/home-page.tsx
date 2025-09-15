@@ -68,14 +68,21 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
     players.forEach(player => {
       if (player && player.name && player.realTeam) {
         const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
+        const isDoubleAgent = player.onUserTeams > 0 && player.onOpponentTeams > 0;
         if (existingPlayers.has(key)) {
           const existingPlayer = existingPlayers.get(key)!;
           existingPlayer.count++;
           if (!existingPlayer.matchupColors.includes(color)) {
             existingPlayer.matchupColors.push(color);
           }
+          existingPlayer.isDoubleAgent = existingPlayer.isDoubleAgent || isDoubleAgent;
         } else {
-          existingPlayers.set(key, { ...player, count: 1, matchupColors: [color] });
+          existingPlayers.set(key, {
+            ...player,
+            count: 1,
+            matchupColors: [color],
+            isDoubleAgent,
+          });
         }
       }
     });
