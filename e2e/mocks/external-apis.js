@@ -39,14 +39,31 @@ global.fetch = async (input, init) => {
   if (url === 'https://api.sleeper.app/v1/league/league1/rosters') {
     return jsonResponse([
       { roster_id: 1, owner_id: 'sleeperUser', players: ['p1'], starters: ['p1'] },
-      { roster_id: 2, owner_id: 'opponentUser', players: ['p2'], starters: ['p2'] },
+      {
+        roster_id: 2,
+        owner_id: 'opponentUser',
+        players: ['p2', 'p3'],
+        starters: ['p2', 'p3'],
+      },
     ]);
   }
 
   if (url === 'https://api.sleeper.app/v1/league/league1/matchups/1') {
     return jsonResponse([
-      { roster_id: 1, matchup_id: 1, players_points: { p1: 10 }, players: ['p1'] },
-      { roster_id: 2, matchup_id: 1, players_points: { p2: 8 }, players: ['p2'] },
+      {
+        roster_id: 1,
+        matchup_id: 1,
+        points: 10,
+        players_points: { p1: 10 },
+        players: ['p1'],
+      },
+      {
+        roster_id: 2,
+        matchup_id: 1,
+        points: 8,
+        players_points: { p2: 8, p3: 0 },
+        players: ['p2', 'p3'],
+      },
     ]);
   }
 
