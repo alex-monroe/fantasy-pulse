@@ -17,7 +17,7 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
     return (
         <TooltipProvider>
             <Card className="flex items-center p-2 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm">
-                {player.teamColor && <div className={cn("w-3 h-3 rounded-full mr-2", player.teamColor)} />}
+                {player.matchupColor && <div className={cn("w-3 h-3 rounded-full mr-2", player.matchupColor)} />}
                 <Image src={player.imageUrl} alt={player.name} width={40} height={40} data-ai-hint="player portrait" className="rounded-full border" />
                 <div className="flex-1 mx-3">
                     <p className="font-semibold leading-tight">{player.name}</p>
