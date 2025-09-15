@@ -140,7 +140,7 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                 </CardContent>
              </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <div className="grid grid-cols-2 gap-4 items-start">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>My Players</CardTitle>

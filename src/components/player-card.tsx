@@ -16,7 +16,7 @@ export function PlayerCard({ player }: { player: Player & { count?: number } }) 
     return (
         <TooltipProvider>
             <Card className="flex items-center p-2 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm">
-                <Image src={player.imageUrl} alt={player.name} width={40} height={40} data-ai-hint="player portrait" className="rounded-full border" />
+                <Image src={player.imageUrl} alt={player.name} width={40} height={40} data-ai-hint="player portrait" className="rounded-full border hidden sm:block" />
                 <div className="flex-1 mx-3">
                     <p className="font-semibold leading-tight">{player.name}</p>
                     <p className="text-xs text-muted-foreground">{player.position} - {player.realTeam}</p>
