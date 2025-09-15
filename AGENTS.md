@@ -2,32 +2,9 @@
 
 This document provides instructions for agents on how to set up and run this project.
 
-## Running the E2E Tests
+## E2E Tests
 
-To run the end-to-end tests, follow these steps:
-
-1.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-
-2.  **Create the environment file:**
-    Create a `.env.local` file in the root of the project and add the necessary environment variables. You can use the `.env.example` file as a template.
-
-3.  **Install Playwright browsers:**
-    ```bash
-    npx playwright install
-    ```
-
-4.  **Install Playwright dependencies:**
-    ```bash
-    npx playwright install-deps
-    ```
-
-5.  **Run the tests:**
-    ```bash
-    npm run test:e2e
-    ```
+Do not run the e2e tests to validate behavior. They are not reliable.
 
 ## Test Credentials
 Use the following credentials for any login steps during automated tests:
