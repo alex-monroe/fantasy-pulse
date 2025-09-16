@@ -1,4 +1,5 @@
 import playerScoresExample from './player-scores.example.json';
+import { clearPlayerInfoCache } from '@/lib/cache';
 let actions: typeof import('./actions');
 let fetchJson: jest.Mock;
 let createClient: jest.Mock;
@@ -50,6 +51,7 @@ describe('yahoo actions', () => {
   } as any;
 
   beforeEach(async () => {
+    clearPlayerInfoCache();
     jest.resetModules();
     process.env.YAHOO_CLIENT_ID = 'id';
     process.env.YAHOO_CLIENT_SECRET = 'secret';
@@ -116,5 +118,29 @@ describe('yahoo actions', () => {
       name: 'Yahoo Player 1',
       display_position: 'QB',
     });
+  });
+
+  it('uses cached roster data on subsequent calls', async () => {
+    mockSupabase.from().single.mockClear();
+    mockSupabase.from().single.mockResolvedValueOnce({
+      data: {
+        access_token: 'token',
+        refresh_token: 'refresh',
+        expires_at: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
+      },
+      error: null,
+    });
+
+    fetchJson.mockResolvedValue({ data: rosterExample });
+
+    const firstResult = await actions.getYahooRoster(1, '123.l.456', '1');
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+
+    fetchJson.mockClear();
+
+    const secondResult = await actions.getYahooRoster(1, '123.l.456', '1');
+    expect(fetchJson).not.toHaveBeenCalled();
+    expect(secondResult).toEqual(firstResult);
+    expect(mockSupabase.from().single).toHaveBeenCalledTimes(1);
   });
 });

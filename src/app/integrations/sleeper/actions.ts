@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { fetchJson } from '@/lib/fetch-json';
+import { getCachedPlayerInfo, setCachedPlayerInfo } from '@/lib/cache';
 import {
   SleeperLeague,
   SleeperMatchup,
@@ -231,12 +232,21 @@ export async function getUsersInLeague(leagueId: string) {
  * @returns A list of NFL players or an error.
  */
 export async function getNflPlayers() {
+  const cacheKey = 'sleeper:nfl-players';
+  const cachedPlayers = getCachedPlayerInfo<Record<string, SleeperPlayer>>(cacheKey);
+  if (cachedPlayers !== undefined) {
+    return { players: cachedPlayers };
+  }
+
   try {
     const { data: players, error } = await fetchJson<Record<string, SleeperPlayer>>(
       `https://api.sleeper.app/v1/players/nfl`
     );
     if (error) {
       return { error };
+    }
+    if (players) {
+      setCachedPlayerInfo(cacheKey, players);
     }
     return { players };
   } catch (error) {

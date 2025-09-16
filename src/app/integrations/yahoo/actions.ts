@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
 import logger from '@/utils/logger';
 import { fetchJson } from '@/lib/fetch-json';
+import { getCachedPlayerInfo, setCachedPlayerInfo } from '@/lib/cache';
 import { getEnv } from '@/lib/env';
 
 /**
@@ -437,6 +438,12 @@ export async function getYahooLeagues(integrationId: number) {
  * @returns A list of players or an error.
  */
 export async function getYahooRoster(integrationId: number, leagueId: string, teamId: string) {
+  const cacheKey = `yahoo:roster:${integrationId}:${leagueId}:${teamId}`;
+  const cachedPlayers = getCachedPlayerInfo<any[]>(cacheKey);
+  if (cachedPlayers !== undefined) {
+    return { players: cachedPlayers };
+  }
+
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
 
   if (tokenError || !access_token) {
@@ -469,6 +476,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
 
     if (!rosterData) {
       logger.info('No roster data found in Yahoo API response.');
+      setCachedPlayerInfo(cacheKey, []);
       return { players: [] };
     }
 
@@ -506,6 +514,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
       };
     }).filter(Boolean); // Filter out any null entries from failed parsing
 
+    setCachedPlayerInfo(cacheKey, players);
     return { players };
   } catch (error) {
     return { error: 'An unexpected error occurred while fetching the roster from Yahoo.' };
