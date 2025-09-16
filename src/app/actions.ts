@@ -13,6 +13,7 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
+import { mapSleeperPlayer } from '@/lib/sleeper';
 import {
   Team,
   Player,
@@ -111,44 +112,29 @@ export async function buildSleeperTeams(
       opponentUser?.display_name ||
       'Opponent';
 
-    const userPlayers = userMatchup.players.map((playerId: string) => {
-      const player = playersData[playerId];
-      const score = userMatchup.players_points?.[playerId] ?? 0;
-      return {
-        id: playerId,
-        name: player.full_name,
-        position: player.position,
-        realTeam: player.team,
-        score: score,
-        gameStatus: 'pregame',
-        onUserTeams: 0,
-        onOpponentTeams: 0,
-        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-        imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-        onBench: !userRoster.starters.includes(playerId),
-      };
-    });
+    const userPlayers = userMatchup.players
+      .map((playerId: string) =>
+        mapSleeperPlayer({
+          playerId,
+          playersData,
+          matchup: userMatchup,
+          roster: userRoster,
+        })
+      )
+      .filter((player): player is Player => player !== null);
 
     const opponentPlayers =
       opponentMatchup && opponentMatchup.players
-        ? opponentMatchup.players.map((playerId: string) => {
-            const player = playersData[playerId];
-            const score = opponentMatchup.players_points?.[playerId] ?? 0;
-
-            return {
-              id: playerId,
-              name: player.full_name,
-              position: player.position,
-              realTeam: player.team,
-              score: score,
-              gameStatus: 'pregame',
-              onUserTeams: 0,
-              onOpponentTeams: 0,
-              gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-              imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-              onBench: !opponentRoster.starters.includes(playerId),
-            };
-          })
+        ? opponentMatchup.players
+            .map((playerId: string) =>
+              mapSleeperPlayer({
+                playerId,
+                playersData,
+                matchup: opponentMatchup,
+                roster: opponentRoster,
+              })
+            )
+            .filter((player): player is Player => player !== null)
         : [];
 
     teams.push({

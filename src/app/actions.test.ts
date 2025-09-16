@@ -1,5 +1,6 @@
 import * as actions from './actions';
 const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
+import { mapSleeperPlayer } from '@/lib/sleeper';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
@@ -66,6 +67,61 @@ describe('actions', () => {
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
+  });
+
+  describe('mapSleeperPlayer', () => {
+    const matchup: SleeperMatchup = {
+      roster_id: 1,
+      matchup_id: 1,
+      points: 0,
+      players: ['1'],
+      players_points: { '1': 12 },
+    };
+
+    const roster: SleeperRoster = {
+      owner_id: 'sleeper-user-1',
+      roster_id: 1,
+      players: ['1'],
+      starters: ['1'],
+    };
+
+    const playersData: Record<string, SleeperPlayer> = {
+      '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+    };
+
+    it('maps player data when Sleeper information exists', () => {
+      const result = mapSleeperPlayer({
+        playerId: '1',
+        playersData,
+        matchup,
+        roster,
+      });
+
+      expect(result).toEqual({
+        id: '1',
+        name: 'Player One',
+        position: 'QB',
+        realTeam: 'TEAMA',
+        score: 12,
+        gameStatus: 'pregame',
+        onUserTeams: 0,
+        onOpponentTeams: 0,
+        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+        imageUrl: 'https://sleepercdn.com/content/nfl/players/thumb/1.jpg',
+        onBench: false,
+      });
+    });
+
+    it('returns null when player data is not available', () => {
+      const result = mapSleeperPlayer({
+        playerId: 'unknown',
+        playersData,
+        matchup,
+        roster,
+      });
+
+      expect(result).toBeNull();
+    });
   });
 
   describe('buildSleeperTeams', () => {
@@ -147,6 +203,55 @@ describe('actions', () => {
       );
 
       expect(result).toEqual([]);
+    });
+
+    it('omits players without Sleeper player data', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      const playersDataWithMissing: Record<string, SleeperPlayer> = {
+        '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+      };
+
+      const rostersWithUnknown: SleeperRoster[] = [
+        { owner_id: 'sleeper-user-1', roster_id: 1, players: ['1'], starters: ['1'] },
+        { owner_id: 'sleeper-user-2', roster_id: 2, players: ['3'], starters: ['3'] },
+      ];
+
+      const matchupsWithUnknown: SleeperMatchup[] = [
+        {
+          roster_id: 1,
+          matchup_id: 1,
+          points: 100,
+          players_points: { '1': 20 },
+          players: ['1'],
+        },
+        {
+          roster_id: 2,
+          matchup_id: 1,
+          points: 90,
+          players_points: { '3': 15 },
+          players: ['3'],
+        },
+      ];
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(rostersWithUnknown) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(matchupsWithUnknown) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        playersDataWithMissing
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].players).toHaveLength(1);
+      expect(result[0].players[0].id).toBe('1');
+      expect(result[0].opponent.players).toEqual([]);
     });
   });
 
