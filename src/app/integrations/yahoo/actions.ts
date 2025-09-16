@@ -6,6 +6,7 @@ import { getCurrentNflWeek } from '@/app/actions';
 import logger from '@/utils/logger';
 import { fetchJson } from '@/lib/fetch-json';
 import { getEnv } from '@/lib/env';
+import { getFromCache, setInCache } from '@/lib/cache';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -437,6 +438,13 @@ export async function getYahooLeagues(integrationId: number) {
  * @returns A list of players or an error.
  */
 export async function getYahooRoster(integrationId: number, leagueId: string, teamId: string) {
+  const cacheKey = `yahoo-roster-${leagueId}-${teamId}`;
+  const cachedData = await getFromCache<{ players: any[] }>(cacheKey);
+
+  if (cachedData) {
+    return cachedData;
+  }
+
   const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
 
   if (tokenError || !access_token) {
@@ -505,6 +513,8 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         onBench: selectedPosition === 'BN',
       };
     }).filter(Boolean); // Filter out any null entries from failed parsing
+
+    await setInCache(cacheKey, { players });
 
     return { players };
   } catch (error) {

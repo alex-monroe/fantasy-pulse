@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { fetchJson } from '@/lib/fetch-json';
+import { getFromCache, setInCache } from '@/lib/cache';
 import {
   SleeperLeague,
   SleeperMatchup,
@@ -213,6 +214,13 @@ export async function getRosters(leagueId: string) {
  * @returns A list of users or an error.
  */
 export async function getUsersInLeague(leagueId: string) {
+  const cacheKey = `sleeper-users-${leagueId}`;
+  const cachedData = await getFromCache<{ users: SleeperUser[] }>(cacheKey);
+
+  if (cachedData) {
+    return cachedData;
+  }
+
   try {
     const { data: users, error } = await fetchJson<SleeperUser[]>(
       `https://api.sleeper.app/v1/league/${leagueId}/users`
@@ -220,6 +228,11 @@ export async function getUsersInLeague(leagueId: string) {
     if (error) {
       return { error };
     }
+
+    if (users) {
+      await setInCache(cacheKey, { users });
+    }
+
     return { users };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
@@ -231,6 +244,13 @@ export async function getUsersInLeague(leagueId: string) {
  * @returns A list of NFL players or an error.
  */
 export async function getNflPlayers() {
+  const cacheKey = 'sleeper-nfl-players';
+  const cachedData = await getFromCache<Record<string, SleeperPlayer>>(cacheKey);
+
+  if (cachedData) {
+    return { players: cachedData };
+  }
+
   try {
     const { data: players, error } = await fetchJson<Record<string, SleeperPlayer>>(
       `https://api.sleeper.app/v1/players/nfl`
@@ -238,6 +258,11 @@ export async function getNflPlayers() {
     if (error) {
       return { error };
     }
+
+    if (players) {
+      await setInCache(cacheKey, players);
+    }
+
     return { players };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
