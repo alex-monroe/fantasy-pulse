@@ -1,6 +1,6 @@
 import { FantasyHeroes, PublicEnemies, DoubleAgents } from "./components";
 import { processMatchups } from "./utils";
-import { mockTeams } from "../../../src/lib/mock-data";
+import { mockTeams } from "@/lib/mock-data";
 
 export default async function MatchupReport() {
   const { fantasyHeroes, publicEnemies, doubleAgents } =
