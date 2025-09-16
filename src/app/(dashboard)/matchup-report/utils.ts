@@ -1,5 +1,5 @@
 type Player = {
-  id: number;
+  id: string | number;
   name: string;
   onUserTeams: number;
   onOpponentTeams: number;
@@ -17,7 +17,7 @@ type Matchup = {
 
 export const processMatchups = (matchups: Matchup[]) => {
   const playerMap: Record<
-    number,
+    string,
     {
       player: Player;
       userMatchups: string[];
@@ -27,17 +27,17 @@ export const processMatchups = (matchups: Matchup[]) => {
 
   matchups.forEach((matchup) => {
     const processPlayer = (player: Player, isOpponent: boolean) => {
-      if (!playerMap[player.id]) {
-        playerMap[player.id] = {
+      if (!playerMap[player.name]) {
+        playerMap[player.name] = {
           player,
           userMatchups: [],
           opponentMatchups: [],
         };
       }
       if (isOpponent) {
-        playerMap[player.id].opponentMatchups.push(matchup.name);
+        playerMap[player.name].opponentMatchups.push(matchup.name);
       } else {
-        playerMap[player.id].userMatchups.push(matchup.name);
+        playerMap[player.name].userMatchups.push(matchup.name);
       }
     };
 
