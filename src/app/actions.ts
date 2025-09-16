@@ -55,15 +55,25 @@ export async function buildSleeperTeams(
   const teams: Team[] = [];
 
   for (const league of leagues as SleeperLeague[]) {
-    const rostersResponse = await fetch(
-      `https://api.sleeper.app/v1/league/${league.league_id}/rosters`
-    );
-    const rosters: SleeperRoster[] = await rostersResponse.json();
+    const [rosters, matchups, leagueUsers] = await Promise.all([
+      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
+        (response) => response.json() as Promise<SleeperRoster[]>
+      ),
+      fetch(
+        `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
+      ).then((response) => response.json() as Promise<SleeperMatchup[]>),
+      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
+        (response) => response.json() as Promise<SleeperUser[]>
+      ),
+    ]);
 
-    const matchupsResponse = await fetch(
-      `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
-    );
-    const matchups: SleeperMatchup[] = await matchupsResponse.json();
+    if (
+      !Array.isArray(rosters) ||
+      !Array.isArray(matchups) ||
+      !Array.isArray(leagueUsers)
+    ) {
+      continue;
+    }
 
     const userRoster = rosters.find(
       (roster) => roster.owner_id === integration.provider_user_id
@@ -84,11 +94,6 @@ export async function buildSleeperTeams(
     const opponentRoster = opponentMatchup
       ? rosters.find((roster) => roster.roster_id === opponentMatchup.roster_id) || null
       : null;
-
-    const leagueUsersResponse = await fetch(
-      `https://api.sleeper.app/v1/league/${league.league_id}/users`
-    );
-    const leagueUsers: SleeperUser[] = await leagueUsersResponse.json();
 
     const userLeagueInfo = leagueUsers.find(
       (user) => user.user_id === integration.provider_user_id
