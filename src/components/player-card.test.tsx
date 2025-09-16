@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import { PlayerCard } from '@/components/player-card'
-import type { Player } from '@/lib/types'
+import type { GroupedPlayer } from '@/lib/types'
 
 describe('PlayerCard', () => {
-  const player: Player = {
-    id: 1,
+  const player: GroupedPlayer = {
+    id: '1',
     name: 'Test Player',
     position: 'QB',
     realTeam: 'TB',
@@ -18,6 +18,9 @@ describe('PlayerCard', () => {
       fieldPosition: 'TB 20',
     },
     imageUrl: 'https://example.com/player.jpg',
+    onBench: false,
+    matchupColors: ['#000000'],
+    count: 1,
   }
 
   it('renders player information', () => {
