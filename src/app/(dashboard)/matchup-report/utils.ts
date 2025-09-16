@@ -1,19 +1,4 @@
-type Player = {
-  id: string | number;
-  name: string;
-  onUserTeams: number;
-  onOpponentTeams: number;
-};
-
-type Matchup = {
-  id: number;
-  name: string;
-  players: Player[];
-  opponent: {
-    name: string;
-    players: Player[];
-  };
-};
+import type { Player, Team as Matchup } from "@/lib/types";
 
 export const processMatchups = (matchups: Matchup[]) => {
   const playerMap: Record<
@@ -37,6 +22,7 @@ export const processMatchups = (matchups: Matchup[]) => {
       if (isOpponent) {
         playerMap[player.name].opponentMatchups.push(matchup.opponent.name);
       } else {
+        if (matchup.name === undefined) return;
         playerMap[player.name].userMatchups.push(matchup.name);
       }
     };

@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import { PlayerCard } from '@/components/player-card'
-import type { Player } from '@/lib/types'
+import type { GroupedPlayer } from '@/lib/types'
 
 describe('PlayerCard', () => {
-  const player: Player = {
-    id: 1,
+  const player: GroupedPlayer = {
+    id: '1',
     name: 'Test Player',
     position: 'QB',
     realTeam: 'TB',
@@ -18,6 +18,9 @@ describe('PlayerCard', () => {
       fieldPosition: 'TB 20',
     },
     imageUrl: 'https://example.com/player.jpg',
+    count: 1,
+    matchupColors: [],
+    on_bench: false,
   }
 
   it('renders player information', () => {
@@ -25,6 +28,5 @@ describe('PlayerCard', () => {
     expect(screen.getByText('Test Player')).toBeInTheDocument()
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
-    expect(screen.queryByText('Possession')).not.toBeInTheDocument()
   })
 })

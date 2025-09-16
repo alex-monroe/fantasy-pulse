@@ -4,41 +4,53 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { PlayerCard as SharedPlayerCard } from "@/components/player-card";
+import type { Player } from "@/lib/types";
 
-type Player = {
-  id: number;
-  name: string;
-  matchups: string[];
-  userMatchups: string[];
-  opponentMatchups: string[];
-};
-
-const PlayerCard = ({
+const MatchupPlayerCard = ({
   player,
   isDoubleAgent = false,
 }: {
-  player: Player;
+  player: Player & {
+    matchups?: string[];
+    userMatchups?: string[];
+    opponentMatchups?: string[];
+  };
   isDoubleAgent?: boolean;
-}) => (
-  <div className="mb-2 p-2 border rounded">
-    <h4 className="font-semibold">{player.name}</h4>
-    {isDoubleAgent ? (
-      <>
-        <div className="text-sm">
-          <span className="font-bold">Your teams:</span>{" "}
-          {player.userMatchups.join(", ")}
-        </div>
-        <div className="text-sm">
-          <span className="font-bold">Opponent teams:</span>{" "}
-          {player.opponentMatchups.join(", ")}
-        </div>
-      </>
-    ) : (
-      <p className="text-sm">{player.matchups.join(", ")}</p>
-    )}
-  </div>
-);
+}) => {
+  const groupedPlayer = {
+    ...player,
+    count: 1,
+    matchupColors: [],
+  };
+
+  return (
+    <div className="mb-2">
+      <SharedPlayerCard player={groupedPlayer} />
+      <div className="p-2 border-t text-sm text-muted-foreground">
+        {isDoubleAgent ? (
+          <>
+            <div>
+              <span className="font-semibold text-primary">Your teams:</span>{" "}
+              {player.userMatchups?.join(", ")}
+            </div>
+            <div>
+              <span className="font-semibold text-destructive">
+                Opponent teams:
+              </span>{" "}
+              {player.opponentMatchups?.join(", ")}
+            </div>
+          </>
+        ) : (
+          <div>
+            <span className="font-semibold">On teams:</span>{" "}
+            {player.matchups?.join(", ")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const FantasyHeroes = ({ players }: { players: Player[] }) => (
   <Card>
@@ -47,7 +59,7 @@ export const FantasyHeroes = ({ players }: { players: Player[] }) => (
     </CardHeader>
     <CardContent>
       {players.map((player) => (
-        <PlayerCard key={player.id} player={player} />
+        <MatchupPlayerCard key={player.id} player={player} />
       ))}
     </CardContent>
   </Card>
@@ -60,7 +72,7 @@ export const PublicEnemies = ({ players }: { players: Player[] }) => (
     </CardHeader>
     <CardContent>
       {players.map((player) => (
-        <PlayerCard key={player.id} player={player} />
+        <MatchupPlayerCard key={player.id} player={player} />
       ))}
     </CardContent>
   </Card>
@@ -73,7 +85,7 @@ export const DoubleAgents = ({ players }: { players: Player[] }) => (
     </CardHeader>
     <CardContent>
       {players.map((player) => (
-        <PlayerCard key={player.id} player={player} isDoubleAgent={true} />
+        <MatchupPlayerCard key={player.id} player={player} isDoubleAgent />
       ))}
     </CardContent>
   </Card>
