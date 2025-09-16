@@ -31,7 +31,7 @@ describe('PlayerCard', () => {
   })
 
   it('renders a benched player with a badge', () => {
-    const benchedPlayer = { ...player, on_bench: true }
+    const benchedPlayer = { ...player, onBench: true }
     render(<PlayerCard player={benchedPlayer} />)
     expect(screen.getByText('BN')).toBeInTheDocument()
   })
