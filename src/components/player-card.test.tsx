@@ -29,4 +29,10 @@ describe('PlayerCard', () => {
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
   })
+
+  it('renders a benched player with a badge', () => {
+    const benchedPlayer = { ...player, on_bench: true }
+    render(<PlayerCard player={benchedPlayer} />)
+    expect(screen.getByText('BN')).toBeInTheDocument()
+  })
 })
