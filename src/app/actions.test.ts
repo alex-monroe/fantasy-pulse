@@ -336,6 +336,9 @@ describe('actions', () => {
       expect(result[0].players[0].imageUrl).toBe(
         'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
       );
+      expect(result[0].opponent.players[0].imageUrl).toBe(
+        'https://sleepercdn.com/images/v2/icons/player_default.webp'
+      );
     });
 
     it('skips team when user roster fetch fails while still requesting opponent roster', async () => {
@@ -760,7 +763,13 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
         players: [
-          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false },
+          {
+            player_key: 'p1',
+            name: 'Player One Jr.',
+            display_position: 'QB',
+            editorial_team_abbr: 'TEAMC',
+            onBench: false,
+          },
         ],
         error: null,
       });
@@ -819,9 +828,16 @@ describe('actions', () => {
         </tbody></table>
       `;
 
+      const sleeperPlayersData = {
+        '1': { full_name: 'Player One', first_name: 'Player', last_name: 'One' },
+        '2': { full_name: 'Player Two', first_name: 'Player', last_name: 'Two' },
+        '3': { full_name: 'Bench Guy', first_name: 'Bench', last_name: 'Guy' },
+        '4': { full_name: 'Opp Bench', first_name: 'Opp', last_name: 'Bench' },
+      };
+
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve({}) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(sleeperPlayersData) })
         .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(matchupHtml) });
 
       (getOttoneuLeagues as jest.Mock).mockResolvedValue({
@@ -851,6 +867,9 @@ describe('actions', () => {
         score: 5,
         onBench: false,
       });
+      expect(result.teams[0].players[0].imageUrl).toBe(
+        'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
+      );
       expect(result.teams[0].players[1].onBench).toBe(true);
       expect(result.teams[0].opponent.players).toHaveLength(2);
       expect(result.teams[0].opponent.players[0]).toMatchObject({
@@ -858,6 +877,9 @@ describe('actions', () => {
         name: 'Player Two',
         score: 3,
       });
+      expect(result.teams[0].opponent.players[0].imageUrl).toBe(
+        'https://sleepercdn.com/content/nfl/players/thumb/2.jpg'
+      );
       expect(result.teams[0].name).toBe('My Team');
       expect(result.teams[0].totalScore).toBe(10);
       expect(result.teams[0].opponent.name).toBe('Opponent');
