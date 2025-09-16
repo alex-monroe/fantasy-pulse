@@ -59,7 +59,7 @@ export const FantasyHeroes = ({ players }: { players: Player[] }) => (
     </CardHeader>
     <CardContent>
       {players
-        .sort((a, b) => Number(a.on_bench) - Number(b.on_bench) || b.score - a.score)
+        .sort((a, b) => Number(a.onBench) - Number(b.onBench) || b.score - a.score)
         .map((player) => (
           <MatchupPlayerCard key={player.id} player={player} />
         ))}
@@ -74,7 +74,7 @@ export const PublicEnemies = ({ players }: { players: Player[] }) => (
     </CardHeader>
     <CardContent>
       {players
-        .sort((a, b) => Number(a.on_bench) - Number(b.on_bench) || b.score - a.score)
+        .sort((a, b) => Number(a.onBench) - Number(b.onBench) || b.score - a.score)
         .map((player) => (
           <MatchupPlayerCard key={player.id} player={player} />
         ))}
@@ -89,7 +89,7 @@ export const DoubleAgents = ({ players }: { players: Player[] }) => (
     </CardHeader>
     <CardContent>
       {players
-        .sort((a, b) => Number(a.on_bench) - Number(b.on_bench) || b.score - a.score)
+        .sort((a, b) => Number(a.onBench) - Number(b.onBench) || b.score - a.score)
         .map((player) => (
           <MatchupPlayerCard key={player.id} player={player} isDoubleAgent />
         ))}
