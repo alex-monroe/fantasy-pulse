@@ -58,9 +58,11 @@ export const FantasyHeroes = ({ players }: { players: Player[] }) => (
       <CardTitle>🦸 Fantasy Heroes</CardTitle>
     </CardHeader>
     <CardContent>
-      {players.map((player) => (
-        <MatchupPlayerCard key={player.id} player={player} />
-      ))}
+      {players
+        .sort((a, b) => Number(a.on_bench) - Number(b.on_bench) || b.score - a.score)
+        .map((player) => (
+          <MatchupPlayerCard key={player.id} player={player} />
+        ))}
     </CardContent>
   </Card>
 );
@@ -71,9 +73,11 @@ export const PublicEnemies = ({ players }: { players: Player[] }) => (
       <CardTitle>😈 Public Enemies</CardTitle>
     </CardHeader>
     <CardContent>
-      {players.map((player) => (
-        <MatchupPlayerCard key={player.id} player={player} />
-      ))}
+      {players
+        .sort((a, b) => Number(a.on_bench) - Number(b.on_bench) || b.score - a.score)
+        .map((player) => (
+          <MatchupPlayerCard key={player.id} player={player} />
+        ))}
     </CardContent>
   </Card>
 );
@@ -84,9 +88,11 @@ export const DoubleAgents = ({ players }: { players: Player[] }) => (
       <CardTitle>🕵️ Double Agents</CardTitle>
     </CardHeader>
     <CardContent>
-      {players.map((player) => (
-        <MatchupPlayerCard key={player.id} player={player} isDoubleAgent />
-      ))}
+      {players
+        .sort((a, b) => Number(a.on_bench) - Number(b.on_bench) || b.score - a.score)
+        .map((player) => (
+          <MatchupPlayerCard key={player.id} player={player} isDoubleAgent />
+        ))}
     </CardContent>
   </Card>
 );
