@@ -801,14 +801,14 @@ describe('actions', () => {
         <table class="game-details-table"><tbody>
           <tr>
             <td class="player-stat-details game-page-home-team-text player-stat-details-1"></td>
-            <td class="home-team-position-player game-page-home-team-text" id="player-bio-1" data-position="QB" data-player-id="1">
-              <span class="player-link-desktop"><a href="#">Player One</a> <span class="smaller">CHI QB</span></span>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-1" data-position="FLX" data-player-id="1">
+              <span class="player-link-desktop"><a href="#">Player One</a> <span class="smaller">CHI RB</span></span>
             </td>
             <td class="game-page-home-team-text game-page-points player-points-1">5</td>
-            <td class="game-details-position"><span class="position">QB</span></td>
+            <td class="game-details-position"><span class="position">FLX</span></td>
             <td class="game-page-away-team-text game-page-points player-points-2">3</td>
-            <td class="away-team-position-player game-page-away-team-text" id="player-bio-2" data-position="QB" data-player-id="2">
-              <span class="player-link-desktop"><a href="#">Player Two</a> <span class="smaller">BUF QB</span></span>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-2" data-position="SFLX" data-player-id="2">
+              <span class="player-link-desktop"><a href="#">Player Two</a> <span class="smaller">BUF WR</span></span>
             </td>
             <td class="player-stat-details game-page-away-team-text player-stat-details-2"></td>
           </tr>
@@ -829,10 +829,10 @@ describe('actions', () => {
       `;
 
       const sleeperPlayersData = {
-        '1': { full_name: 'Player One', first_name: 'Player', last_name: 'One' },
-        '2': { full_name: 'Player Two', first_name: 'Player', last_name: 'Two' },
-        '3': { full_name: 'Bench Guy', first_name: 'Bench', last_name: 'Guy' },
-        '4': { full_name: 'Opp Bench', first_name: 'Opp', last_name: 'Bench' },
+        '1': { full_name: 'Player One', first_name: 'Player', last_name: 'One', position: 'RB' },
+        '2': { full_name: 'Player Two', first_name: 'Player', last_name: 'Two', position: 'WR' },
+        '3': { full_name: 'Bench Guy', first_name: 'Bench', last_name: 'Guy', position: 'WR' },
+        '4': { full_name: 'Opp Bench', first_name: 'Opp', last_name: 'Bench', position: 'RB' },
       };
 
       (fetch as jest.Mock)
@@ -862,7 +862,7 @@ describe('actions', () => {
       expect(result.teams[0].players[0]).toMatchObject({
         id: '1',
         name: 'Player One',
-        position: 'QB',
+        position: 'RB',
         realTeam: 'CHI',
         score: 5,
         onBench: false,
@@ -872,9 +872,11 @@ describe('actions', () => {
       );
       expect(result.teams[0].players[1].onBench).toBe(true);
       expect(result.teams[0].opponent.players).toHaveLength(2);
+      expect(result.teams[0].players[1].position).toBe('WR');
       expect(result.teams[0].opponent.players[0]).toMatchObject({
         id: '2',
         name: 'Player Two',
+        position: 'WR',
         score: 3,
       });
       expect(result.teams[0].opponent.players[0].imageUrl).toBe(

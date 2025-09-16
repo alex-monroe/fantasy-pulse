@@ -31,6 +31,8 @@ const SLEEPER_HEADSHOT_BASE_URL =
 const SLEEPER_DEFAULT_HEADSHOT_URL =
   'https://sleepercdn.com/images/v2/icons/player_default.webp';
 
+const IGNORED_ROSTER_SPOTS = new Set(['BN', 'BENCH', 'FLX', 'SFLX']);
+
 type SleeperIdResolver = (playerName: string) => string | null;
 
 const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
@@ -478,7 +480,8 @@ export async function buildYahooTeams(
  */
 export async function buildOttoneuTeams(
   integration: any,
-  playerNameMap: { [key: string]: string }
+  playerNameMap: { [key: string]: string },
+  playersData: Record<string, SleeperPlayer>
 ): Promise<Team[]> {
   const { leagues, error } = await getOttoneuLeagues(integration.id);
   if (error || !leagues || leagues.length === 0) {
@@ -527,18 +530,44 @@ export async function buildOttoneuTeams(
             cell.querySelector('a')?.textContent?.trim() || '';
           const meta =
             cell.querySelector('.smaller')?.textContent?.trim() || '';
-          const realTeam = meta.split(' ')[0] || '';
+          const metaParts = meta.split(' ').filter(Boolean);
+          const realTeam = metaParts[0] || '';
+          const metaPosition = metaParts.slice(1).join(' ');
           const score = parseFloat(pointsCell.textContent?.trim() || '0') || 0;
           const posDisplay = positionCell.textContent?.trim() || '';
+          const rosterSpot = (cell.getAttribute('data-position') || '').trim();
           const onBench =
             posDisplay === 'BN' ||
-            (cell.getAttribute('data-position') || '').toLowerCase() === 'bench';
+            rosterSpot.toLowerCase() === 'bench';
           const sleeperId = resolveSleeperId(name);
+          const sleeperPosition = sleeperId
+            ? playersData[sleeperId]?.position
+            : undefined;
+          const sanitizedRosterSpot = rosterSpot
+            .toUpperCase()
+            .replace(/\s+/g, '');
+          const sanitizedDisplay = posDisplay.toUpperCase();
+          const fallbackRosterSpot = IGNORED_ROSTER_SPOTS.has(
+            sanitizedRosterSpot
+          )
+            ? ''
+            : rosterSpot;
+          const fallbackDisplaySpot = IGNORED_ROSTER_SPOTS.has(
+            sanitizedDisplay
+          )
+            ? ''
+            : posDisplay;
+          const position =
+            (sleeperPosition || '').toString().toUpperCase() ||
+            (metaPosition ? metaPosition.toUpperCase() : '') ||
+            fallbackRosterSpot.toUpperCase() ||
+            fallbackDisplaySpot.toUpperCase() ||
+            '';
 
           return {
             id,
             name,
-            position: cell.getAttribute('data-position') || '',
+            position,
             realTeam,
             score,
             gameStatus: 'pregame',
@@ -674,7 +703,11 @@ export async function getTeams() {
     } else if (integration.provider === 'yahoo') {
       return teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {
-      return teamBuilders.buildOttoneuTeams(integration, playerNameMap);
+      return teamBuilders.buildOttoneuTeams(
+        integration,
+        playerNameMap,
+        playersData
+      );
     }
     return Promise.resolve([]);
   });
