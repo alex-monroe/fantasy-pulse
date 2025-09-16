@@ -93,10 +93,10 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   const myPlayers = Array.from(myPlayersMap.values());
   const opponentPlayers = Array.from(opponentPlayersMap.values());
 
-  const myStarters = myPlayers.filter(p => !p.on_bench);
-  const myBench = myPlayers.filter(p => p.on_bench);
-  const opponentStarters = opponentPlayers.filter(p => !p.on_bench);
-  const opponentBench = opponentPlayers.filter(p => p.on_bench);
+  const myStarters = myPlayers.filter(p => !p.onBench);
+  const myBench = myPlayers.filter(p => p.onBench);
+  const opponentStarters = opponentPlayers.filter(p => !p.onBench);
+  const opponentBench = opponentPlayers.filter(p => p.onBench);
 
   const myPlayersByPosition = groupPlayersByPosition(myStarters);
   const opponentPlayersByPosition = groupPlayersByPosition(opponentStarters);

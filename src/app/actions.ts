@@ -13,6 +13,7 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
+import { mapSleeperPlayer } from '@/lib/sleeper';
 import {
   Team,
   Player,
@@ -55,15 +56,25 @@ export async function buildSleeperTeams(
   const teams: Team[] = [];
 
   for (const league of leagues as SleeperLeague[]) {
-    const rostersResponse = await fetch(
-      `https://api.sleeper.app/v1/league/${league.league_id}/rosters`
-    );
-    const rosters: SleeperRoster[] = await rostersResponse.json();
+    const [rosters, matchups, leagueUsers] = await Promise.all([
+      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
+        (response) => response.json() as Promise<SleeperRoster[]>
+      ),
+      fetch(
+        `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
+      ).then((response) => response.json() as Promise<SleeperMatchup[]>),
+      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
+        (response) => response.json() as Promise<SleeperUser[]>
+      ),
+    ]);
 
-    const matchupsResponse = await fetch(
-      `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
-    );
-    const matchups: SleeperMatchup[] = await matchupsResponse.json();
+    if (
+      !Array.isArray(rosters) ||
+      !Array.isArray(matchups) ||
+      !Array.isArray(leagueUsers)
+    ) {
+      continue;
+    }
 
     const userRoster = rosters.find(
       (roster) => roster.owner_id === integration.provider_user_id
@@ -85,11 +96,6 @@ export async function buildSleeperTeams(
       ? rosters.find((roster) => roster.roster_id === opponentMatchup.roster_id) || null
       : null;
 
-    const leagueUsersResponse = await fetch(
-      `https://api.sleeper.app/v1/league/${league.league_id}/users`
-    );
-    const leagueUsers: SleeperUser[] = await leagueUsersResponse.json();
-
     const userLeagueInfo = leagueUsers.find(
       (user) => user.user_id === integration.provider_user_id
     );
@@ -106,44 +112,29 @@ export async function buildSleeperTeams(
       opponentUser?.display_name ||
       'Opponent';
 
-    const userPlayers = userMatchup.players.map((playerId: string) => {
-      const player = playersData[playerId];
-      const score = userMatchup.players_points?.[playerId] ?? 0;
-      return {
-        id: playerId,
-        name: player.full_name,
-        position: player.position,
-        realTeam: player.team,
-        score: score,
-        gameStatus: 'pregame',
-        onUserTeams: 0,
-        onOpponentTeams: 0,
-        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-        imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-        on_bench: !userRoster.starters.includes(playerId),
-      };
-    });
+    const userPlayers = userMatchup.players
+      .map((playerId: string) =>
+        mapSleeperPlayer({
+          playerId,
+          playersData,
+          matchup: userMatchup,
+          roster: userRoster,
+        })
+      )
+      .filter((player): player is Player => player !== null);
 
     const opponentPlayers =
       opponentMatchup && opponentMatchup.players
-        ? opponentMatchup.players.map((playerId: string) => {
-            const player = playersData[playerId];
-            const score = opponentMatchup.players_points?.[playerId] ?? 0;
-
-            return {
-              id: playerId,
-              name: player.full_name,
-              position: player.position,
-              realTeam: player.team,
-              score: score,
-              gameStatus: 'pregame',
-              onUserTeams: 0,
-              onOpponentTeams: 0,
-              gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-              imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-              on_bench: !opponentRoster.starters.includes(playerId),
-            };
-          })
+        ? opponentMatchup.players
+            .map((playerId: string) =>
+              mapSleeperPlayer({
+                playerId,
+                playersData,
+                matchup: opponentMatchup,
+                roster: opponentRoster,
+              })
+            )
+            .filter((player): player is Player => player !== null)
         : [];
 
     teams.push({
@@ -192,43 +183,65 @@ export async function buildYahooTeams(
 
     const { userTeam, opponentTeam } = matchups;
 
-    const { players: userPlayers, error: userRosterError } = await getYahooRoster(
-      integration.id,
-      team.league_id,
-      userTeam.team_id
-    );
-    if (userRosterError || !userPlayers) continue;
+    const [
+      { players: userPlayers, error: userRosterError },
+      { players: opponentPlayers, error: opponentRosterError },
+    ] = await Promise.all([
+      getYahooRoster(integration.id, team.league_id, userTeam.team_id),
+      getYahooRoster(integration.id, team.league_id, opponentTeam.team_id),
+    ]);
 
-    const { players: opponentPlayers, error: opponentRosterError } = await getYahooRoster(
-      integration.id,
-      team.league_id,
-      opponentTeam.team_id
-    );
-    if (opponentRosterError || !opponentPlayers) continue;
+    if (
+      userRosterError ||
+      !userPlayers ||
+      opponentRosterError ||
+      !opponentPlayers
+    ) {
+      continue;
+    }
 
-    const { players: userPlayerScores, error: userScoresError } =
-      await getYahooPlayerScores(integration.id, userTeam.team_key);
-    if (userScoresError) {
+    const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
+      getYahooPlayerScores(integration.id, userTeam.team_key),
+      getYahooPlayerScores(integration.id, opponentTeam.team_key),
+    ]);
+
+    let userPlayerScores: any[] | null | undefined;
+    if (userScoresResult.status === 'fulfilled') {
+      userPlayerScores = userScoresResult.value.players;
+      if (userScoresResult.value.error) {
+        console.error(
+          `Could not fetch user player scores for team ${userTeam.team_key}`,
+          userScoresResult.value.error
+        );
+      }
+    } else {
       console.error(
         `Could not fetch user player scores for team ${userTeam.team_key}`,
-        userScoresError
+        userScoresResult.reason || 'Unknown error'
       );
     }
 
-    const { players: opponentPlayerScores, error: opponentScoresError } =
-      await getYahooPlayerScores(integration.id, opponentTeam.team_key);
-    if (opponentScoresError) {
+    let opponentPlayerScores: any[] | null | undefined;
+    if (opponentScoresResult.status === 'fulfilled') {
+      opponentPlayerScores = opponentScoresResult.value.players;
+      if (opponentScoresResult.value.error) {
+        console.error(
+          `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
+          opponentScoresResult.value.error
+        );
+      }
+    } else {
       console.error(
         `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
-        opponentScoresError
+        opponentScoresResult.reason || 'Unknown error'
       );
     }
 
     const userScoresMap = new Map(
-      userPlayerScores?.map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      (userPlayerScores ?? []).map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
     );
     const opponentScoresMap = new Map(
-      opponentPlayerScores?.map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      (opponentPlayerScores ?? []).map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
     );
 
     const mapYahooPlayer = (
@@ -259,7 +272,7 @@ export async function buildYahooTeams(
         onOpponentTeams: 0,
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
         imageUrl: imageUrl,
-        on_bench: p.on_bench,
+        onBench: p.onBench,
       };
     };
 
@@ -356,7 +369,7 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
             imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`,
-            on_bench: onBench,
+            onBench: onBench,
           };
         };
 

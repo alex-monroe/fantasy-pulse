@@ -1,5 +1,6 @@
 import * as actions from './actions';
 const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
+import { mapSleeperPlayer } from '@/lib/sleeper';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
@@ -68,6 +69,61 @@ describe('actions', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  describe('mapSleeperPlayer', () => {
+    const matchup: SleeperMatchup = {
+      roster_id: 1,
+      matchup_id: 1,
+      points: 0,
+      players: ['1'],
+      players_points: { '1': 12 },
+    };
+
+    const roster: SleeperRoster = {
+      owner_id: 'sleeper-user-1',
+      roster_id: 1,
+      players: ['1'],
+      starters: ['1'],
+    };
+
+    const playersData: Record<string, SleeperPlayer> = {
+      '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+    };
+
+    it('maps player data when Sleeper information exists', () => {
+      const result = mapSleeperPlayer({
+        playerId: '1',
+        playersData,
+        matchup,
+        roster,
+      });
+
+      expect(result).toEqual({
+        id: '1',
+        name: 'Player One',
+        position: 'QB',
+        realTeam: 'TEAMA',
+        score: 12,
+        gameStatus: 'pregame',
+        onUserTeams: 0,
+        onOpponentTeams: 0,
+        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+        imageUrl: 'https://sleepercdn.com/content/nfl/players/thumb/1.jpg',
+        onBench: false,
+      });
+    });
+
+    it('returns null when player data is not available', () => {
+      const result = mapSleeperPlayer({
+        playerId: 'unknown',
+        playersData,
+        matchup,
+        roster,
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('buildSleeperTeams', () => {
     const mockPlayersData: Record<string, SleeperPlayer> = {
       '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
@@ -128,6 +184,75 @@ describe('actions', () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Team A');
     });
+
+    it('skips leagues when sleeper data is incomplete', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(null) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        mockPlayersData
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('omits players without Sleeper player data', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      const playersDataWithMissing: Record<string, SleeperPlayer> = {
+        '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+      };
+
+      const rostersWithUnknown: SleeperRoster[] = [
+        { owner_id: 'sleeper-user-1', roster_id: 1, players: ['1'], starters: ['1'] },
+        { owner_id: 'sleeper-user-2', roster_id: 2, players: ['3'], starters: ['3'] },
+      ];
+
+      const matchupsWithUnknown: SleeperMatchup[] = [
+        {
+          roster_id: 1,
+          matchup_id: 1,
+          points: 100,
+          players_points: { '1': 20 },
+          players: ['1'],
+        },
+        {
+          roster_id: 2,
+          matchup_id: 1,
+          points: 90,
+          players_points: { '3': 15 },
+          players: ['3'],
+        },
+      ];
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(rostersWithUnknown) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(matchupsWithUnknown) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        playersDataWithMissing
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].players).toHaveLength(1);
+      expect(result[0].players[0].id).toBe('1');
+      expect(result[0].opponent.players).toEqual([]);
+    });
   });
 
   describe('buildYahooTeams', () => {
@@ -143,6 +268,124 @@ describe('actions', () => {
     });
 
     it('builds yahoo teams correctly', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              onBench: false,
+              headshot: 'img1',
+            },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              onBench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p2', totalPoints: 15 }],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Yahoo User Team');
+      expect(result[0].players[0].imageUrl).toBe(
+        'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
+      );
+    });
+
+    it('skips team when user roster fetch fails while still requesting opponent roster', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({ players: null, error: 'User roster error' })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              on_bench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+
+      expect(result).toEqual([]);
+      expect(getYahooRoster).toHaveBeenCalledTimes(2);
+      expect(getYahooPlayerScores).not.toHaveBeenCalled();
+    });
+
+    it('logs and continues when player score fetch rejects', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
@@ -195,10 +438,7 @@ describe('actions', () => {
         });
 
       (getYahooPlayerScores as jest.Mock)
-        .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
-          error: null,
-        })
+        .mockRejectedValueOnce(new Error('network error'))
         .mockResolvedValueOnce({
           players: [{ player_key: 'p2', totalPoints: 15 }],
           error: null,
@@ -207,9 +447,9 @@ describe('actions', () => {
       const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
 
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Yahoo User Team');
-      expect(result[0].players[0].imageUrl).toBe(
-        'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch user player scores for team user-team-key',
+        expect.any(Error)
       );
     });
   });
@@ -313,7 +553,7 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock)
         .mockResolvedValue({
-          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
           error: null,
         });
 
@@ -422,7 +662,7 @@ describe('actions', () => {
       });
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
         error: null,
       });
 
@@ -468,7 +708,7 @@ describe('actions', () => {
       });
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
         error: null,
       });
 
@@ -520,7 +760,7 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
         players: [
-          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false },
+          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false },
         ],
         error: null,
       });
@@ -609,9 +849,9 @@ describe('actions', () => {
         position: 'QB',
         realTeam: 'CHI',
         score: 5,
-        on_bench: false,
+        onBench: false,
       });
-      expect(result.teams[0].players[1].on_bench).toBe(true);
+      expect(result.teams[0].players[1].onBench).toBe(true);
       expect(result.teams[0].opponent.players).toHaveLength(2);
       expect(result.teams[0].opponent.players[0]).toMatchObject({
         id: '2',

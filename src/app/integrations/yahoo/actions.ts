@@ -502,7 +502,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         is_undroppable: playerDetails.is_undroppable,
         position_type: playerDetails.position_type,
         eligible_positions: playerDetails.eligible_positions?.map((pos: any) => pos.position),
-        on_bench: selectedPosition === 'BN',
+        onBench: selectedPosition === 'BN',
       };
     }).filter(Boolean); // Filter out any null entries from failed parsing
 

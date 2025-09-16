@@ -18,9 +18,9 @@ describe('PlayerCard', () => {
       fieldPosition: 'TB 20',
     },
     imageUrl: 'https://example.com/player.jpg',
+    onBench: false,
+    matchupColors: ['#000000'],
     count: 1,
-    matchupColors: [],
-    on_bench: false,
   }
 
   it('renders player information', () => {
