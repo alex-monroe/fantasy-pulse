@@ -863,6 +863,64 @@ describe('actions', () => {
       expect(result.teams[0].opponent.name).toBe('Opponent');
       expect(result.teams[0].opponent.totalScore).toBe(20);
     });
+
+    it('should map ottoneu players to sleeper players with fuzzy name matching', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 1, provider: 'ottoneu', provider_user_id: '2514' }],
+        error: null,
+      });
+
+      const matchupHtml = `
+        <div class="game-page-home-team-name">My Team</div>
+        <div class="game-page-away-team-name">Opponent</div>
+        <table class="game-details-table"><tbody>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-1"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-1" data-position="QB" data-player-id="1">
+              <span class="player-link-desktop"><a href="#">Patrick Mahomes</a> <span class="smaller">KC QB</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-1">5</td>
+            <td class="game-details-position"><span class="position">QB</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-2">3</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-2" data-position="QB" data-player-id="2">
+              <span class="player-link-desktop"><a href="#">Josh Allen</a> <span class="smaller">BUF QB</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-2"></td>
+          </tr>
+        </tbody></table>
+      `;
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({
+          json: () =>
+            Promise.resolve({
+              '4881': { full_name: 'Patrick Mahomes', position: 'QB', team: 'KC' },
+            }),
+        })
+        .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(matchupHtml) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+        matchup: {
+          opponentName: 'Opponent',
+          teamScore: 10,
+          opponentScore: 20,
+          url: '/football/309/game/1',
+        },
+      });
+
+      const result = await getTeams();
+      expect(result.teams[0].players[0].imageUrl).toBe('https://sleepercdn.com/content/nfl/players/thumb/4881.jpg');
+      expect(result.teams[0].opponent.players[0].imageUrl).toBe('');
+    });
   });
 
   describe('getTeams execution', () => {

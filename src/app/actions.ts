@@ -304,7 +304,10 @@ export async function buildYahooTeams(
  * @param integration The Ottoneu integration record.
  * @returns A list of teams from Ottoneu.
  */
-export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
+export async function buildOttoneuTeams(
+  integration: any,
+  playerNameMap: { [key: string]: string }
+): Promise<Team[]> {
   const { leagues, error } = await getOttoneuLeagues(integration.id);
   if (error || !leagues || leagues.length === 0) {
     return [];
@@ -358,6 +361,22 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
             posDisplay === 'BN' ||
             (cell.getAttribute('data-position') || '').toLowerCase() === 'bench';
 
+          const playerNames = Object.keys(playerNameMap);
+          let sleeperId = null;
+          if (playerNames.length > 0) {
+            const bestMatch = findBestMatch(
+              name.toLowerCase(),
+              playerNames
+            );
+            if (bestMatch.bestMatch.rating > 0.5) {
+              sleeperId = playerNameMap[bestMatch.bestMatch.target];
+            }
+          }
+
+          const imageUrl = sleeperId
+            ? `https://sleepercdn.com/content/nfl/players/thumb/${sleeperId}.jpg`
+            : '';
+
           return {
             id,
             name,
@@ -368,7 +387,7 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
             onUserTeams: 0,
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-            imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`,
+            imageUrl,
             onBench: onBench,
           };
         };
@@ -476,7 +495,7 @@ export async function getTeams() {
     } else if (integration.provider === 'yahoo') {
       return teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {
-      return teamBuilders.buildOttoneuTeams(integration);
+      return teamBuilders.buildOttoneuTeams(integration, playerNameMap);
     }
     return Promise.resolve([]);
   });
