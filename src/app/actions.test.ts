@@ -1,5 +1,6 @@
 import * as actions from './actions';
-const { getTeams, buildSleeperTeams, buildYahooTeams, mapSleeperPlayer } = actions;
+const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
+import { mapSleeperPlayer } from '@/lib/sleeper';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
