@@ -192,43 +192,65 @@ export async function buildYahooTeams(
 
     const { userTeam, opponentTeam } = matchups;
 
-    const { players: userPlayers, error: userRosterError } = await getYahooRoster(
-      integration.id,
-      team.league_id,
-      userTeam.team_id
-    );
-    if (userRosterError || !userPlayers) continue;
+    const [
+      { players: userPlayers, error: userRosterError },
+      { players: opponentPlayers, error: opponentRosterError },
+    ] = await Promise.all([
+      getYahooRoster(integration.id, team.league_id, userTeam.team_id),
+      getYahooRoster(integration.id, team.league_id, opponentTeam.team_id),
+    ]);
 
-    const { players: opponentPlayers, error: opponentRosterError } = await getYahooRoster(
-      integration.id,
-      team.league_id,
-      opponentTeam.team_id
-    );
-    if (opponentRosterError || !opponentPlayers) continue;
+    if (
+      userRosterError ||
+      !userPlayers ||
+      opponentRosterError ||
+      !opponentPlayers
+    ) {
+      continue;
+    }
 
-    const { players: userPlayerScores, error: userScoresError } =
-      await getYahooPlayerScores(integration.id, userTeam.team_key);
-    if (userScoresError) {
+    const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
+      getYahooPlayerScores(integration.id, userTeam.team_key),
+      getYahooPlayerScores(integration.id, opponentTeam.team_key),
+    ]);
+
+    let userPlayerScores: any[] | null | undefined;
+    if (userScoresResult.status === 'fulfilled') {
+      userPlayerScores = userScoresResult.value.players;
+      if (userScoresResult.value.error) {
+        console.error(
+          `Could not fetch user player scores for team ${userTeam.team_key}`,
+          userScoresResult.value.error
+        );
+      }
+    } else {
       console.error(
         `Could not fetch user player scores for team ${userTeam.team_key}`,
-        userScoresError
+        userScoresResult.reason || 'Unknown error'
       );
     }
 
-    const { players: opponentPlayerScores, error: opponentScoresError } =
-      await getYahooPlayerScores(integration.id, opponentTeam.team_key);
-    if (opponentScoresError) {
+    let opponentPlayerScores: any[] | null | undefined;
+    if (opponentScoresResult.status === 'fulfilled') {
+      opponentPlayerScores = opponentScoresResult.value.players;
+      if (opponentScoresResult.value.error) {
+        console.error(
+          `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
+          opponentScoresResult.value.error
+        );
+      }
+    } else {
       console.error(
         `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
-        opponentScoresError
+        opponentScoresResult.reason || 'Unknown error'
       );
     }
 
     const userScoresMap = new Map(
-      userPlayerScores?.map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      (userPlayerScores ?? []).map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
     );
     const opponentScoresMap = new Map(
-      opponentPlayerScores?.map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      (opponentPlayerScores ?? []).map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
     );
 
     const mapYahooPlayer = (

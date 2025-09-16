@@ -212,6 +212,121 @@ describe('actions', () => {
         'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
       );
     });
+
+    it('skips team when user roster fetch fails while still requesting opponent roster', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({ players: null, error: 'User roster error' })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              on_bench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+
+      expect(result).toEqual([]);
+      expect(getYahooRoster).toHaveBeenCalledTimes(2);
+      expect(getYahooPlayerScores).not.toHaveBeenCalled();
+    });
+
+    it('logs and continues when player score fetch rejects', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              on_bench: false,
+              headshot: 'img1',
+            },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              on_bench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p2', totalPoints: 15 }],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+
+      expect(result).toHaveLength(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch user player scores for team user-team-key',
+        expect.any(Error)
+      );
+    });
   });
 
   describe('getTeams', () => {
