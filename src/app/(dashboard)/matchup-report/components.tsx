@@ -43,7 +43,7 @@ const PlayerCard = ({
 export const FantasyHeroes = ({ players }: { players: Player[] }) => (
   <Card>
     <CardHeader>
-      <CardTitle>Fantasy Heroes</CardTitle>
+      <CardTitle>🦸 Fantasy Heroes</CardTitle>
     </CardHeader>
     <CardContent>
       {players.map((player) => (
@@ -56,7 +56,7 @@ export const FantasyHeroes = ({ players }: { players: Player[] }) => (
 export const PublicEnemies = ({ players }: { players: Player[] }) => (
   <Card>
     <CardHeader>
-      <CardTitle>Public Enemies</CardTitle>
+      <CardTitle>😈 Public Enemies</CardTitle>
     </CardHeader>
     <CardContent>
       {players.map((player) => (
@@ -69,7 +69,7 @@ export const PublicEnemies = ({ players }: { players: Player[] }) => (
 export const DoubleAgents = ({ players }: { players: Player[] }) => (
   <Card>
     <CardHeader>
-      <CardTitle>Double Agents</CardTitle>
+      <CardTitle>🕵️ Double Agents</CardTitle>
     </CardHeader>
     <CardContent>
       {players.map((player) => (
