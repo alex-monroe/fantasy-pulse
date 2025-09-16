@@ -128,6 +128,26 @@ describe('actions', () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Team A');
     });
+
+    it('skips leagues when sleeper data is incomplete', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(null) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        mockPlayersData
+      );
+
+      expect(result).toEqual([]);
+    });
   });
 
   describe('buildYahooTeams', () => {
