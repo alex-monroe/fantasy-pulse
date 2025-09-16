@@ -26,6 +26,187 @@ import {
 import { findBestMatch } from 'string-similarity';
 import { JSDOM } from 'jsdom';
 
+const SLEEPER_HEADSHOT_BASE_URL =
+  'https://sleepercdn.com/content/nfl/players/thumb';
+const SLEEPER_DEFAULT_HEADSHOT_URL =
+  'https://sleepercdn.com/images/v2/icons/player_default.webp';
+
+type SleeperIdResolver = (playerName: string) => string | null;
+
+const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
+
+function normalizePlayerName(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function sanitizePlayerName(name: string) {
+  return normalizePlayerName(name.replace(/[^a-z0-9\s]/gi, ' '));
+}
+
+function extractNameParts(name: string): { first: string; last: string } {
+  const tokens = name.split(' ').filter(Boolean);
+  if (tokens.length === 0) {
+    return { first: '', last: '' };
+  }
+
+  let end = tokens.length - 1;
+  while (end >= 0 && NAME_SUFFIXES.has(tokens[end])) {
+    end -= 1;
+  }
+
+  if (end < 0) {
+    end = tokens.length - 1;
+  }
+
+  const meaningfulTokens = tokens.slice(0, end + 1);
+  const last = tokens[end] ?? '';
+
+  let first = meaningfulTokens[0] ?? '';
+  if (first.length === 1 && meaningfulTokens.length > 1) {
+    const second = meaningfulTokens[1];
+    if (second && second.length === 1) {
+      first = `${first}${second}`;
+    }
+  }
+
+  return { first, last };
+}
+
+function isStrongNameMatch({
+  sourceName,
+  targetName,
+  rating,
+}: {
+  sourceName: string;
+  targetName: string;
+  rating: number;
+}): boolean {
+  if (!sourceName || !targetName) {
+    return false;
+  }
+
+  if (sourceName === targetName) {
+    return true;
+  }
+
+  const sourceParts = extractNameParts(sourceName);
+  const targetParts = extractNameParts(targetName);
+
+  if (!sourceParts.last || !targetParts.last || sourceParts.last !== targetParts.last) {
+    return false;
+  }
+
+  if (!sourceParts.first || !targetParts.first) {
+    return rating >= 0.6;
+  }
+
+  if (sourceParts.first === targetParts.first) {
+    return rating >= 0.6;
+  }
+
+  if (
+    rating >= 0.7 &&
+    (sourceParts.first.startsWith(targetParts.first) ||
+      targetParts.first.startsWith(sourceParts.first))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function createSleeperIdResolver(
+  playerNameMap: { [key: string]: string }
+): SleeperIdResolver {
+  const normalizedMap = new Map<string, string>();
+
+  for (const [rawName, id] of Object.entries(playerNameMap)) {
+    const normalizedName = normalizePlayerName(rawName);
+    if (normalizedName && !normalizedMap.has(normalizedName)) {
+      normalizedMap.set(normalizedName, id);
+    }
+
+    const sanitizedName = sanitizePlayerName(rawName);
+    if (sanitizedName && !normalizedMap.has(sanitizedName)) {
+      normalizedMap.set(sanitizedName, id);
+    }
+  }
+
+  const normalizedNames = Array.from(normalizedMap.keys());
+
+  return (playerName: string) => {
+    const normalizedName = normalizePlayerName(playerName);
+    if (!normalizedName) {
+      return null;
+    }
+
+    const directMatch = normalizedMap.get(normalizedName);
+    if (directMatch) {
+      return directMatch;
+    }
+
+    const sanitizedName = sanitizePlayerName(playerName);
+    if (sanitizedName) {
+      const sanitizedMatch = normalizedMap.get(sanitizedName);
+      if (sanitizedMatch) {
+        return sanitizedMatch;
+      }
+    }
+
+    if (normalizedNames.length === 0) {
+      return null;
+    }
+
+    const { bestMatch } = findBestMatch(normalizedName, normalizedNames);
+    if (
+      bestMatch.rating > 0.5 &&
+      isStrongNameMatch({
+        sourceName: normalizedName,
+        targetName: bestMatch.target,
+        rating: bestMatch.rating,
+      })
+    ) {
+      const matchedId = normalizedMap.get(bestMatch.target);
+      if (matchedId) {
+        return matchedId;
+      }
+    }
+
+    if (sanitizedName && sanitizedName !== normalizedName) {
+      const { bestMatch: sanitizedBestMatch } = findBestMatch(
+        sanitizedName,
+        normalizedNames
+      );
+      if (
+        sanitizedBestMatch.rating > 0.5 &&
+        isStrongNameMatch({
+          sourceName: sanitizedName,
+          targetName: sanitizedBestMatch.target,
+          rating: sanitizedBestMatch.rating,
+        })
+      ) {
+        const matchedId = normalizedMap.get(sanitizedBestMatch.target);
+        if (matchedId) {
+          return matchedId;
+        }
+      }
+    }
+
+    return null;
+  };
+}
+
+function getSleeperHeadshotUrl(sleeperId: string | null) {
+  return sleeperId
+    ? `${SLEEPER_HEADSHOT_BASE_URL}/${sleeperId}.jpg`
+    : SLEEPER_DEFAULT_HEADSHOT_URL;
+}
+
 /**
  * Gets the current NFL week from the Sleeper API.
  * @returns The current NFL week.
@@ -171,6 +352,7 @@ export async function buildYahooTeams(
   }
 
   const teams: Team[] = [];
+  const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
   for (const team of yahooApiTeams) {
     const { matchups, error: matchupsError } = await getYahooMatchups(
@@ -248,18 +430,8 @@ export async function buildYahooTeams(
       p: any,
       scoresMap: Map<string, number>
     ): Player => {
-      const bestMatch = findBestMatch(
-        p.name.toLowerCase(),
-        Object.keys(playerNameMap)
-      );
-      let sleeperId = null;
-      if (bestMatch.bestMatch.rating > 0.5) {
-        sleeperId = playerNameMap[bestMatch.bestMatch.target];
-      }
-
-      const imageUrl = sleeperId
-        ? `https://sleepercdn.com/content/nfl/players/thumb/${sleeperId}.jpg`
-        : p.headshot;
+      const sleeperId = resolveSleeperId(p.name);
+      const imageUrl = getSleeperHeadshotUrl(sleeperId);
 
       return {
         id: p.player_key,
@@ -304,7 +476,10 @@ export async function buildYahooTeams(
  * @param integration The Ottoneu integration record.
  * @returns A list of teams from Ottoneu.
  */
-export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
+export async function buildOttoneuTeams(
+  integration: any,
+  playerNameMap: { [key: string]: string }
+): Promise<Team[]> {
   const { leagues, error } = await getOttoneuLeagues(integration.id);
   if (error || !leagues || leagues.length === 0) {
     return [];
@@ -322,6 +497,7 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
 
   let userPlayers: Player[] = [];
   let opponentPlayers: Player[] = [];
+  const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
   if (info.matchup?.url) {
     try {
@@ -357,6 +533,7 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
           const onBench =
             posDisplay === 'BN' ||
             (cell.getAttribute('data-position') || '').toLowerCase() === 'bench';
+          const sleeperId = resolveSleeperId(name);
 
           return {
             id,
@@ -368,7 +545,7 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
             onUserTeams: 0,
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-            imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`,
+            imageUrl: getSleeperHeadshotUrl(sleeperId),
             onBench: onBench,
           };
         };
@@ -463,11 +640,32 @@ export async function getTeams() {
   const playersData = await playersResponse.json();
 
   const playerNameMap: { [key: string]: string } = {};
+  const addPlayerName = (name: string | null | undefined, playerId: string) => {
+    if (!name) {
+      return;
+    }
+
+    const normalizedName = normalizePlayerName(name);
+    if (!normalizedName) {
+      return;
+    }
+
+    playerNameMap[normalizedName] = playerId;
+
+    const sanitizedName = sanitizePlayerName(name);
+    if (sanitizedName && sanitizedName !== normalizedName) {
+      playerNameMap[sanitizedName] = playerId;
+    }
+  };
+
   for (const playerId in playersData) {
     const player = playersData[playerId];
-    if (player.full_name) {
-      playerNameMap[player.full_name.toLowerCase()] = playerId;
-    }
+    addPlayerName(player.full_name ?? null, playerId);
+
+    const combinedName = [player.first_name, player.last_name]
+      .filter((part) => part && part.trim())
+      .join(' ');
+    addPlayerName(combinedName || null, playerId);
   }
 
   const integrationPromises = integrations.map((integration) => {
@@ -476,7 +674,7 @@ export async function getTeams() {
     } else if (integration.provider === 'yahoo') {
       return teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {
-      return teamBuilders.buildOttoneuTeams(integration);
+      return teamBuilders.buildOttoneuTeams(integration, playerNameMap);
     }
     return Promise.resolve([]);
   });
