@@ -124,6 +124,14 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
                   </Button>
                 </Link>
             </div>
+            <div className='p-2'>
+                <Link href="/matchup-report">
+                  <Button variant="outline" className="w-full justify-start gap-2">
+                      <PlusCircle />
+                      <span className="group-data-[collapsible=icon]:hidden">Matchup Report</span>
+                  </Button>
+                </Link>
+            </div>
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
