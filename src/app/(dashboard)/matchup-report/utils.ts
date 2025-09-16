@@ -35,7 +35,7 @@ export const processMatchups = (matchups: Matchup[]) => {
         };
       }
       if (isOpponent) {
-        playerMap[player.name].opponentMatchups.push(matchup.name);
+        playerMap[player.name].opponentMatchups.push(matchup.opponent.name);
       } else {
         playerMap[player.name].userMatchups.push(matchup.name);
       }
