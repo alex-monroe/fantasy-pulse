@@ -174,7 +174,7 @@ describe('actions', () => {
               name: 'Player One',
               display_position: 'QB',
               editorial_team_abbr: 'TEAMC',
-              on_bench: false,
+              onBench: false,
               headshot: 'img1',
             },
           ],
@@ -187,7 +187,7 @@ describe('actions', () => {
               name: 'Player Two',
               display_position: 'WR',
               editorial_team_abbr: 'TEAMD',
-              on_bench: false,
+              onBench: false,
               headshot: 'img2',
             },
           ],
@@ -313,7 +313,7 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock)
         .mockResolvedValue({
-          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
           error: null,
         });
 
@@ -422,7 +422,7 @@ describe('actions', () => {
       });
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
         error: null,
       });
 
@@ -468,7 +468,7 @@ describe('actions', () => {
       });
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false }],
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
         error: null,
       });
 
@@ -520,7 +520,7 @@ describe('actions', () => {
 
       (getYahooRoster as jest.Mock).mockResolvedValue({
         players: [
-          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', on_bench: false },
+          { player_key: 'p1', name: 'Player 1', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false },
         ],
         error: null,
       });
@@ -609,9 +609,9 @@ describe('actions', () => {
         position: 'QB',
         realTeam: 'CHI',
         score: 5,
-        on_bench: false,
+        onBench: false,
       });
-      expect(result.teams[0].players[1].on_bench).toBe(true);
+      expect(result.teams[0].players[1].onBench).toBe(true);
       expect(result.teams[0].opponent.players).toHaveLength(2);
       expect(result.teams[0].opponent.players[0]).toMatchObject({
         id: '2',

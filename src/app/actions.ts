@@ -120,7 +120,7 @@ export async function buildSleeperTeams(
         onOpponentTeams: 0,
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
         imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-        on_bench: !userRoster.starters.includes(playerId),
+        onBench: !userRoster.starters.includes(playerId),
       };
     });
 
@@ -141,7 +141,7 @@ export async function buildSleeperTeams(
               onOpponentTeams: 0,
               gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
               imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
-              on_bench: !opponentRoster.starters.includes(playerId),
+              onBench: !opponentRoster.starters.includes(playerId),
             };
           })
         : [];
@@ -259,7 +259,7 @@ export async function buildYahooTeams(
         onOpponentTeams: 0,
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
         imageUrl: imageUrl,
-        on_bench: p.on_bench,
+        onBench: p.onBench,
       };
     };
 
@@ -356,7 +356,7 @@ export async function buildOttoneuTeams(integration: any): Promise<Team[]> {
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
             imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${id}.jpg`,
-            on_bench: onBench,
+            onBench: onBench,
           };
         };
 

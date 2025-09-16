@@ -58,7 +58,7 @@ export type Player = {
   /** The URL of the player's image. */
   imageUrl: string;
   /** Whether the player is on the bench. */
-  on_bench: boolean;
+  onBench: boolean;
 };
 
 /**
