@@ -1,10 +1,12 @@
+import { getTeams } from "@/app/actions";
 import { FantasyHeroes, PublicEnemies, DoubleAgents } from "./components";
 import { processMatchups } from "./utils";
-import { mockTeams } from "@/lib/mock-data";
 
 export default async function MatchupReport() {
-  const { fantasyHeroes, publicEnemies, doubleAgents } =
-    processMatchups(mockTeams);
+  const { teams } = await getTeams();
+  const { fantasyHeroes, publicEnemies, doubleAgents } = processMatchups(
+    teams || []
+  );
 
   return (
     <div className="container mx-auto p-4">
