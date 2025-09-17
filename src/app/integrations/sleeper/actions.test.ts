@@ -11,7 +11,10 @@ describe('sleeper actions', () => {
   it('returns matchups on success', async () => {
     (fetchJson as jest.Mock).mockResolvedValue({ data: [{ id: 1 }] });
     const result = await getMatchups('league', '1');
-    expect(fetchJson).toHaveBeenCalledWith('https://api.sleeper.app/v1/league/league/matchups/1');
+    expect(fetchJson).toHaveBeenCalledWith(
+      'https://api.sleeper.app/v1/league/league/matchups/1',
+      { disableCache: true }
+    );
     expect(result).toEqual({ matchups: [{ id: 1 }] });
   });
 
