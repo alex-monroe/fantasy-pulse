@@ -9,16 +9,17 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Goal, PlusCircle } from 'lucide-react';
+import { Goal, PlusCircle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { Team, Player, GroupedPlayer } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 /**
  * Groups a list of players by their position.
@@ -57,7 +58,19 @@ const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: Grou
  * @param teams - The list of teams to display.
  * @returns The main content of the application.
  */
-function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[] }) {
+function AppContent({
+  onSignOut,
+  teams,
+  onRefresh,
+  isRefreshing,
+  refreshError,
+}: {
+  onSignOut: () => void | Promise<void>,
+  teams: Team[],
+  onRefresh: () => void | Promise<void>,
+  isRefreshing: boolean,
+  refreshError: string | null,
+}) {
   const colors = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
 
   const groupPlayers = (
@@ -102,6 +115,14 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
   const opponentPlayersByPosition = groupPlayersByPosition(opponentStarters);
   const positions = ['QB', 'WR', 'RB', 'TE', 'Other'];
 
+  const handleRefreshClick = () => {
+    void onRefresh();
+  };
+
+  const handleSignOutClick = () => {
+    void onSignOut();
+  };
+
   return (
     <>
       <Sidebar collapsible="icon">
@@ -140,9 +161,25 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
             <div className="flex-1">
                 <h2 className="text-xl font-semibold">Matchup Overview</h2>
             </div>
-            <Button variant="outline" onClick={onSignOut}>Sign Out</Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleRefreshClick}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+              <Button variant="outline" onClick={handleSignOutClick}>Sign Out</Button>
+            </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-8">
+             {refreshError && (
+               <Alert variant="destructive">
+                 <AlertTitle>Refresh failed</AlertTitle>
+                 <AlertDescription>{refreshError}</AlertDescription>
+               </Alert>
+             )}
              <Card>
                 <CardHeader>
                     <CardTitle>Weekly Matchups</CardTitle>
@@ -253,6 +290,9 @@ function AppContent({ onSignOut, teams }: { onSignOut: () => void, teams: Team[]
  */
 export default function HomePage({ teams, user }: { teams: Team[], user: any }) {
   const router = useRouter();
+  const [currentTeams, setCurrentTeams] = useState<Team[]>(teams);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -260,15 +300,56 @@ export default function HomePage({ teams, user }: { teams: Team[], user: any }) 
     }
   }, [user, router]);
 
+  useEffect(() => {
+    setCurrentTeams(teams);
+  }, [teams]);
+
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.replace('/login');
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      const response = await fetch('/api/teams/refresh', { method: 'POST' });
+
+      if (!response.ok) {
+        let message = 'Failed to refresh scores.';
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) {
+            message = errorData.error;
+          }
+        } catch (error) {
+          console.error('Failed to parse refresh error response', error);
+        }
+        setRefreshError(message);
+        return;
+      }
+
+      const data = await response.json();
+      setCurrentTeams(Array.isArray(data?.teams) ? data.teams : []);
+    } catch (error) {
+      console.error('Failed to refresh teams', error);
+      setRefreshError('An unexpected error occurred while refreshing scores.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <SidebarProvider>
-      <AppContent onSignOut={handleSignOut} teams={teams} />
+      <AppContent
+        onSignOut={handleSignOut}
+        teams={currentTeams}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshError={refreshError}
+      />
     </SidebarProvider>
   );
 }
