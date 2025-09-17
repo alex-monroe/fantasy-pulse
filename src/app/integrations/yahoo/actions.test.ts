@@ -90,6 +90,14 @@ describe('yahoo actions', () => {
     fetchJson.mockResolvedValue({ data: playerScoresExample });
     const result = await actions.getYahooPlayerScores(1, 'teamKey');
 
+    expect(fetchJson).toHaveBeenCalledWith(
+      'https://fantasysports.yahooapis.com/fantasy/v2/team/teamKey/roster;week=2/players/stats?format=json',
+      expect.objectContaining({
+        disableCache: true,
+        headers: expect.objectContaining({ Authorization: 'Bearer token' }),
+      }),
+    );
+
     expect(result.players[0]).toMatchObject({
       player_key: '461.p.40896',
       name: 'Jayden Daniels',
