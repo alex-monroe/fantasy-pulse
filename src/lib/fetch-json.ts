@@ -1,6 +1,33 @@
-export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<{ data?: T; error?: string }> {
+const DEFAULT_CACHE_DURATION_SECONDS = 60 * 60;
+
+type FetchJsonInit = RequestInit & {
+  disableCache?: boolean;
+};
+
+export async function fetchJson<T>(
+  input: RequestInfo | URL,
+  init: FetchJsonInit = {},
+): Promise<{ data?: T; error?: string }> {
   try {
-    const res = await fetch(input, init);
+    const { disableCache, ...rest } = init;
+    const fetchInit = { ...rest } as RequestInit & { next?: { revalidate?: number } };
+
+    const method = (fetchInit.method ?? 'GET').toString().toUpperCase();
+
+    if (disableCache) {
+      fetchInit.cache = 'no-store';
+      const nextOptions = { ...(fetchInit.next ?? {}) };
+      nextOptions.revalidate = 0;
+      fetchInit.next = nextOptions;
+    } else if (method === 'GET' && fetchInit.cache !== 'no-store') {
+      const nextOptions = { ...(fetchInit.next ?? {}) };
+      if (typeof nextOptions.revalidate === 'undefined') {
+        nextOptions.revalidate = DEFAULT_CACHE_DURATION_SECONDS;
+      }
+      fetchInit.next = nextOptions;
+    }
+
+    const res = await fetch(input, fetchInit);
     let json: any = null;
     try {
       json = await res.json();

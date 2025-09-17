@@ -602,6 +602,7 @@ export async function getYahooPlayerScores(integrationId: number, teamKey: strin
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
       },
+      disableCache: true,
     });
 
     if (error) {
