@@ -17,7 +17,8 @@ import { Label } from '@/components/ui/label';
  * Page for managing the Ottoneu integration.
  */
 export default function OttoneuPage() {
-  const [teamUrl, setTeamUrl] = useState('');
+  const [leagueUrl, setLeagueUrl] = useState('');
+  const [teamQuery, setTeamQuery] = useState('');
   const [integration, setIntegration] = useState<any | null>(null);
   const [teamName, setTeamName] = useState('');
   const [leagueName, setLeagueName] = useState('');
@@ -40,6 +41,7 @@ export default function OttoneuPage() {
           const info = await getOttoneuTeamInfo(`https://ottoneu.fangraphs.com/football/${leagues[0].league_id}/team/${integration.provider_user_id}`);
           if ('teamName' in info) {
             setTeamName(info.teamName);
+            setTeamQuery(info.teamName);
           }
           if ('matchup' in info) {
             setMatchup(info.matchup);
@@ -53,16 +55,20 @@ export default function OttoneuPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    const { teamName, leagueName, error } = await connectOttoneu(teamUrl);
+    const { teamName, leagueName, matchup, error } = await connectOttoneu(
+      leagueUrl,
+      teamQuery
+    );
     if (error) {
       setError(error);
       return;
     }
     setTeamName(teamName);
     setLeagueName(leagueName);
-    const info = await getOttoneuTeamInfo(teamUrl);
-    if ('matchup' in info) {
-      setMatchup(info.matchup);
+    if (matchup) {
+      setMatchup(matchup);
+    } else {
+      setMatchup(null);
     }
     const { integration } = await getOttoneuIntegration();
     setIntegration(integration);
@@ -77,7 +83,8 @@ export default function OttoneuPage() {
       setError(error);
     } else {
       setIntegration(null);
-      setTeamUrl('');
+      setLeagueUrl('');
+      setTeamQuery('');
       setTeamName('');
       setLeagueName('');
       setMatchup(null);
@@ -93,19 +100,28 @@ export default function OttoneuPage() {
           <CardDescription>
             {integration
               ? `Connected to ${teamName || 'your team'} in ${leagueName || 'your league'}`
-              : 'Enter your public team URL to connect.'}
+              : 'Enter your league URL and team name to connect.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!integration ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="team-url">Team URL</Label>
+                <Label htmlFor="league-url">League URL</Label>
                 <Input
-                  id="team-url"
+                  id="league-url"
                   type="url"
-                  value={teamUrl}
-                  onChange={(e) => setTeamUrl(e.target.value)}
+                  value={leagueUrl}
+                  onChange={(e) => setLeagueUrl(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="team-name">Team Name</Label>
+                <Input
+                  id="team-name"
+                  value={teamQuery}
+                  onChange={(e) => setTeamQuery(e.target.value)}
                   required
                 />
               </div>

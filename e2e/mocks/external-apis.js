@@ -58,6 +58,10 @@ global.fetch = async (input, init) => {
   }
 
   // Ottoneu page mocks
+  if (url === 'https://ottoneu.fangraphs.com/football/309/') {
+    return htmlResponseFromFile('ottoneu_league_page.html');
+  }
+
   if (url === 'https://ottoneu.fangraphs.com/football/309/team/2514') {
     return htmlResponseFromFile('ottoneu_team_page.html');
   }

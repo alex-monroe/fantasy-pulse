@@ -1,124 +1,224 @@
-import { getOttoneuTeamInfo } from './actions';
+let actions: typeof import('./actions');
+let createClient: jest.Mock;
+let fetchMock: jest.Mock;
 
-global.fetch = jest.fn();
+jest.mock('@/utils/supabase/server', () => ({ createClient: jest.fn() }));
 
 describe('ottoneu actions', () => {
-  beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
+  beforeEach(async () => {
+    jest.resetModules();
+    fetchMock = jest.fn();
+    (global as any).fetch = fetchMock;
+    actions = await import('./actions');
+    createClient = (await import('@/utils/supabase/server')).createClient as jest.Mock;
   });
 
-  it('parses team and league info from page', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a>'
-        ),
+  describe('getOttoneuTeamInfo', () => {
+    it('parses team and league info from page', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a>'
+          ),
+      });
+      const result = await actions.getOttoneuTeamInfo(
+        'https://ottoneu.fangraphs.com/football/309/team/2514'
+      );
+      expect(result).toEqual({
+        teamName: 'My Team',
+        leagueName: 'My League',
+        leagueId: '309',
+        teamId: '2514',
+      });
     });
-    const result = await getOttoneuTeamInfo(
-      'https://ottoneu.fangraphs.com/football/309/team/2514'
-    );
-    expect(result).toEqual({
-      teamName: 'My Team',
-      leagueName: 'My League',
-      leagueId: '309',
-      teamId: '2514',
+
+    it('handles single quotes in markup', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            "<span class='teamName'>My Team</span><a href='/football/309/'><span class='desktop-navigation'>My League</span></a>"
+          ),
+      });
+      const result = await actions.getOttoneuTeamInfo(
+        'https://ottoneu.fangraphs.com/football/309/team/2514'
+      );
+      expect(result).toEqual({
+        teamName: 'My Team',
+        leagueName: 'My League',
+        leagueId: '309',
+        teamId: '2514',
+      });
+    });
+
+    it('parses weekly matchup if present', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a><div class="page-header__section"><h4>Week 2 Matchup</h4><br><ul class="other-games"><li id="game-1"><div class="game-status">LIVE</div><div><a href="/football/309/game/1"><div class="other-game-home-team">My Team<span class="other-game-score home-score">13.90</span></div><div class="other-game-away-team">Opponent<span class="other-game-score away-score">0.00</span></div></a></div></li></ul></div>'
+          ),
+      });
+      const result = await actions.getOttoneuTeamInfo(
+        'https://ottoneu.fangraphs.com/football/309/team/2514'
+      );
+      expect(result).toEqual({
+        teamName: 'My Team',
+        leagueName: 'My League',
+        leagueId: '309',
+        teamId: '2514',
+        matchup: {
+          week: 2,
+          opponentName: 'Opponent',
+          teamScore: 13.9,
+          opponentScore: 0,
+          url: '/football/309/game/1',
+        },
+      });
+    });
+
+    it('parses matchup when team is the away team', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a><div class="page-header__section"><h4>Week 3 Matchup</h4><br><ul class="other-games"><li id="game-1"><div class="game-status">LIVE</div><div><a href="/football/309/game/2"><div class="other-game-home-team">Opponent<span class="other-game-score home-score">10.00</span></div><div class="other-game-away-team">My Team<span class="other-game-score away-score">5.00</span></div></a></div></li></ul></div>'
+          ),
+      });
+      const result = await actions.getOttoneuTeamInfo(
+        'https://ottoneu.fangraphs.com/football/309/team/2514'
+      );
+      expect(result).toEqual({
+        teamName: 'My Team',
+        leagueName: 'My League',
+        leagueId: '309',
+        teamId: '2514',
+        matchup: {
+          week: 3,
+          opponentName: 'Opponent',
+          teamScore: 5,
+          opponentScore: 10,
+          url: '/football/309/game/2',
+        },
+      });
+    });
+
+    it('falls back to league name span when anchor does not match league id', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<span class="teamName">My Team</span><a href="/football/309/?foo=bar"><span class="desktop-navigation">My League</span></a>'
+          ),
+      });
+      const result = await actions.getOttoneuTeamInfo(
+        'https://ottoneu.fangraphs.com/football/309/team/2514'
+      );
+      expect(result).toEqual({
+        teamName: 'My Team',
+        leagueName: 'My League',
+        leagueId: '309',
+        teamId: '2514',
+      });
+    });
+
+    it('returns error on invalid url', async () => {
+      const result = await actions.getOttoneuTeamInfo('https://example.com');
+      expect(result).toEqual({ error: 'Invalid Ottoneu team URL.' });
     });
   });
 
-  it('handles single quotes in markup', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          "<span class='teamName'>My Team</span><a href='/football/309/'><span class='desktop-navigation'>My League</span></a>"
-        ),
-    });
-    const result = await getOttoneuTeamInfo(
-      'https://ottoneu.fangraphs.com/football/309/team/2514'
-    );
-    expect(result).toEqual({
-      teamName: 'My Team',
-      leagueName: 'My League',
-      leagueId: '309',
-      teamId: '2514',
-    });
-  });
+  describe('connectOttoneu', () => {
+    const buildSupabase = () => {
+      const singleMock = jest
+        .fn()
+        .mockResolvedValue({ data: { id: 42 }, error: null });
+      const selectMock = jest.fn().mockReturnValue({ single: singleMock });
+      const insertMock = jest.fn().mockReturnValue({ select: selectMock });
+      const upsertMock = jest.fn().mockResolvedValue({ error: null });
 
-  it('parses weekly matchup if present', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a><div class="page-header__section"><h4>Week 2 Matchup</h4><br><ul class="other-games"><li id="game-1"><div class="game-status">LIVE</div><div><a href="/football/309/game/1"><div class="other-game-home-team">My Team<span class="other-game-score home-score">13.90</span></div><div class="other-game-away-team">Opponent<span class="other-game-score away-score">0.00</span></div></a></div></li></ul></div>'
-        ),
-    });
-    const result = await getOttoneuTeamInfo(
-      'https://ottoneu.fangraphs.com/football/309/team/2514'
-    );
-    expect(result).toEqual({
-      teamName: 'My Team',
-      leagueName: 'My League',
-      leagueId: '309',
-      teamId: '2514',
-      matchup: {
-        week: 2,
-        opponentName: 'Opponent',
-        teamScore: 13.9,
-        opponentScore: 0,
-        url: '/football/309/game/1',
-      },
-    });
-  });
+      const supabase = {
+        auth: {
+          getUser: jest
+            .fn()
+            .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
+        },
+        from: jest.fn((table: string) => {
+          if (table === 'user_integrations') {
+            return { insert: insertMock } as any;
+          }
+          if (table === 'leagues') {
+            return { upsert: upsertMock } as any;
+          }
+          return {} as any;
+        }),
+      } as any;
 
-  it('parses matchup when team is the away team', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          '<span class="teamName">My Team</span><a href="/football/309/"><span class="desktop-navigation">My League</span></a><div class="page-header__section"><h4>Week 3 Matchup</h4><br><ul class="other-games"><li id="game-1"><div class="game-status">LIVE</div><div><a href="/football/309/game/2"><div class="other-game-home-team">Opponent<span class="other-game-score home-score">10.00</span></div><div class="other-game-away-team">My Team<span class="other-game-score away-score">5.00</span></div></a></div></li></ul></div>'
-        ),
-    });
-    const result = await getOttoneuTeamInfo(
-      'https://ottoneu.fangraphs.com/football/309/team/2514'
-    );
-    expect(result).toEqual({
-      teamName: 'My Team',
-      leagueName: 'My League',
-      leagueId: '309',
-      teamId: '2514',
-      matchup: {
-        week: 3,
-        opponentName: 'Opponent',
-        teamScore: 5,
-        opponentScore: 10,
-        url: '/football/309/game/2',
-      },
-    });
-  });
+      return { supabase, insertMock, upsertMock };
+    };
 
-  it('falls back to league name span when anchor does not match league id', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          '<span class="teamName">My Team</span><a href="/football/309/?foo=bar"><span class="desktop-navigation">My League</span></a>'
-        ),
-    });
-    const result = await getOttoneuTeamInfo(
-      'https://ottoneu.fangraphs.com/football/309/team/2514'
-    );
-    expect(result).toEqual({
-      teamName: 'My Team',
-      leagueName: 'My League',
-      leagueId: '309',
-      teamId: '2514',
-    });
-  });
+    it('connects using league page and team name', async () => {
+      const { supabase, insertMock, upsertMock } = buildSupabase();
+      createClient.mockReturnValue(supabase);
 
-  it('returns error on invalid url', async () => {
-    const result = await getOttoneuTeamInfo('https://example.com');
-    expect(result).toEqual({ error: 'Invalid Ottoneu team URL.' });
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              '<table><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td></tr></tbody></table>'
+            ),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              '<span class="teamName">The Witchcraft</span><a href="/football/309/"><span class="desktop-navigation">The SOFA</span></a>'
+            ),
+        });
+
+      const result = await actions.connectOttoneu(
+        'https://ottoneu.fangraphs.com/football/309/',
+        'The Witchcraft'
+      );
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+      expect(insertMock).toHaveBeenCalledWith({
+        user_id: 'user-1',
+        provider: 'ottoneu',
+        provider_user_id: '2514',
+      });
+      expect(upsertMock).toHaveBeenCalledWith({
+        league_id: '309',
+        name: 'The SOFA',
+        user_integration_id: 42,
+      });
+      expect(result).toMatchObject({
+        teamName: 'The Witchcraft',
+        leagueName: 'The SOFA',
+      });
+      expect(result.matchup).toBeUndefined();
+    });
+
+    it('returns error when team cannot be found', async () => {
+      const { supabase } = buildSupabase();
+      createClient.mockReturnValue(supabase);
+
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('<table></table>'),
+      });
+
+      const result = await actions.connectOttoneu(
+        'https://ottoneu.fangraphs.com/football/309/',
+        'Missing Team'
+      );
+
+      expect(result).toEqual({ error: 'Could not find team in standings.' });
+    });
   });
 });
-

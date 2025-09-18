@@ -3,6 +3,93 @@
 import { createClient } from '@/utils/supabase/server';
 import { JSDOM } from 'jsdom';
 
+function normalizeTeamName(name: string) {
+  return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+async function findOttoneuTeamUrl(
+  leagueUrl: string,
+  teamName: string
+): Promise<{ teamUrl: string } | { error: string }> {
+  const trimmedTeamName = teamName.trim();
+  if (!trimmedTeamName) {
+    return { error: 'Team name is required.' };
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(leagueUrl);
+  } catch {
+    return { error: 'Invalid Ottoneu league URL.' };
+  }
+
+  if (parsedUrl.hostname !== 'ottoneu.fangraphs.com') {
+    return { error: 'Invalid Ottoneu league URL.' };
+  }
+
+  const pathMatch = parsedUrl.pathname.match(/^\/football\/(\d+)\/?$/);
+  if (!pathMatch) {
+    return { error: 'Invalid Ottoneu league URL.' };
+  }
+
+  parsedUrl.protocol = 'https:';
+  parsedUrl.pathname = `/football/${pathMatch[1]}/`;
+  parsedUrl.search = '';
+  parsedUrl.hash = '';
+
+  const normalizedTeamName = normalizeTeamName(trimmedTeamName);
+
+  try {
+    const res = await fetch(parsedUrl.toString());
+    if (!res.ok) {
+      return { error: 'Failed to fetch league page.' };
+    }
+
+    const html = await res.text();
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+
+    const potentialLinks = Array.from(
+      document.querySelectorAll('a[href*="/team/"]')
+    );
+
+    const exactMatch = potentialLinks.find((anchor) => {
+      const text = normalizeTeamName(anchor.textContent || '');
+      return text === normalizedTeamName;
+    });
+
+    const partialMatch = potentialLinks.find((anchor) => {
+      const text = normalizeTeamName(anchor.textContent || '');
+      return text.includes(normalizedTeamName);
+    });
+
+    const teamAnchor = exactMatch || partialMatch;
+    if (!teamAnchor) {
+      return { error: 'Could not find team in standings.' };
+    }
+
+    const href = teamAnchor.getAttribute('href') || '';
+    if (!href) {
+      return { error: 'Invalid team link found in standings.' };
+    }
+
+    let absoluteHref: string;
+    try {
+      absoluteHref = new URL(href, parsedUrl.toString()).toString();
+    } catch {
+      return { error: 'Invalid team link found in standings.' };
+    }
+
+    if (!/football\/\d+\/team\/\d+/.test(absoluteHref)) {
+      return { error: 'Invalid team link found in standings.' };
+    }
+
+    return { teamUrl: absoluteHref };
+  } catch {
+    return { error: 'Failed to fetch league page.' };
+  }
+}
+
 /**
  * Fetches and parses an Ottoneu team page for basic info.
  * @param teamUrl - The public Ottoneu team URL.
@@ -90,19 +177,27 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
  * @param teamUrl - The public team URL.
  * @returns The parsed team info or an error.
  */
-export async function connectOttoneu(teamUrl: string) {
+export async function connectOttoneu(
+  leagueUrl: string,
+  teamNameInput: string
+) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { error: 'You must be logged in to connect your Ottoneu team.' };
   }
 
-  const info = await getOttoneuTeamInfo(teamUrl);
+  const teamResult = await findOttoneuTeamUrl(leagueUrl, teamNameInput);
+  if ('error' in teamResult) {
+    return { error: teamResult.error };
+  }
+
+  const info = await getOttoneuTeamInfo(teamResult.teamUrl);
   if ('error' in info) {
     return { error: info.error };
   }
 
-  const { teamName, leagueName, leagueId, teamId } = info;
+  const { teamName, leagueName, leagueId, teamId, matchup } = info;
 
   const { data: integration, error: insertError } = await supabase
     .from('user_integrations')
@@ -128,7 +223,7 @@ export async function connectOttoneu(teamUrl: string) {
     return { error: leagueError.message };
   }
 
-  return { teamName, leagueName };
+  return { teamName, leagueName, matchup };
 }
 
 /**
