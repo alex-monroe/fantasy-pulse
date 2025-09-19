@@ -46,26 +46,28 @@ export function mapSleeperPlayer({
     [player.first_name, player.last_name].filter(Boolean).join(' ');
   const name = computedName?.trim() ? computedName.trim() : 'Unknown Player';
 
-  const game = Object.values(nflState.games).find(
-    (g) => g.home_team === player.team || g.away_team === player.team
-  );
-
   let gameStatus = 'pregame';
   const gameDetails = { score: '', timeRemaining: '', fieldPosition: '' };
 
-  if (game) {
-    if (game.status === 'inprogress') {
-      gameStatus = 'In-Progress';
-      gameDetails.timeRemaining = `${game.quarter}, ${game.time_remaining}`;
-    } else if (game.status === 'pre_game') {
-      const date = new Date(game.start_time);
-      gameStatus = date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        hour: 'numeric',
-        minute: 'numeric',
-      });
-    } else {
-      gameStatus = game.status;
+  if (nflState.games) {
+    const game = Object.values(nflState.games).find(
+      (g) => g.home_team === player.team || g.away_team === player.team
+    );
+
+    if (game) {
+      if (game.status === 'inprogress') {
+        gameStatus = 'In-Progress';
+        gameDetails.timeRemaining = `${game.quarter}, ${game.time_remaining}`;
+      } else if (game.status === 'pre_game') {
+        const date = new Date(game.start_time);
+        gameStatus = date.toLocaleDateString('en-US', {
+          weekday: 'short',
+          hour: 'numeric',
+          minute: 'numeric',
+        });
+      } else {
+        gameStatus = game.status;
+      }
     }
   }
 

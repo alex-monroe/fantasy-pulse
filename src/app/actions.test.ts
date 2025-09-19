@@ -138,6 +138,18 @@ describe('actions', () => {
 
       expect(result).toBeNull();
     });
+
+    it('handles nflState without games property', () => {
+      const result = mapSleeperPlayer({
+        playerId: '1',
+        playersData,
+        matchup,
+        roster,
+        nflState: { games: undefined } as any,
+      });
+
+      expect(result?.gameStatus).toBe('pregame');
+    });
   });
 
   describe('buildSleeperTeams', () => {
