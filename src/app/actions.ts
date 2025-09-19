@@ -37,6 +37,125 @@ type SleeperIdResolver = (playerName: string) => string | null;
 
 const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
 
+const TEAM_ABBREVIATION_ALIASES: Record<string, string[]> = {
+  WSH: ['WAS'],
+  JAX: ['JAC'],
+};
+
+type TeamGameInfo = {
+  status: 'pregame' | 'in_progress' | 'final';
+  startDate: string | null;
+  quarter: string | null;
+  clock: string | null;
+};
+
+function formatScoreboardPeriod(period: unknown): string | null {
+  if (typeof period !== 'number' || period <= 0) {
+    return null;
+  }
+
+  if (period <= 4) {
+    return `Q${period}`;
+  }
+
+  const overtimeNumber = period - 4;
+  if (overtimeNumber === 1) {
+    return 'OT';
+  }
+
+  return `${overtimeNumber}OT`;
+}
+
+function buildTeamGameInfoMap(scoreboard: any): Map<string, TeamGameInfo> {
+  const map = new Map<string, TeamGameInfo>();
+
+  if (!scoreboard || !Array.isArray(scoreboard.events)) {
+    return map;
+  }
+
+  for (const event of scoreboard.events) {
+    const competition = event?.competitions?.[0];
+    if (!competition) {
+      continue;
+    }
+
+    const competitionStatus = competition?.status?.type;
+    const eventStatus = event?.status?.type;
+    const state = competitionStatus?.state || eventStatus?.state;
+
+    let status: TeamGameInfo['status'] | null = null;
+    if (state === 'pre') {
+      status = 'pregame';
+    } else if (state === 'in') {
+      status = 'in_progress';
+    } else if (state === 'post') {
+      status = 'final';
+    }
+
+    if (!status) {
+      continue;
+    }
+
+    const startDate =
+      typeof competition?.startDate === 'string'
+        ? competition.startDate
+        : typeof event?.date === 'string'
+          ? event.date
+          : null;
+
+    const displayClock =
+      competition?.status?.displayClock ?? event?.status?.displayClock ?? null;
+    const period =
+      competition?.status?.period ?? event?.status?.period ?? null;
+    const shortDetail =
+      competitionStatus?.shortDetail || eventStatus?.shortDetail || null;
+
+    let quarter: string | null = null;
+    let clock: string | null = null;
+
+    if (status === 'in_progress') {
+      quarter = formatScoreboardPeriod(period);
+      clock = typeof displayClock === 'string' ? displayClock : null;
+    } else if (status === 'final') {
+      if (typeof shortDetail === 'string' && shortDetail.trim()) {
+        quarter = shortDetail;
+      } else {
+        quarter = 'Final';
+      }
+    }
+
+    const info: TeamGameInfo = {
+      status,
+      startDate,
+      quarter,
+      clock,
+    };
+
+    const competitors = Array.isArray(competition?.competitors)
+      ? competition.competitors
+      : [];
+
+    for (const competitor of competitors) {
+      const abbr = competitor?.team?.abbreviation;
+      if (!abbr || typeof abbr !== 'string') {
+        continue;
+      }
+
+      const normalized = abbr.toUpperCase();
+      map.set(normalized, info);
+
+      const aliases = TEAM_ABBREVIATION_ALIASES[normalized];
+      if (aliases) {
+        for (const alias of aliases) {
+          map.set(alias.toUpperCase(), info);
+        }
+      }
+    }
+  }
+
+  return map;
+}
+
 function normalizePlayerName(name: string) {
   return name
     .normalize('NFD')
@@ -446,6 +565,9 @@ export async function buildYahooTeams(
         realTeam: p.editorial_team_abbr,
         score: scoresMap.get(p.player_key) || 0,
         gameStatus: 'pregame',
+        gameStartTime: null,
+        gameQuarter: null,
+        gameClock: null,
         onUserTeams: 0,
         onOpponentTeams: 0,
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
@@ -624,6 +746,9 @@ export async function buildOttoneuTeams(
             realTeam,
             score,
             gameStatus: 'pregame',
+            gameStartTime: null,
+            gameQuarter: null,
+            gameClock: null,
             onUserTeams: 0,
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
@@ -718,6 +843,25 @@ export async function getTeams() {
   }
 
   const week = await getCurrentNflWeek();
+
+  const scoreboardPromise = (async () => {
+    try {
+      const response = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week=${week}&seasontype=2`,
+        { cache: 'no-store' }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Scoreboard request failed with status ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch NFL scoreboard', error);
+      return null;
+    }
+  })();
+
   const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
   const playersData = await playersResponse.json();
 
@@ -776,5 +920,49 @@ export async function getTeams() {
 
   const teams = results.flat();
 
-  return { teams };
+  const scoreboardData = await scoreboardPromise;
+  const gameInfoMap = buildTeamGameInfoMap(scoreboardData);
+
+  const annotatePlayersWithGameInfo = (players: Player[]): Player[] => {
+    return players.map((player) => {
+      const teamAbbr = (player.realTeam || '').toUpperCase();
+      if (!teamAbbr) {
+        return {
+          ...player,
+          gameStartTime: player.gameStartTime ?? null,
+          gameQuarter: player.gameQuarter ?? null,
+          gameClock: player.gameClock ?? null,
+        };
+      }
+
+      const gameInfo = gameInfoMap.get(teamAbbr);
+      if (!gameInfo) {
+        return {
+          ...player,
+          gameStartTime: player.gameStartTime ?? null,
+          gameQuarter: player.gameQuarter ?? null,
+          gameClock: player.gameClock ?? null,
+        };
+      }
+
+      return {
+        ...player,
+        gameStatus: gameInfo.status,
+        gameStartTime: gameInfo.startDate,
+        gameQuarter: gameInfo.quarter,
+        gameClock: gameInfo.clock,
+      };
+    });
+  };
+
+  const teamsWithGameInfo = teams.map((team) => ({
+    ...team,
+    players: annotatePlayersWithGameInfo(team.players),
+    opponent: {
+      ...team.opponent,
+      players: annotatePlayersWithGameInfo(team.opponent.players),
+    },
+  }));
+
+  return { teams: teamsWithGameInfo };
 }
