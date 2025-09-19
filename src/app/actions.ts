@@ -494,15 +494,41 @@ export async function buildYahooTeams(
   const teams: Team[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
-  for (const team of yahooApiTeams) {
+  const mapYahooPlayer = (
+    player: any,
+    scoresMap: Map<string, number>
+  ): Player => {
+    const sleeperId = resolveSleeperId(player.name);
+    const imageUrl = getSleeperHeadshotUrl(sleeperId);
+
+    return {
+      id: player.player_key,
+      name: player.name,
+      position: player.display_position,
+      realTeam: player.editorial_team_abbr,
+      score: scoresMap.get(player.player_key) || 0,
+      gameStatus: 'pregame',
+      gameStartTime: null,
+      gameQuarter: null,
+      gameClock: null,
+      onUserTeams: 0,
+      onOpponentTeams: 0,
+      gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+      imageUrl: imageUrl,
+      onBench: player.onBench,
+    };
+  };
+
+  const buildTeam = async (team: any): Promise<Team | null> => {
     const { matchups, error: matchupsError } = await getYahooMatchups(
       integration.id,
       team.team_key,
       accessToken,
       week
     );
+
     if (matchupsError || !matchups) {
-      continue;
+      return null;
     }
 
     const { userTeam, opponentTeam } = matchups;
@@ -531,7 +557,7 @@ export async function buildYahooTeams(
       opponentRosterError ||
       !opponentPlayers
     ) {
-      continue;
+      return null;
     }
 
     const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
@@ -582,36 +608,17 @@ export async function buildYahooTeams(
     }
 
     const userScoresMap = new Map(
-      (userPlayerScores ?? []).map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      (userPlayerScores ?? []).map((p: any) => [
+        p.player_key,
+        Number(p.totalPoints ?? 0),
+      ])
     );
     const opponentScoresMap = new Map(
-      (opponentPlayerScores ?? []).map((p: any) => [p.player_key, Number(p.totalPoints ?? 0)])
+      (opponentPlayerScores ?? []).map((p: any) => [
+        p.player_key,
+        Number(p.totalPoints ?? 0),
+      ])
     );
-
-    const mapYahooPlayer = (
-      p: any,
-      scoresMap: Map<string, number>
-    ): Player => {
-      const sleeperId = resolveSleeperId(p.name);
-      const imageUrl = getSleeperHeadshotUrl(sleeperId);
-
-      return {
-        id: p.player_key,
-        name: p.name,
-        position: p.display_position,
-        realTeam: p.editorial_team_abbr,
-        score: scoresMap.get(p.player_key) || 0,
-        gameStatus: 'pregame',
-        gameStartTime: null,
-        gameQuarter: null,
-        gameClock: null,
-        onUserTeams: 0,
-        onOpponentTeams: 0,
-        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
-        imageUrl: imageUrl,
-        onBench: p.onBench,
-      };
-    };
 
     const mappedUserPlayers: Player[] = userPlayers.map((p: any) =>
       mapYahooPlayer(p, userScoresMap)
@@ -620,7 +627,7 @@ export async function buildYahooTeams(
       mapYahooPlayer(p, opponentScoresMap)
     );
 
-    teams.push({
+    return {
       id: team.id,
       name: userTeam.name,
       totalScore: parseFloat(userTeam.totalPoints) || 0,
@@ -630,8 +637,17 @@ export async function buildYahooTeams(
         totalScore: parseFloat(opponentTeam.totalPoints) || 0,
         players: mappedOpponentPlayers,
       },
-    });
-  }
+    };
+  };
+
+  const builtTeams = await Promise.all(
+    yahooApiTeams.map((team: any) => buildTeam(team))
+  );
+  const successfulTeams = builtTeams.filter(
+    (team): team is Team => Boolean(team)
+  );
+
+  teams.push(...successfulTeams);
 
   return teams;
 }
