@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { Team, Player, GroupedPlayer } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,9 @@ import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppNavigation } from '@/components/app-navigation';
+import { MatchupPrioritySelector } from '@/components/matchup-priority-selector';
+
+const MATCHUP_COLORS = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
 
 /**
  * Groups a list of players by their position.
@@ -63,7 +66,83 @@ function AppContent({
   isRefreshing: boolean,
   refreshError: string | null,
 }) {
-  const colors = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
+  const [matchupPriority, setMatchupPriority] = useState<number[]>(() => teams.map((team) => team.id));
+
+  useEffect(() => {
+    setMatchupPriority((previousOrder) => {
+      const seen = new Set<number>();
+      const nextOrder: number[] = [];
+
+      previousOrder.forEach((teamId) => {
+        if (seen.has(teamId)) {
+          return;
+        }
+
+        const teamExists = teams.some((team) => team.id === teamId);
+        if (teamExists) {
+          nextOrder.push(teamId);
+          seen.add(teamId);
+        }
+      });
+
+      teams.forEach((team) => {
+        if (!seen.has(team.id)) {
+          nextOrder.push(team.id);
+          seen.add(team.id);
+        }
+      });
+
+      return nextOrder;
+    });
+  }, [teams]);
+
+  const priorityLookup = useMemo(() => {
+    const lookup = new Map<number, number>();
+    matchupPriority.forEach((teamId, index) => {
+      lookup.set(teamId, index);
+    });
+    return lookup;
+  }, [matchupPriority]);
+
+  const originalOrderLookup = useMemo(() => {
+    const lookup = new Map<number, number>();
+    teams.forEach((team, index) => {
+      lookup.set(team.id, index);
+    });
+    return lookup;
+  }, [teams]);
+
+  const orderedTeams = useMemo(() => {
+    const sortedTeams = [...teams];
+    sortedTeams.sort((a, b) => {
+      const aPriority = priorityLookup.get(a.id);
+      const bPriority = priorityLookup.get(b.id);
+
+      if (aPriority !== undefined && bPriority !== undefined) {
+        return aPriority - bPriority;
+      }
+
+      if (aPriority !== undefined) {
+        return -1;
+      }
+
+      if (bPriority !== undefined) {
+        return 1;
+      }
+
+      return (originalOrderLookup.get(a.id) ?? 0) - (originalOrderLookup.get(b.id) ?? 0);
+    });
+
+    return sortedTeams;
+  }, [teams, priorityLookup, originalOrderLookup]);
+
+  const teamColors = useMemo(() => {
+    const colorMap = new Map<number, string>();
+    orderedTeams.forEach((team, index) => {
+      colorMap.set(team.id, MATCHUP_COLORS[index % MATCHUP_COLORS.length]);
+    });
+    return colorMap;
+  }, [orderedTeams]);
 
   const addMatchupColor = (
     matchupColors: GroupedPlayer['matchupColors'],
@@ -81,33 +160,47 @@ function AppContent({
   const groupPlayers = (
     players: Player[],
     existingPlayers: Map<string, GroupedPlayer>,
-    color: string
+    priorityMap: Map<string, number>,
+    color: string,
+    teamPriority: number
   ) => {
-    players.forEach(player => {
+    players.forEach((player) => {
       if (player && player.name && player.realTeam) {
         const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
-        if (existingPlayers.has(key)) {
-          const existingPlayer = existingPlayers.get(key)!;
-          existingPlayer.count++;
-          addMatchupColor(existingPlayer.matchupColors, color, player.onBench);
-        } else {
-          existingPlayers.set(key, {
-            ...player,
-            count: 1,
-            matchupColors: [{ color, onBench: player.onBench }],
-          });
-        }
+        const existingPlayer = existingPlayers.get(key);
+        const currentMatchupColors = existingPlayer ? [...existingPlayer.matchupColors] : [];
+        addMatchupColor(currentMatchupColors, color, player.onBench);
+
+        const newCount = (existingPlayer?.count ?? 0) + 1;
+        const existingPriority = priorityMap.get(key);
+        const shouldUsePlayerData =
+          existingPriority === undefined || teamPriority < existingPriority;
+        const candidate = shouldUsePlayerData ? player : existingPlayer!;
+
+        const mergedPlayer: GroupedPlayer = {
+          ...candidate,
+          count: newCount,
+          matchupColors: currentMatchupColors,
+        };
+
+        existingPlayers.set(key, mergedPlayer);
+        const nextPriority = shouldUsePlayerData ? teamPriority : existingPriority ?? teamPriority;
+        priorityMap.set(key, nextPriority);
       }
     });
   };
 
   const myPlayersMap = new Map<string, GroupedPlayer>();
   const opponentPlayersMap = new Map<string, GroupedPlayer>();
+  const myPlayerPriorityMap = new Map<string, number>();
+  const opponentPlayerPriorityMap = new Map<string, number>();
 
-  teams.forEach((team, index) => {
-    const color = colors[index % colors.length];
-    groupPlayers(team.players, myPlayersMap, color);
-    groupPlayers(team.opponent.players, opponentPlayersMap, color);
+  orderedTeams.forEach((team) => {
+    const color = teamColors.get(team.id) ?? MATCHUP_COLORS[0];
+    const teamPriority = priorityLookup.get(team.id) ?? Number.MAX_SAFE_INTEGER;
+
+    groupPlayers(team.players, myPlayersMap, myPlayerPriorityMap, color, teamPriority);
+    groupPlayers(team.opponent.players, opponentPlayersMap, opponentPlayerPriorityMap, color, teamPriority);
   });
 
   const myPlayers = Array.from(myPlayersMap.values());
@@ -155,19 +248,26 @@ function AppContent({
               <AlertDescription>{refreshError}</AlertDescription>
             </Alert>
           )}
+          <MatchupPrioritySelector
+            teams={orderedTeams}
+            teamColors={teamColors}
+            onPriorityChange={(order) => setMatchupPriority(order)}
+          />
           <Card>
                 <CardHeader>
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
-                    {teams.map((team, index) => (
+                    {orderedTeams.map((team, index) => {
+                      const color = teamColors.get(team.id) ?? MATCHUP_COLORS[index % MATCHUP_COLORS.length];
+                      return (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                                     <div>
                                         <p className="font-semibold">{team.name}</p>
-                                        <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                        <p className="text-sm text-muted-foreground">vs {team.opponent?.name ?? 'Opponent'}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -176,7 +276,8 @@ function AppContent({
                                 </div>
                             </div>
                         </Card>
-                    ))}
+                      );
+                    })}
                 </CardContent>
              </Card>
 
