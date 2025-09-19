@@ -1,25 +1,17 @@
 'use client';
 
-import {
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarProvider,
-  SidebarInset,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Goal, PlusCircle, RefreshCw } from 'lucide-react';
-import Link from 'next/link';
+import { RefreshCw } from 'lucide-react';
 import { Team, Player, GroupedPlayer } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@/components/ui/badge';
 import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AppNavigation } from '@/components/app-navigation';
 
 /**
  * Groups a list of players by their position.
@@ -124,63 +116,31 @@ function AppContent({
   };
 
   return (
-    <>
-      <Sidebar collapsible="icon">
-        <SidebarHeader className="p-4">
+    <div className="flex min-h-screen flex-col">
+      <AppNavigation
+        endContent={(
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary hover:bg-primary/10">
-              <Goal className="h-8 w-8" />
+            <Button
+              variant="outline"
+              onClick={handleRefreshClick}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <div className='group-data-[collapsible=icon]:hidden'>
-              <h1 className="text-xl font-semibold whitespace-nowrap">Roster Loom</h1>
-            </div>
+            <Button variant="outline" onClick={handleSignOutClick}>Sign Out</Button>
           </div>
-        </SidebarHeader>
-        <SidebarContent>
-            <div className='p-2'>
-                <Link href="/integrations">
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                      <PlusCircle />
-                      <span className="group-data-[collapsible=icon]:hidden">Add League</span>
-                  </Button>
-                </Link>
-            </div>
-            <div className='p-2'>
-                <Link href="/matchup-report">
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                      <PlusCircle />
-                      <span className="group-data-[collapsible=icon]:hidden">Matchup Report</span>
-                  </Button>
-                </Link>
-            </div>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        <header className={cn("sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6")}>
-            <SidebarTrigger />
-            <div className="flex-1">
-                <h2 className="text-xl font-semibold">Matchup Overview</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleRefreshClick}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-              <Button variant="outline" onClick={handleSignOutClick}>Sign Out</Button>
-            </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-8">
-             {refreshError && (
-               <Alert variant="destructive">
-                 <AlertTitle>Refresh failed</AlertTitle>
-                 <AlertDescription>{refreshError}</AlertDescription>
-               </Alert>
-             )}
-             <Card>
+        )}
+      />
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-8">
+          <h1 className="text-2xl font-semibold tracking-tight">Matchup Overview</h1>
+          {refreshError && (
+            <Alert variant="destructive">
+              <AlertTitle>Refresh failed</AlertTitle>
+              <AlertDescription>{refreshError}</AlertDescription>
+            </Alert>
+          )}
+          <Card>
                 <CardHeader>
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
@@ -275,9 +235,8 @@ function AppContent({
                     </CardContent>
                 </Card>
             </div>
-        </main>
-      </SidebarInset>
-    </>
+      </main>
+    </div>
   )
 }
 
@@ -342,14 +301,12 @@ export default function HomePage({ teams, user }: { teams: Team[], user: any }) 
   };
 
   return (
-    <SidebarProvider>
-      <AppContent
-        onSignOut={handleSignOut}
-        teams={currentTeams}
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        refreshError={refreshError}
-      />
-    </SidebarProvider>
+    <AppContent
+      onSignOut={handleSignOut}
+      teams={currentTeams}
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
+      refreshError={refreshError}
+    />
   );
 }
