@@ -182,6 +182,12 @@ export interface SleeperMatchupPlayer {
   position: string;
   team: string;
   score: number;
+  game_status: string;
+  game_details: {
+    score: string;
+    timeRemaining: string;
+    fieldPosition: string;
+  };
 }
 
 /**
@@ -194,4 +200,38 @@ export interface SleeperEnrichedMatchup extends SleeperMatchup {
   };
   players: SleeperMatchupPlayer[];
   total_points: number;
+}
+
+/**
+ * Represents the state of the NFL from Sleeper, including game schedules and scores.
+ */
+export interface SleeperGame {
+  game_id: string;
+  home_team: string;
+  away_team: string;
+  status: string;
+  start_time: string;
+  quarter: string;
+  time_remaining: string;
+}
+
+export interface SleeperNflState {
+  [key: string]: any;
+  /** The season type (e.g., "regular", "postseason"). */
+  season_type: string;
+  /** The current season year. */
+  season: string;
+  /** The current week of the season. */
+  week: number;
+  /** The previous week's state, if available. */
+  previous_week?: number;
+  /** The NFL league display week. */
+  display_week: number;
+  /** The leg of the season. */
+  leg: number;
+  /** The league's season start date. */
+  league_season: string;
+  /** The date the league was created. */
+  league_create_season: string;
+  games: Record<string, SleeperGame>;
 }

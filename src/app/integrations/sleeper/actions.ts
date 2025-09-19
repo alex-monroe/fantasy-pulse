@@ -11,6 +11,7 @@ import {
   SleeperPlayer,
   SleeperEnrichedMatchup,
 } from '@/lib/types';
+import { getNflState, mapSleeperPlayer } from '@/lib/sleeper';
 
 /**
  * Connects a Sleeper account to the user's account.
@@ -254,11 +255,12 @@ export async function getNflPlayers() {
  */
 export async function getLeagueMatchups(leagueId: string, week: string) {
   try {
-    const [matchupsRes, rostersRes, usersRes, playersRes] = await Promise.all([
+    const [matchupsRes, rostersRes, usersRes, playersRes, nflState] = await Promise.all([
       getMatchups(leagueId, week),
       getRosters(leagueId),
       getUsersInLeague(leagueId),
       getNflPlayers(),
+      getNflState(),
     ]);
 
     if (matchupsRes.error) return { error: matchupsRes.error };
@@ -269,7 +271,7 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
     const { matchups } = matchupsRes;
     const { rosters } = rostersRes;
     const { users } = usersRes;
-    const { players } = playersRes;
+    const { players: playersData } = playersRes;
 
     const usersMap = new Map(users.map((user) => [user.user_id, user]));
     const rostersMap = new Map(rosters.map((roster) => [roster.roster_id, roster]));
@@ -279,20 +281,33 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
       if (!roster) return matchup as unknown as SleeperEnrichedMatchup;
 
       const user = usersMap.get(roster.owner_id);
-      const matchupPlayers = matchup.players.map((playerId: string) => {
-        const playerDetails = players[playerId];
-        return {
-          player_id: playerId,
-          first_name: playerDetails?.first_name || 'Unknown',
-          last_name: playerDetails?.last_name || 'Player',
-          position: playerDetails?.position || 'N/A',
-          team: playerDetails?.team || 'N/A',
-          score: matchup.players_points?.[playerId] ?? 0,
-        };
-      });
+      const matchupPlayers = matchup.players
+        .map((playerId: string) => {
+          const player = mapSleeperPlayer({
+            playerId,
+            playersData,
+            matchup,
+            roster,
+            nflState,
+          });
+
+          if (!player) return null;
+
+          return {
+            player_id: playerId,
+            first_name: player.name.split(' ')[0],
+            last_name: player.name.split(' ')[1] || '',
+            position: player.position,
+            team: player.realTeam,
+            score: player.score,
+            game_status: player.gameStatus,
+            game_details: player.gameDetails,
+          };
+        })
+        .filter(Boolean);
 
       const totalPoints = matchupPlayers.reduce(
-        (acc: number, player: { score: number }) => acc + player.score,
+        (acc: number, player: any) => acc + player.score,
         0
       );
 

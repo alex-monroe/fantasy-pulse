@@ -73,6 +73,7 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                     <p className="text-sm sm:text-base lg:text-xl font-bold text-foreground">
                         {player.score.toFixed(1)}
                     </p>
+                    <p className="text-xs text-muted-foreground">{player.gameStatus}</p>
                 </div>
             </Card>
         </TooltipProvider>

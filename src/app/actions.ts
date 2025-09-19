@@ -13,7 +13,7 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
-import { mapSleeperPlayer } from '@/lib/sleeper';
+import { mapSleeperPlayer, getNflState } from '@/lib/sleeper';
 import {
   Team,
   Player,
@@ -233,7 +233,8 @@ export async function getCurrentNflWeek() {
 export async function buildSleeperTeams(
   integration: { id: number; provider_user_id: string },
   week: number,
-  playersData: Record<string, SleeperPlayer>
+  playersData: Record<string, SleeperPlayer>,
+  nflState: any
 ): Promise<Team[]> {
   const { leagues, error: leaguesError } = await getSleeperLeagues(integration.id);
   if (leaguesError || !leagues) {
@@ -306,6 +307,7 @@ export async function buildSleeperTeams(
           playersData,
           matchup: userMatchup,
           roster: userRoster,
+          nflState,
         })
       )
       .filter((player): player is Player => player !== null);
@@ -319,6 +321,7 @@ export async function buildSleeperTeams(
                 playersData,
                 matchup: opponentMatchup,
                 roster: opponentRoster,
+                nflState,
               })
             )
             .filter((player): player is Player => player !== null)
@@ -720,6 +723,7 @@ export async function getTeams() {
   const week = await getCurrentNflWeek();
   const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
   const playersData = await playersResponse.json();
+  const nflState = await getNflState();
 
   const playerNameMap: { [key: string]: string } = {};
   const addPlayerName = (name: string | null | undefined, playerId: string) => {
@@ -752,7 +756,7 @@ export async function getTeams() {
 
   const integrationPromises = integrations.map((integration) => {
     if (integration.provider === 'sleeper') {
-      return teamBuilders.buildSleeperTeams(integration, week, playersData);
+      return teamBuilders.buildSleeperTeams(integration, week, playersData, nflState);
     } else if (integration.provider === 'yahoo') {
       return teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {

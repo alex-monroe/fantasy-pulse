@@ -253,6 +253,7 @@ export default function SleeperPage() {
                                   <TableHead>Player</TableHead>
                                   <TableHead>Position</TableHead>
                                   <TableHead>Team</TableHead>
+                                  <TableHead>Game Status</TableHead>
                                   <TableHead className="text-right">Score</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -262,6 +263,10 @@ export default function SleeperPage() {
                                     <TableCell>{player.first_name} {player.last_name}</TableCell>
                                     <TableCell>{player.position}</TableCell>
                                     <TableCell>{player.team}</TableCell>
+                                    <TableCell>
+                                      {player.game_status}
+                                      {player.game_details?.timeRemaining && ` - ${player.game_details.timeRemaining}`}
+                                    </TableCell>
                                     <TableCell className="text-right">{(player.score || 0).toFixed(2)}</TableCell>
                                   </TableRow>
                                 ))}

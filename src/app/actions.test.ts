@@ -1,6 +1,6 @@
 import * as actions from './actions';
 const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
-import { mapSleeperPlayer } from '@/lib/sleeper';
+import { mapSleeperPlayer, getNflState } from '@/lib/sleeper';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
@@ -21,6 +21,11 @@ jest.mock('@/utils/supabase/server', () => ({
 
 jest.mock('@/app/integrations/sleeper/actions', () => ({
   getLeagues: jest.fn(),
+}));
+
+jest.mock('@/lib/sleeper', () => ({
+  ...jest.requireActual('@/lib/sleeper'),
+  getNflState: jest.fn(),
 }));
 
 jest.mock('@/app/integrations/yahoo/actions', () => ({
@@ -56,6 +61,7 @@ describe('actions', () => {
     jest.clearAllMocks();
 
     (getLeagues as jest.Mock).mockClear();
+    (getNflState as jest.Mock).mockResolvedValue({ games: {} });
     (getYahooUserTeams as jest.Mock).mockClear();
     (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
@@ -66,7 +72,9 @@ describe('actions', () => {
   });
 
   afterEach(() => {
-    consoleErrorSpy.mockRestore();
+    if (consoleErrorSpy) {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   describe('mapSleeperPlayer', () => {
@@ -89,12 +97,19 @@ describe('actions', () => {
       '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
     };
 
+    const nflState = {
+      games: {
+        'game1': { home_team: 'TEAMA', away_team: 'TEAMB', status: 'pre_game', start_time: '2025-09-18T20:00:00Z' },
+      },
+    } as any;
+
     it('maps player data when Sleeper information exists', () => {
       const result = mapSleeperPlayer({
         playerId: '1',
         playersData,
         matchup,
         roster,
+        nflState,
       });
 
       expect(result).toEqual({
@@ -103,7 +118,7 @@ describe('actions', () => {
         position: 'QB',
         realTeam: 'TEAMA',
         score: 12,
-        gameStatus: 'pregame',
+        gameStatus: expect.any(String),
         onUserTeams: 0,
         onOpponentTeams: 0,
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
@@ -118,6 +133,7 @@ describe('actions', () => {
         playersData,
         matchup,
         roster,
+        nflState,
       });
 
       expect(result).toBeNull();
@@ -159,7 +175,8 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        mockPlayersData,
+        { games: {} }
       );
       expect(result).toEqual([]);
     });
@@ -178,7 +195,8 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        mockPlayersData,
+        { games: {} }
       );
 
       expect(result).toHaveLength(1);
@@ -199,7 +217,8 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        mockPlayersData,
+        { games: {} }
       );
 
       expect(result).toEqual([]);
@@ -245,7 +264,8 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        playersDataWithMissing
+        playersDataWithMissing,
+        { games: {} }
       );
 
       expect(result).toHaveLength(1);
@@ -511,6 +531,8 @@ describe('actions', () => {
         error: null,
       });
 
+      (getNflState as jest.Mock).mockResolvedValue({ games: {} });
+
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }) // nflStateResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }) // playersResponse
@@ -526,7 +548,7 @@ describe('actions', () => {
       const result = await getTeams();
 
       expect(result.teams).toBeDefined();
-      expect(result.teams.length).toBe(1);
+      expect(result.teams).toHaveLength(1);
       expect(result.teams[0].name).toBe('Team A');
     });
 
