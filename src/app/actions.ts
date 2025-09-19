@@ -50,6 +50,10 @@ function sanitizePlayerName(name: string) {
   return normalizePlayerName(name.replace(/[^a-z0-9\s]/gi, ' '));
 }
 
+function normalizeOttoneuTeamName(name: string) {
+  return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 function extractNameParts(name: string): { first: string; last: string } {
   const tokens = name.split(' ').filter(Boolean);
   if (tokens.length === 0) {
@@ -502,6 +506,8 @@ export async function buildOttoneuTeams(
   let opponentPlayers: Player[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
+  const normalizedTeamName = normalizeOttoneuTeamName(info.teamName);
+
   if (info.matchup?.url) {
     try {
       const res = await fetch(`https://ottoneu.fangraphs.com${info.matchup.url}`);
@@ -510,11 +516,58 @@ export async function buildOttoneuTeams(
         const dom = new JSDOM(html);
         const document = dom.window.document;
 
-        const homeName =
-          document.querySelector('.game-page-home-team-name')?.textContent?.trim() || '';
-        const awayName =
-          document.querySelector('.game-page-away-team-name')?.textContent?.trim() || '';
-        const isHome = homeName.toLowerCase() === info.teamName.toLowerCase();
+        const getDetailsName = (details: Element | null) => {
+          if (!details) {
+            return '';
+          }
+
+          const anchorText = details.querySelector('a')?.textContent;
+          if (anchorText) {
+            return anchorText;
+          }
+
+          return details.textContent || '';
+        };
+
+        let isHome = false;
+        let sideDetermined = false;
+
+        const teamScores = document.querySelector('.team-scores');
+        if (teamScores) {
+          const homeDetails = teamScores.querySelector('.home-team-details');
+          const awayDetails = teamScores.querySelector('.away-team-details');
+          const normalizedHome = normalizeOttoneuTeamName(
+            getDetailsName(homeDetails)
+          );
+          const normalizedAway = normalizeOttoneuTeamName(
+            getDetailsName(awayDetails)
+          );
+
+          if (normalizedHome && normalizedHome === normalizedTeamName) {
+            isHome = true;
+            sideDetermined = true;
+          } else if (normalizedAway && normalizedAway === normalizedTeamName) {
+            isHome = false;
+            sideDetermined = true;
+          }
+        }
+
+        if (!sideDetermined) {
+          const homeName = normalizeOttoneuTeamName(
+            document.querySelector('.game-page-home-team-name')?.textContent || ''
+          );
+          const awayName = normalizeOttoneuTeamName(
+            document.querySelector('.game-page-away-team-name')?.textContent || ''
+          );
+
+          if (homeName && homeName === normalizedTeamName) {
+            isHome = true;
+            sideDetermined = true;
+          } else if (awayName && awayName === normalizedTeamName) {
+            isHome = false;
+            sideDetermined = true;
+          }
+        }
 
         const rows = Array.from(
           document.querySelectorAll('.game-details-table tbody tr')
