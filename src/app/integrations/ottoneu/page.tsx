@@ -33,23 +33,29 @@ export default function OttoneuPage() {
   const [matchup, setMatchup] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isLoadingIntegration, setIsLoadingIntegration] = useState(true);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [teamOptions, setTeamOptions] = useState<string[]>([]);
   const [teamOptionsError, setTeamOptionsError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const init = async () => {
       const { integration, error } = await getOttoneuIntegration();
+      if (cancelled) return;
       if (error) {
         setError(error);
+        setIsLoadingIntegration(false);
         return;
       }
       if (integration) {
         setIntegration(integration);
         const { leagues } = await getLeagues(integration.id);
+        if (cancelled) return;
         if (leagues && leagues[0]) {
           setLeagueName(leagues[0].name);
           const info = await getOttoneuTeamInfo(`https://ottoneu.fangraphs.com/football/${leagues[0].league_id}/team/${integration.provider_user_id}`);
+          if (cancelled) return;
           if ('teamName' in info) {
             setTeamName(info.teamName);
             setTeamQuery(info.teamName);
@@ -59,8 +65,12 @@ export default function OttoneuPage() {
           }
         }
       }
+      setIsLoadingIntegration(false);
     };
     init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -171,6 +181,10 @@ export default function OttoneuPage() {
     }
     setIsRemoving(false);
   };
+
+  if (isLoadingIntegration) {
+    return <main className="p-4">Loading integration...</main>;
+  }
 
   return (
     <main className="p-4">
