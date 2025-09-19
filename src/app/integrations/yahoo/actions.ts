@@ -485,6 +485,13 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
       });
 
       const selectedPosition = playerInfo.selected_position?.[1]?.position;
+      const normalizedPosition =
+        typeof selectedPosition === 'string'
+          ? selectedPosition.trim().toUpperCase()
+          : '';
+      const isBench =
+        normalizedPosition === 'BN' ||
+        normalizedPosition.startsWith('IR');
 
       return {
         player_key: playerDetails.player_key,
@@ -502,7 +509,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
         is_undroppable: playerDetails.is_undroppable,
         position_type: playerDetails.position_type,
         eligible_positions: playerDetails.eligible_positions?.map((pos: any) => pos.position),
-        onBench: selectedPosition === 'BN',
+        onBench: isBench,
       };
     }).filter(Boolean); // Filter out any null entries from failed parsing
 

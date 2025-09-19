@@ -23,6 +23,19 @@ const rosterExample = {
                   { selected_position: [null, { position: 'QB' }] },
                 ],
               },
+              '1': {
+                player: [
+                  [
+                    { player_key: 'p4' },
+                    { player_id: 'p4' },
+                    { name: { full: 'Yahoo Player 2' } },
+                    { display_position: 'RB' },
+                    { headshot: { url: '' } },
+                    { editorial_team_abbr: 'DAL' },
+                  ],
+                  { selected_position: [null, { position: 'IR' }] },
+                ],
+              },
             },
           },
         },
@@ -123,6 +136,10 @@ describe('yahoo actions', () => {
       player_key: 'p3',
       name: 'Yahoo Player 1',
       display_position: 'QB',
+      onBench: false,
     });
+
+    const irPlayer = result.players.find((player: any) => player.player_key === 'p4');
+    expect(irPlayer).toMatchObject({ onBench: true });
   });
 });
