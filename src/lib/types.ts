@@ -64,11 +64,18 @@ export type Player = {
 /**
  * Represents a player grouped across multiple teams.
  */
+export type PlayerMatchupColor = {
+  /** The color associated with the matchup. */
+  color: string;
+  /** Indicates whether the player is on the bench for this matchup. */
+  onBench: boolean;
+};
+
 export type GroupedPlayer = Player & {
   /** The number of teams the player belongs to. */
   count: number;
   /** The colors of the matchups this player is in. */
-  matchupColors: string[];
+  matchupColors: PlayerMatchupColor[];
 };
 
 /**
