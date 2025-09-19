@@ -8,7 +8,7 @@ describe('fetchJson', () => {
   it('returns data when response is ok', async () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: () => Promise.resolve({ a: 1 }) });
     const result = await fetchJson<{ a: number }>('/test');
-    expect(fetch).toHaveBeenCalledWith('/test', { next: { revalidate: 3600 } });
+    expect(fetch).toHaveBeenCalledWith('/test', { next: { revalidate: 1 } });
     expect(result).toEqual({ data: { a: 1 } });
   });
 

@@ -1,4 +1,4 @@
-const DEFAULT_CACHE_DURATION_SECONDS = 60 * 60;
+const DEFAULT_CACHE_DURATION_SECONDS = 1;
 
 type FetchJsonInit = RequestInit & {
   disableCache?: boolean;
