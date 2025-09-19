@@ -9,6 +9,7 @@ import {
   getOttoneuTeamInfo,
   getOttoneuLeagueTeams,
 } from './actions';
+import { AppNavigation } from '@/components/app-navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -183,85 +184,93 @@ export default function OttoneuPage() {
   };
 
   if (isLoadingIntegration) {
-    return <main className="p-4">Loading integration...</main>;
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppNavigation />
+        <main className="flex-1 p-4 sm:p-6 md:p-8">Loading integration...</main>
+      </div>
+    );
   }
 
   return (
-    <main className="p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Ottoneu</CardTitle>
-          <CardDescription>
-            {integration
-              ? `Connected to ${teamName || 'your team'} in ${leagueName || 'your league'}`
-              : 'Enter your league URL and select your team to connect.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!integration ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="league-url">League URL</Label>
-                <Input
-                  id="league-url"
-                  type="url"
-                  value={leagueUrl}
-                  onChange={(e) => setLeagueUrl(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="team-name">Team Name</Label>
-                <Select
-                  value={teamQuery}
-                  onValueChange={(value) => {
-                    setTeamQuery(value);
-                    setError(null);
-                  }}
-                  disabled={isLoadingTeams || teamOptions.length === 0}
-                >
-                  <SelectTrigger id="team-name">
-                    <SelectValue
-                      placeholder={
-                        isLoadingTeams
-                          ? 'Loading teams...'
-                          : teamOptions.length > 0
-                            ? 'Select a team'
-                            : 'Enter a league URL to load teams'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teamOptions.map((team) => (
-                      <SelectItem key={team} value={team}>
-                        {team}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {teamOptionsError && (
-                  <p className="mt-2 text-sm text-red-500">{teamOptionsError}</p>
-                )}
-              </div>
-              <Button type="submit" disabled={!teamQuery || isLoadingTeams}>
-                Connect
+    <div className="flex min-h-screen flex-col">
+      <AppNavigation />
+      <main className="flex-1 p-4 sm:p-6 md:p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Ottoneu</CardTitle>
+            <CardDescription>
+              {integration
+                ? `Connected to ${teamName || 'your team'} in ${leagueName || 'your league'}`
+                : 'Enter your league URL and select your team to connect.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!integration ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="league-url">League URL</Label>
+                  <Input
+                    id="league-url"
+                    type="url"
+                    value={leagueUrl}
+                    onChange={(e) => setLeagueUrl(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="team-name">Team Name</Label>
+                  <Select
+                    value={teamQuery}
+                    onValueChange={(value) => {
+                      setTeamQuery(value);
+                      setError(null);
+                    }}
+                    disabled={isLoadingTeams || teamOptions.length === 0}
+                  >
+                    <SelectTrigger id="team-name">
+                      <SelectValue
+                        placeholder={
+                          isLoadingTeams
+                            ? 'Loading teams...'
+                            : teamOptions.length > 0
+                              ? 'Select a team'
+                              : 'Enter a league URL to load teams'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamOptions.map((team) => (
+                        <SelectItem key={team} value={team}>
+                          {team}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {teamOptionsError && (
+                    <p className="mt-2 text-sm text-red-500">{teamOptionsError}</p>
+                  )}
+                </div>
+                <Button type="submit" disabled={!teamQuery || isLoadingTeams}>
+                  Connect
+                </Button>
+              </form>
+            ) : (
+              <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
+                {isRemoving ? 'Removing...' : 'Remove Integration'}
               </Button>
-            </form>
-          ) : (
-            <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
-              {isRemoving ? 'Removing...' : 'Remove Integration'}
-            </Button>
-          )}
-          {matchup && (
-            <div className="mt-4 text-sm">
-              <p>Week {matchup.week} vs {matchup.opponentName}</p>
-              <p className="font-semibold">{matchup.teamScore.toFixed(2)} - {matchup.opponentScore.toFixed(2)}</p>
-            </div>
-          )}
-          {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
-        </CardContent>
-      </Card>
-    </main>
+            )}
+            {matchup && (
+              <div className="mt-4 text-sm">
+                <p>Week {matchup.week} vs {matchup.opponentName}</p>
+                <p className="font-semibold">{matchup.teamScore.toFixed(2)} - {matchup.opponentScore.toFixed(2)}</p>
+              </div>
+            )}
+            {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
   );
 }
 

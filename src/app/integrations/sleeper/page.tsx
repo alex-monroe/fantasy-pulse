@@ -9,6 +9,7 @@ import {
   removeSleeperIntegration,
   getLeagueMatchups,
 } from './actions';
+import { AppNavigation } from '@/components/app-navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -126,7 +127,12 @@ export default function SleeperPage() {
   }, [selectedLeague, selectedWeek]);
 
   if (loading) {
-    return <main className="p-4">Loading...</main>;
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppNavigation />
+        <main className="flex-1 p-4 sm:p-6 md:p-8">Loading...</main>
+      </div>
+    );
   }
 
   const groupedMatchups = matchups.reduce<Record<number, SleeperEnrichedMatchup[]>>((acc, matchup) => {
@@ -139,136 +145,139 @@ export default function SleeperPage() {
   }, {});
 
   return (
-    <main className="p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Connect to Sleeper</CardTitle>
-          <CardDescription>
-            {integration
-              ? `Connected as ${integration.provider_user_id}.`
-              : "Enter your Sleeper username to connect your account."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!integration ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="username">Sleeper Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit">Connect</Button>
-            </form>
-          ) : (
-            <div>
-              <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
-                {isRemoving ? 'Removing...' : 'Remove Integration'}
-              </Button>
-            </div>
-          )}
-          {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
-        </CardContent>
-      </Card>
-
-      {integration && leagues.length > 0 && (
-        <Card className="mt-4">
+    <div className="flex min-h-screen flex-col">
+      <AppNavigation />
+      <main className="flex-1 p-4 sm:p-6 md:p-8">
+        <Card>
           <CardHeader>
-            <CardTitle>Your Leagues</CardTitle>
+            <CardTitle>Connect to Sleeper</CardTitle>
+            <CardDescription>
+              {integration
+                ? `Connected as ${integration.provider_user_id}.`
+                : "Enter your Sleeper username to connect your account."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {leagues.map((league) => (
-                <Button
-                  key={league.league_id}
-                  onClick={() => setSelectedLeague(league)}
-                  variant={selectedLeague?.league_id === league.league_id ? 'default' : 'outline'}
-                >
-                  {league.name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {selectedLeague && (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>Matchups for {selectedLeague.name}</CardTitle>
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="week-selector">Week:</Label>
-              <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-                <SelectTrigger id="week-selector" className="w-[180px]">
-                  <SelectValue placeholder="Select a week" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => (
-                    <SelectItem key={week} value={String(week)}>
-                      Week {week}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loadingMatchups ? (
-              <p>Loading matchups...</p>
+            {!integration ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="username">Sleeper Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit">Connect</Button>
+              </form>
             ) : (
-              <div className="space-y-4">
-                {Object.values(groupedMatchups).map((matchupPair, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {matchupPair.map((team) => (
-                      <Card key={team.roster_id}>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Image
-                              src={team.user.avatar ? `https://sleepercdn.com/avatars/thumbs/${team.user.avatar}` : 'https://via.placeholder.com/40'}
-                              alt={team.user.display_name}
-                              width={40}
-                              height={40}
-                              className="rounded-full"
-                            />
-                            <CardTitle>{team.user.display_name}</CardTitle>
-                          </div>
-                          <div className="text-2xl font-bold">{team.total_points.toFixed(2)}</div>
-                        </CardHeader>
-                        <CardContent>
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Player</TableHead>
-                                <TableHead>Position</TableHead>
-                                <TableHead>Team</TableHead>
-                                <TableHead className="text-right">Score</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {team.players.map((player: SleeperMatchupPlayer) => (
-                                <TableRow key={player.player_id}>
-                                  <TableCell>{player.first_name} {player.last_name}</TableCell>
-                                  <TableCell>{player.position}</TableCell>
-                                  <TableCell>{player.team}</TableCell>
-                                  <TableCell className="text-right">{(player.score || 0).toFixed(2)}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ))}
+              <div>
+                <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
+                  {isRemoving ? 'Removing...' : 'Remove Integration'}
+                </Button>
               </div>
             )}
+            {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
           </CardContent>
         </Card>
-      )}
-    </main>
+
+        {integration && leagues.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Your Leagues</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {leagues.map((league) => (
+                  <Button
+                    key={league.league_id}
+                    onClick={() => setSelectedLeague(league)}
+                    variant={selectedLeague?.league_id === league.league_id ? 'default' : 'outline'}
+                  >
+                    {league.name}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {selectedLeague && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Matchups for {selectedLeague.name}</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="week-selector">Week:</Label>
+                <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                  <SelectTrigger id="week-selector" className="w-[180px]">
+                    <SelectValue placeholder="Select a week" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => (
+                      <SelectItem key={week} value={String(week)}>
+                        Week {week}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingMatchups ? (
+                <p>Loading matchups...</p>
+              ) : (
+                <div className="space-y-4">
+                  {Object.values(groupedMatchups).map((matchupPair, index) => (
+                    <div key={index} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {matchupPair.map((team) => (
+                        <Card key={team.roster_id}>
+                          <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Image
+                                src={team.user.avatar ? `https://sleepercdn.com/avatars/thumbs/${team.user.avatar}` : 'https://via.placeholder.com/40'}
+                                alt={team.user.display_name}
+                                width={40}
+                                height={40}
+                                className="rounded-full"
+                              />
+                              <CardTitle>{team.user.display_name}</CardTitle>
+                            </div>
+                            <div className="text-2xl font-bold">{team.total_points.toFixed(2)}</div>
+                          </CardHeader>
+                          <CardContent>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Player</TableHead>
+                                  <TableHead>Position</TableHead>
+                                  <TableHead>Team</TableHead>
+                                  <TableHead className="text-right">Score</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {team.players.map((player: SleeperMatchupPlayer) => (
+                                  <TableRow key={player.player_id}>
+                                    <TableCell>{player.first_name} {player.last_name}</TableCell>
+                                    <TableCell>{player.position}</TableCell>
+                                    <TableCell>{player.team}</TableCell>
+                                    <TableCell className="text-right">{(player.score || 0).toFixed(2)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </main>
+    </div>
   );
 }
