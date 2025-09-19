@@ -9,6 +9,7 @@ import {
   getYahooRoster,
   getYahooMatchups,
   getYahooPlayerScores,
+  getYahooAccessToken,
 } from '@/app/integrations/yahoo/actions';
 import {
   getLeagues as getOttoneuLeagues,
@@ -28,6 +29,7 @@ jest.mock('@/app/integrations/yahoo/actions', () => ({
   getYahooRoster: jest.fn(),
   getYahooMatchups: jest.fn(),
   getYahooPlayerScores: jest.fn(),
+  getYahooAccessToken: jest.fn(),
 }));
 
 jest.mock('@/app/integrations/ottoneu/actions', () => ({
@@ -100,17 +102,19 @@ describe('actions', () => {
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    (createClient as jest.Mock).mockReturnValue(mockSupabase);
-    (fetch as jest.Mock).mockClear();
     jest.clearAllMocks();
+    (fetch as jest.Mock).mockReset();
 
+    (createClient as jest.Mock).mockReturnValue(mockSupabase);
     (getLeagues as jest.Mock).mockClear();
     (getYahooUserTeams as jest.Mock).mockClear();
     (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
     (getYahooPlayerScores as jest.Mock).mockClear();
+    (getYahooAccessToken as jest.Mock).mockClear();
     (getOttoneuLeagues as jest.Mock).mockClear();
     (getOttoneuTeamInfo as jest.Mock).mockClear();
+    (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -310,6 +314,13 @@ describe('actions', () => {
   describe('buildYahooTeams', () => {
     const playerNameMap = { 'player one': '1' };
 
+    beforeEach(() => {
+      (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
+      (fetch as jest.Mock).mockResolvedValue({
+        json: () => Promise.resolve({ week: 1 }),
+      });
+    });
+
     it('returns empty array when getYahooUserTeams fails', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: null,
@@ -317,6 +328,7 @@ describe('actions', () => {
       });
       const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
       expect(result).toEqual([]);
+      expect(getYahooAccessToken).not.toHaveBeenCalled();
     });
 
     it('builds yahoo teams correctly', async () => {
@@ -390,6 +402,25 @@ describe('actions', () => {
       );
       expect(result[0].opponent.players[0].imageUrl).toBe(
         'https://sleepercdn.com/images/v2/icons/player_default.webp'
+      );
+      expect(getYahooAccessToken).toHaveBeenCalledTimes(1);
+      expect(getYahooMatchups).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-team-1',
+        'token',
+        1
+      );
+      expect(getYahooRoster).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-league-1',
+        'user-team-id',
+        'token'
+      );
+      expect(getYahooPlayerScores).toHaveBeenCalledWith(
+        'int-2',
+        'user-team-key',
+        'token',
+        1
       );
     });
 
@@ -595,7 +626,8 @@ describe('actions', () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }) // nflStateResponse
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
-        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }); // playersResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }) // playersResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }); // buildYahooTeams week
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -644,7 +676,8 @@ describe('actions', () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
 
       (getLeagues as jest.Mock).mockResolvedValue({
         leagues: null,
@@ -665,7 +698,8 @@ describe('actions', () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: null,
@@ -686,7 +720,8 @@ describe('actions', () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -712,7 +747,8 @@ describe('actions', () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -759,7 +795,8 @@ describe('actions', () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
-        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -811,7 +848,8 @@ describe('actions', () => {
             Promise.resolve({
               '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
             }),
-        });
+        })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) });
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],

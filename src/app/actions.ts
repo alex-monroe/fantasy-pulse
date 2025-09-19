@@ -9,6 +9,7 @@ import {
   getYahooRoster,
   getYahooMatchups,
   getYahooPlayerScores,
+  getYahooAccessToken,
 } from '@/app/integrations/yahoo/actions';
 import {
   getLeagues as getOttoneuLeagues,
@@ -477,13 +478,28 @@ export async function buildYahooTeams(
     return [];
   }
 
+  const { access_token: accessToken, error: accessTokenError } =
+    await getYahooAccessToken(integration.id);
+
+  if (accessTokenError || !accessToken) {
+    console.error(
+      `Could not fetch Yahoo access token for integration ${integration.id}`,
+      accessTokenError || 'Unknown error'
+    );
+    return [];
+  }
+
+  const week = await getCurrentNflWeek();
+
   const teams: Team[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
   for (const team of yahooApiTeams) {
     const { matchups, error: matchupsError } = await getYahooMatchups(
       integration.id,
-      team.team_key
+      team.team_key,
+      accessToken,
+      week
     );
     if (matchupsError || !matchups) {
       continue;
@@ -495,8 +511,18 @@ export async function buildYahooTeams(
       { players: userPlayers, error: userRosterError },
       { players: opponentPlayers, error: opponentRosterError },
     ] = await Promise.all([
-      getYahooRoster(integration.id, team.league_id, userTeam.team_id),
-      getYahooRoster(integration.id, team.league_id, opponentTeam.team_id),
+      getYahooRoster(
+        integration.id,
+        team.league_id,
+        userTeam.team_id,
+        accessToken
+      ),
+      getYahooRoster(
+        integration.id,
+        team.league_id,
+        opponentTeam.team_id,
+        accessToken
+      ),
     ]);
 
     if (
@@ -509,8 +535,18 @@ export async function buildYahooTeams(
     }
 
     const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
-      getYahooPlayerScores(integration.id, userTeam.team_key),
-      getYahooPlayerScores(integration.id, opponentTeam.team_key),
+      getYahooPlayerScores(
+        integration.id,
+        userTeam.team_key,
+        accessToken,
+        week
+      ),
+      getYahooPlayerScores(
+        integration.id,
+        opponentTeam.team_key,
+        accessToken,
+        week
+      ),
     ]);
 
     let userPlayerScores: any[] | null | undefined;
