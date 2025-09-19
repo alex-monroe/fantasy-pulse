@@ -1,6 +1,25 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const AUTH_ROUTES = ['/login', '/register'] as const
+const HOME_ROUTE = '/'
+const LOGIN_ROUTE = '/login'
+
+const isAuthRoute = (pathname: string) =>
+  AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+
+const isStaticAsset = (pathname: string) => /\.[^/]+$/.test(pathname)
+
+const redirectWithCookies = (url: URL, baseResponse: NextResponse) => {
+  const response = NextResponse.redirect(url)
+
+  for (const cookie of baseResponse.cookies.getAll()) {
+    response.cookies.set(cookie)
+  }
+
+  return response
+}
+
 /**
  * The middleware function for the application.
  * @param request - The incoming request.
@@ -59,7 +78,31 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  if (pathname.startsWith('/api') || isStaticAsset(pathname)) {
+    return response
+  }
+
+  if (!user && !isAuthRoute(pathname)) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = LOGIN_ROUTE
+    redirectUrl.search = ''
+
+    return redirectWithCookies(redirectUrl, response)
+  }
+
+  if (user && isAuthRoute(pathname)) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = HOME_ROUTE
+    redirectUrl.search = ''
+
+    return redirectWithCookies(redirectUrl, response)
+  }
 
   return response
 }
