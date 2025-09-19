@@ -48,3 +48,7 @@ firestore-debug.log
 # test results
 /test-results/
 playwright-report/
+
+# next-pwa
+/public/sw.js
+/public/workbox-*.js
