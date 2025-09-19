@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
+import { logDuration, startTimer } from '@/utils/performance-logger';
 import { getLeagues as getSleeperLeagues } from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
@@ -826,46 +827,97 @@ export async function getTeamBuilders() {
  * @returns A list of teams.
  */
 export async function getTeams() {
+  const overallStart = startTimer();
+  console.log('[performance] getTeams invoked');
+
   const supabase = createClient();
 
+  const userStart = startTimer();
   const { data: { user } } = await supabase.auth.getUser();
+  logDuration('getTeams: fetch user', userStart, { hasUser: Boolean(user) });
   if (!user) {
+    logDuration('getTeams total', overallStart, { result: 'no-user' });
     return { error: 'You must be logged in.' };
   }
 
+  const integrationsStart = startTimer();
   const { data: integrations, error: integrationsError } = await supabase
     .from('user_integrations')
     .select('*')
     .eq('user_id', user.id);
+  logDuration('getTeams: load integrations', integrationsStart, {
+    integrationCount: integrations?.length ?? 0,
+  });
 
   if (integrationsError) {
+    logDuration('getTeams total', overallStart, {
+      result: 'integrations-error',
+      message: integrationsError.message,
+    });
     return { error: integrationsError.message };
   }
 
+  const weekStart = startTimer();
   const week = await getCurrentNflWeek();
+  logDuration('getTeams: resolve current NFL week', weekStart, { week });
 
   const scoreboardPromise = (async () => {
+    const scoreboardStart = startTimer();
     try {
+      const fetchStart = startTimer();
       const response = await fetch(
         `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week=${week}&seasontype=2`,
         { cache: 'no-store' }
       );
+      logDuration('getTeams: fetch NFL scoreboard', fetchStart, {
+        status: response.status,
+        ok: response.ok,
+        week,
+      });
 
       if (!response.ok) {
         throw new Error(`Scoreboard request failed with status ${response.status}`);
       }
 
-      return await response.json();
+      const parseStart = startTimer();
+      const data = await response.json();
+      logDuration('getTeams: parse NFL scoreboard response', parseStart, {
+        eventCount: Array.isArray(data?.events) ? data.events.length : undefined,
+        week,
+      });
+      logDuration('getTeams: NFL scoreboard pipeline', scoreboardStart, {
+        success: true,
+        week,
+      });
+      return data;
     } catch (error) {
+      logDuration('getTeams: NFL scoreboard pipeline', scoreboardStart, {
+        success: false,
+        week,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       console.error('Failed to fetch NFL scoreboard', error);
       return null;
     }
   })();
 
+  const playersFetchStart = startTimer();
   const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
+  logDuration('getTeams: fetch Sleeper players', playersFetchStart, {
+    status: playersResponse.status,
+    ok: playersResponse.ok,
+  });
+
+  const playersParseStart = startTimer();
   const playersData = await playersResponse.json();
+  logDuration('getTeams: parse Sleeper players response', playersParseStart);
 
   const playerNameMap: { [key: string]: string } = {};
+  const playerMapBuildStart = startTimer();
+  const totalPlayers =
+    playersData && typeof playersData === 'object'
+      ? Object.keys(playersData).length
+      : 0;
   const addPlayerName = (name: string | null | undefined, playerId: string) => {
     if (!name) {
       return;
@@ -894,34 +946,79 @@ export async function getTeams() {
     addPlayerName(combinedName || null, playerId);
   }
 
+  logDuration('getTeams: build Sleeper player name map', playerMapBuildStart, {
+    totalPlayers,
+    uniqueNames: Object.keys(playerNameMap).length,
+  });
+
   const integrationPromises = integrations.map((integration) => {
+    const integrationStart = startTimer();
+    const provider = integration?.provider ?? 'unknown';
+    const integrationId = integration?.id;
+
+    let builderPromise: Promise<Team[]> | null = null;
+
     if (integration.provider === 'sleeper') {
-      return teamBuilders.buildSleeperTeams(integration, week, playersData);
+      builderPromise = teamBuilders.buildSleeperTeams(integration, week, playersData);
     } else if (integration.provider === 'yahoo') {
-      return teamBuilders.buildYahooTeams(integration, playerNameMap);
+      builderPromise = teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {
-      return teamBuilders.buildOttoneuTeams(
+      builderPromise = teamBuilders.buildOttoneuTeams(
         integration,
         playerNameMap,
         playersData
       );
     }
-    return Promise.resolve([]);
-  });
 
-  const results = await Promise.all(
-    integrationPromises.map((p) =>
-      p.catch((error) => {
+    if (!builderPromise) {
+      logDuration('getTeams: skipped integration', integrationStart, {
+        provider,
+        integrationId,
+      });
+      return Promise.resolve([] as Team[]);
+    }
+
+    return builderPromise
+      .then((teams) => {
+        logDuration('getTeams: build teams', integrationStart, {
+          provider,
+          teamCount: teams.length,
+          integrationId,
+        });
+        return teams;
+      })
+      .catch((error) => {
+        logDuration('getTeams: build teams', integrationStart, {
+          provider,
+          error: error instanceof Error ? error.message : String(error),
+          integrationId,
+        });
         console.error('Failed to build teams', error);
         return [] as Team[];
-      })
-    )
-  );
+      });
+  });
 
+  const results = await Promise.all(integrationPromises);
+
+  const flattenStart = startTimer();
   const teams = results.flat();
+  logDuration('getTeams: flatten integration results', flattenStart, {
+    teamCount: teams.length,
+    integrationCount: integrations?.length ?? 0,
+  });
 
+  const scoreboardAwaitStart = startTimer();
   const scoreboardData = await scoreboardPromise;
+  logDuration('getTeams: await scoreboard data', scoreboardAwaitStart, {
+    hasData: Boolean(scoreboardData),
+    week,
+  });
+
+  const gameInfoBuildStart = startTimer();
   const gameInfoMap = buildTeamGameInfoMap(scoreboardData);
+  logDuration('getTeams: build team game info map', gameInfoBuildStart, {
+    trackedTeams: gameInfoMap.size,
+  });
 
   const annotatePlayersWithGameInfo = (players: Player[]): Player[] => {
     return players.map((player) => {
@@ -955,6 +1052,7 @@ export async function getTeams() {
     });
   };
 
+  const annotateStart = startTimer();
   const teamsWithGameInfo = teams.map((team) => ({
     ...team,
     players: annotatePlayersWithGameInfo(team.players),
@@ -963,6 +1061,16 @@ export async function getTeams() {
       players: annotatePlayersWithGameInfo(team.opponent.players),
     },
   }));
+
+  logDuration('getTeams: annotate teams with game info', annotateStart, {
+    teamCount: teamsWithGameInfo.length,
+    hasScoreboardData: Boolean(scoreboardData),
+  });
+  logDuration('getTeams total', overallStart, {
+    teamCount: teamsWithGameInfo.length,
+    integrationCount: integrations?.length ?? 0,
+    hasScoreboardData: Boolean(scoreboardData),
+  });
 
   return { teams: teamsWithGameInfo };
 }
