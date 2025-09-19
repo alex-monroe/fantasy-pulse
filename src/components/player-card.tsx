@@ -7,6 +7,7 @@ import { User, Users } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useMatchupPriority } from "@/hooks/use-matchup-priority.tsx";
 
 function formatKickoffTime(gameStartTime: string | null): string | null {
   if (!gameStartTime) {
@@ -59,10 +60,22 @@ export function getGameStatusLabel(player: GroupedPlayer): string | null {
  * @returns A card that displays information about a player.
  */
 export function PlayerCard({ player }: { player: GroupedPlayer }) {
+    const { prioritizedTeams } = useMatchupPriority();
+
     const matchupColors = player.onBench
         ? player.matchupColors
         : player.matchupColors.filter((matchup) => !matchup.onBench);
     const statusLabel = getGameStatusLabel(player);
+
+    const score = (() => {
+        for (const team of prioritizedTeams) {
+            const matchup = player.matchups.find(m => m.teamId === team.id);
+            if (matchup) {
+                return matchup.score;
+            }
+        }
+        return player.score;
+    })();
 
     return (
         <TooltipProvider>
@@ -120,7 +133,7 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                 </div>
                  <div className="text-right">
                     <p className="text-sm sm:text-base lg:text-xl font-bold text-foreground">
-                        {player.score.toFixed(1)}
+                        {score.toFixed(1)}
                     </p>
                 </div>
             </Card>

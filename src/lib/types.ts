@@ -77,11 +77,22 @@ export type PlayerMatchupColor = {
   onBench: boolean;
 };
 
+export type PlayerMatchup = {
+  /** The unique identifier for the matchup. */
+  matchupId: number;
+  /** The unique identifier for the team. */
+  teamId: number;
+  /** The player's score in this matchup. */
+  score: number;
+};
+
 export type GroupedPlayer = Player & {
   /** The number of teams the player belongs to. */
   count: number;
   /** The colors of the matchups this player is in. */
   matchupColors: PlayerMatchupColor[];
+  /** The list of matchups this player is in. */
+  matchups: PlayerMatchup[];
 };
 
 /**

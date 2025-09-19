@@ -12,6 +12,8 @@ import { PlayerCard } from '@/components/player-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppNavigation } from '@/components/app-navigation';
+import { MatchupSelector } from '@/components/matchup-selector';
+import { MatchupPriorityProvider, useMatchupPriority } from '@/hooks/use-matchup-priority.tsx';
 
 /**
  * Groups a list of players by their position.
@@ -64,24 +66,33 @@ function AppContent({
   refreshError: string | null,
 }) {
   const colors = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
+  const { prioritizedTeams, setPrioritizedTeams } = useMatchupPriority();
 
-  const addMatchupColor = (
-    matchupColors: GroupedPlayer['matchupColors'],
+  const addMatchup = (
+    player: GroupedPlayer,
     color: string,
+    teamId: number,
+    score: number,
     onBench: boolean
   ) => {
-    const existingMatchup = matchupColors.find((matchup) => matchup.color === color);
-    if (existingMatchup) {
-      existingMatchup.onBench = existingMatchup.onBench && onBench;
+    const existingMatchupColor = player.matchupColors.find((matchup) => matchup.color === color);
+    if (existingMatchupColor) {
+      existingMatchupColor.onBench = existingMatchupColor.onBench && onBench;
     } else {
-      matchupColors.push({ color, onBench });
+      player.matchupColors.push({ color, onBench });
+    }
+
+    const existingMatchup = player.matchups.find((matchup) => matchup.teamId === teamId);
+    if (!existingMatchup) {
+      player.matchups.push({ matchupId: teamId, teamId, score, onBench });
     }
   };
 
   const groupPlayers = (
     players: Player[],
     existingPlayers: Map<string, GroupedPlayer>,
-    color: string
+    color: string,
+    teamId: number,
   ) => {
     players.forEach(player => {
       if (player && player.name && player.realTeam) {
@@ -89,13 +100,16 @@ function AppContent({
         if (existingPlayers.has(key)) {
           const existingPlayer = existingPlayers.get(key)!;
           existingPlayer.count++;
-          addMatchupColor(existingPlayer.matchupColors, color, player.onBench);
+          addMatchup(existingPlayer, color, teamId, player.score, player.onBench);
         } else {
-          existingPlayers.set(key, {
+          const newPlayer: GroupedPlayer = {
             ...player,
             count: 1,
-            matchupColors: [{ color, onBench: player.onBench }],
-          });
+            matchupColors: [],
+            matchups: [],
+          };
+          addMatchup(newPlayer, color, teamId, player.score, player.onBench);
+          existingPlayers.set(key, newPlayer);
         }
       }
     });
@@ -106,8 +120,8 @@ function AppContent({
 
   teams.forEach((team, index) => {
     const color = colors[index % colors.length];
-    groupPlayers(team.players, myPlayersMap, color);
-    groupPlayers(team.opponent.players, opponentPlayersMap, color);
+    groupPlayers(team.players, myPlayersMap, color, team.id);
+    groupPlayers(team.opponent.players, opponentPlayersMap, color, team.id);
   });
 
   const myPlayers = Array.from(myPlayersMap.values());
@@ -155,32 +169,43 @@ function AppContent({
               <AlertDescription>{refreshError}</AlertDescription>
             </Alert>
           )}
-          <Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+            <div className="md:col-span-1 space-y-8">
+              <Card>
                 <CardHeader>
-                    <CardTitle>Weekly Matchups</CardTitle>
+                  <CardTitle>Matchup Priority</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                    {teams.map((team, index) => (
-                        <Card key={team.id} className="p-4">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                                    <div>
-                                        <p className="font-semibold">{team.name}</p>
-                                        <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
-                                    <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
+                <CardContent>
+                  <MatchupSelector teams={prioritizedTeams} onOrderChange={setPrioritizedTeams} />
                 </CardContent>
-             </Card>
+              </Card>
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Weekly Matchups</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                      {teams.map((team, index) => (
+                          <Card key={team.id} className="p-4">
+                              <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                                      <div>
+                                          <p className="font-semibold">{team.name}</p>
+                                          <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                                      </div>
+                                  </div>
+                                  <div className="text-right">
+                                      <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
+                                      <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
+                                  </div>
+                              </div>
+                          </Card>
+                      ))}
+                  </CardContent>
+               </Card>
+            </div>
 
-            <div className="grid grid-cols-2 gap-4 items-start">
+            <div className="md:col-span-2 grid grid-cols-2 gap-4 items-start">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>My Players</CardTitle>
@@ -316,12 +341,14 @@ export default function HomePage({ teams, user }: { teams: Team[], user: any }) 
   };
 
   return (
-    <AppContent
-      onSignOut={handleSignOut}
-      teams={currentTeams}
-      onRefresh={handleRefresh}
-      isRefreshing={isRefreshing}
-      refreshError={refreshError}
-    />
+    <MatchupPriorityProvider initialTeams={currentTeams}>
+      <AppContent
+        onSignOut={handleSignOut}
+        teams={currentTeams}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshError={refreshError}
+      />
+    </MatchupPriorityProvider>
   );
 }

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { PlayerCard, getGameStatusLabel } from '@/components/player-card'
-import type { GroupedPlayer } from '@/lib/types'
+import type { GroupedPlayer, Team } from '@/lib/types'
+import { MatchupPriorityProvider } from '@/hooks/use-matchup-priority.tsx'
 
 describe('PlayerCard', () => {
   const player: GroupedPlayer = {
@@ -23,19 +24,36 @@ describe('PlayerCard', () => {
     imageUrl: 'https://example.com/player.jpg',
     onBench: false,
     matchupColors: [{ color: '#000000', onBench: false }],
+    matchups: [{ matchupId: 1, teamId: 1, score: 12.5, onBench: false }],
     count: 1,
   }
 
+  const teams: Team[] = [{
+    id: 1,
+    name: 'Test Team',
+    totalScore: 100,
+    players: [],
+    opponent: { name: 'Opponent', totalScore: 90, players: [] },
+  }];
+
+  const renderWithProvider = (player: GroupedPlayer) => {
+    return render(
+      <MatchupPriorityProvider initialTeams={teams}>
+        <PlayerCard player={player} />
+      </MatchupPriorityProvider>
+    )
+  }
+
   it('renders player information', () => {
-    render(<PlayerCard player={player} />)
+    renderWithProvider(player)
     expect(screen.getByText('Test Player')).toBeInTheDocument()
     expect(screen.getByText('QB - TB')).toBeInTheDocument()
-    expect(screen.getByText('10.5')).toBeInTheDocument()
+    expect(screen.getByText('12.5')).toBeInTheDocument()
   })
 
   it('renders a benched player with a badge', () => {
     const benchedPlayer = { ...player, onBench: true }
-    render(<PlayerCard player={benchedPlayer} />)
+    renderWithProvider(benchedPlayer)
     expect(screen.getByText('BN')).toBeInTheDocument()
   })
 
@@ -46,7 +64,7 @@ describe('PlayerCard', () => {
       gameStartTime: '2025-09-21T17:00:00Z',
     }
 
-    render(<PlayerCard player={upcomingPlayer} />)
+    renderWithProvider(upcomingPlayer)
 
     const expectedStatus = getGameStatusLabel(upcomingPlayer)
     expect(expectedStatus).not.toBeNull()
@@ -61,7 +79,7 @@ describe('PlayerCard', () => {
       gameClock: '4:12',
     }
 
-    render(<PlayerCard player={livePlayer} />)
+    renderWithProvider(livePlayer)
     expect(screen.getByText('Q3 4:12')).toBeInTheDocument()
   })
 })
