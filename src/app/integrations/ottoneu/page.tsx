@@ -7,11 +7,19 @@ import {
   removeOttoneuIntegration,
   getLeagues,
   getOttoneuTeamInfo,
+  getOttoneuLeagueTeams,
 } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * Page for managing the Ottoneu integration.
@@ -25,6 +33,9 @@ export default function OttoneuPage() {
   const [matchup, setMatchup] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [teamOptions, setTeamOptions] = useState<string[]>([]);
+  const [teamOptionsError, setTeamOptionsError] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -52,11 +63,77 @@ export default function OttoneuPage() {
     init();
   }, []);
 
+  useEffect(() => {
+    const trimmedLeagueUrl = leagueUrl.trim();
+
+    if (!trimmedLeagueUrl) {
+      setTeamOptions([]);
+      setTeamOptionsError(null);
+      setTeamQuery('');
+      setIsLoadingTeams(false);
+      return;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(trimmedLeagueUrl);
+    } catch {
+      setTeamOptions([]);
+      setTeamOptionsError(null);
+      setTeamQuery('');
+      setIsLoadingTeams(false);
+      return;
+    }
+
+    if (parsedUrl.hostname !== 'ottoneu.fangraphs.com') {
+      setTeamOptions([]);
+      setTeamOptionsError(null);
+      setTeamQuery('');
+      setIsLoadingTeams(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingTeams(true);
+    setTeamOptionsError(null);
+    setTeamQuery('');
+
+    const loadTeams = async () => {
+      try {
+        const result = await getOttoneuLeagueTeams(parsedUrl.toString());
+        if (cancelled) return;
+        setIsLoadingTeams(false);
+        if ('error' in result) {
+          setTeamOptions([]);
+          setTeamOptionsError(result.error);
+          return;
+        }
+        setTeamOptions(result.teams);
+      } catch {
+        if (cancelled) return;
+        setIsLoadingTeams(false);
+        setTeamOptions([]);
+        setTeamOptionsError('Failed to fetch league page.');
+      }
+    };
+
+    loadTeams();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [leagueUrl]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!teamQuery) {
+      setError('Please select a team.');
+      return;
+    }
+    const trimmedLeagueUrl = leagueUrl.trim();
     const { teamName, leagueName, matchup, error } = await connectOttoneu(
-      leagueUrl,
+      trimmedLeagueUrl,
       teamQuery
     );
     if (error) {
@@ -85,6 +162,9 @@ export default function OttoneuPage() {
       setIntegration(null);
       setLeagueUrl('');
       setTeamQuery('');
+      setTeamOptions([]);
+      setTeamOptionsError(null);
+      setIsLoadingTeams(false);
       setTeamName('');
       setLeagueName('');
       setMatchup(null);
@@ -100,7 +180,7 @@ export default function OttoneuPage() {
           <CardDescription>
             {integration
               ? `Connected to ${teamName || 'your team'} in ${leagueName || 'your league'}`
-              : 'Enter your league URL and team name to connect.'}
+              : 'Enter your league URL and select your team to connect.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -118,14 +198,40 @@ export default function OttoneuPage() {
               </div>
               <div>
                 <Label htmlFor="team-name">Team Name</Label>
-                <Input
-                  id="team-name"
+                <Select
                   value={teamQuery}
-                  onChange={(e) => setTeamQuery(e.target.value)}
-                  required
-                />
+                  onValueChange={(value) => {
+                    setTeamQuery(value);
+                    setError(null);
+                  }}
+                  disabled={isLoadingTeams || teamOptions.length === 0}
+                >
+                  <SelectTrigger id="team-name">
+                    <SelectValue
+                      placeholder={
+                        isLoadingTeams
+                          ? 'Loading teams...'
+                          : teamOptions.length > 0
+                            ? 'Select a team'
+                            : 'Enter a league URL to load teams'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamOptions.map((team) => (
+                      <SelectItem key={team} value={team}>
+                        {team}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {teamOptionsError && (
+                  <p className="mt-2 text-sm text-red-500">{teamOptionsError}</p>
+                )}
               </div>
-              <Button type="submit">Connect</Button>
+              <Button type="submit" disabled={!teamQuery || isLoadingTeams}>
+                Connect
+              </Button>
             </form>
           ) : (
             <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">

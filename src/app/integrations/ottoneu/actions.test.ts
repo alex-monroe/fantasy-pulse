@@ -129,6 +129,53 @@ describe('ottoneu actions', () => {
     });
   });
 
+  describe('getOttoneuLeagueTeams', () => {
+    it('returns teams from standings table', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<table class="standings-table"><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td></tr></tbody></table>'
+          ),
+      });
+
+      const result = await actions.getOttoneuLeagueTeams(
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+
+      expect(result).toEqual({ teams: ['The Witchcraft'] });
+    });
+
+    it('returns error for invalid url', async () => {
+      const result = await actions.getOttoneuLeagueTeams('https://example.com');
+      expect(result).toEqual({ error: 'Invalid Ottoneu league URL.' });
+    });
+
+    it('returns error when fetch fails', async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+
+      const result = await actions.getOttoneuLeagueTeams(
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+
+      expect(result).toEqual({ error: 'Failed to fetch league page.' });
+    });
+
+    it('returns error when no teams found', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve('<table class="standings-table"><tbody></tbody></table>'),
+      });
+
+      const result = await actions.getOttoneuLeagueTeams(
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+
+      expect(result).toEqual({ error: 'Could not find teams in standings.' });
+    });
+  });
+
   describe('connectOttoneu', () => {
     const buildSupabase = () => {
       const singleMock = jest
@@ -167,7 +214,7 @@ describe('ottoneu actions', () => {
           ok: true,
           text: () =>
             Promise.resolve(
-              '<table><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td></tr></tbody></table>'
+              '<table class="standings-table"><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td></tr></tbody></table>'
             ),
         })
         .mockResolvedValueOnce({

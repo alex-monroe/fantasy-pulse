@@ -7,15 +7,15 @@ function normalizeTeamName(name: string) {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-async function findOttoneuTeamUrl(
-  leagueUrl: string,
-  teamName: string
-): Promise<{ teamUrl: string } | { error: string }> {
-  const trimmedTeamName = teamName.trim();
-  if (!trimmedTeamName) {
-    return { error: 'Team name is required.' };
-  }
+type StandingsTeam = {
+  name: string;
+  url: string;
+  normalizedName: string;
+};
 
+function parseLeagueUrl(
+  leagueUrl: string
+): { baseUrl: URL } | { error: string } {
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(leagueUrl);
@@ -37,10 +37,21 @@ async function findOttoneuTeamUrl(
   parsedUrl.search = '';
   parsedUrl.hash = '';
 
-  const normalizedTeamName = normalizeTeamName(trimmedTeamName);
+  return { baseUrl: parsedUrl };
+}
+
+async function fetchLeagueTeams(
+  leagueUrl: string
+): Promise<{ baseUrl: URL; teams: StandingsTeam[] } | { error: string }> {
+  const parsedResult = parseLeagueUrl(leagueUrl);
+  if ('error' in parsedResult) {
+    return parsedResult;
+  }
+
+  const { baseUrl } = parsedResult;
 
   try {
-    const res = await fetch(parsedUrl.toString());
+    const res = await fetch(baseUrl.toString());
     if (!res.ok) {
       return { error: 'Failed to fetch league page.' };
     }
@@ -49,45 +60,101 @@ async function findOttoneuTeamUrl(
     const dom = new JSDOM(html);
     const document = dom.window.document;
 
-    const potentialLinks = Array.from(
-      document.querySelectorAll('a[href*="/team/"]')
+    const anchors = Array.from(
+      document.querySelectorAll('.standings-table a[href*="/team/"]')
     );
 
-    const exactMatch = potentialLinks.find((anchor) => {
-      const text = normalizeTeamName(anchor.textContent || '');
-      return text === normalizedTeamName;
-    });
+    const teams = anchors
+      .map((anchor) => {
+        const name = anchor.textContent?.replace(/\s+/g, ' ').trim();
+        const href = anchor.getAttribute('href') || '';
+        if (!name || !href) {
+          return null;
+        }
 
-    const partialMatch = potentialLinks.find((anchor) => {
-      const text = normalizeTeamName(anchor.textContent || '');
-      return text.includes(normalizedTeamName);
-    });
+        let absoluteHref: string;
+        try {
+          absoluteHref = new URL(href, baseUrl.toString()).toString();
+        } catch {
+          return null;
+        }
 
-    const teamAnchor = exactMatch || partialMatch;
-    if (!teamAnchor) {
-      return { error: 'Could not find team in standings.' };
+        if (!/football\/\d+\/team\/\d+/.test(absoluteHref)) {
+          return null;
+        }
+
+        return {
+          name,
+          url: absoluteHref,
+          normalizedName: normalizeTeamName(name),
+        } satisfies StandingsTeam;
+      })
+      .filter((team): team is StandingsTeam => team !== null);
+
+    const dedupedTeams: StandingsTeam[] = [];
+    const seen = new Set<string>();
+    for (const team of teams) {
+      if (seen.has(team.normalizedName)) {
+        continue;
+      }
+      seen.add(team.normalizedName);
+      dedupedTeams.push(team);
     }
 
-    const href = teamAnchor.getAttribute('href') || '';
-    if (!href) {
-      return { error: 'Invalid team link found in standings.' };
-    }
-
-    let absoluteHref: string;
-    try {
-      absoluteHref = new URL(href, parsedUrl.toString()).toString();
-    } catch {
-      return { error: 'Invalid team link found in standings.' };
-    }
-
-    if (!/football\/\d+\/team\/\d+/.test(absoluteHref)) {
-      return { error: 'Invalid team link found in standings.' };
-    }
-
-    return { teamUrl: absoluteHref };
+    return { baseUrl, teams: dedupedTeams };
   } catch {
     return { error: 'Failed to fetch league page.' };
   }
+}
+
+async function findOttoneuTeamUrl(
+  leagueUrl: string,
+  teamName: string
+): Promise<{ teamUrl: string } | { error: string }> {
+  const trimmedTeamName = teamName.trim();
+  if (!trimmedTeamName) {
+    return { error: 'Team name is required.' };
+  }
+
+  const result = await fetchLeagueTeams(leagueUrl);
+  if ('error' in result) {
+    return result;
+  }
+
+  const normalizedTeamName = normalizeTeamName(trimmedTeamName);
+
+  if (result.teams.length === 0) {
+    return { error: 'Could not find team in standings.' };
+  }
+
+  const exactMatch = result.teams.find(
+    (team) => team.normalizedName === normalizedTeamName
+  );
+
+  const partialMatch = result.teams.find((team) =>
+    team.normalizedName.includes(normalizedTeamName)
+  );
+
+  const match = exactMatch || partialMatch;
+
+  if (!match) {
+    return { error: 'Could not find team in standings.' };
+  }
+
+  return { teamUrl: match.url };
+}
+
+export async function getOttoneuLeagueTeams(leagueUrl: string) {
+  const result = await fetchLeagueTeams(leagueUrl);
+  if ('error' in result) {
+    return result;
+  }
+
+  if (result.teams.length === 0) {
+    return { error: 'Could not find teams in standings.' };
+  }
+
+  return { teams: result.teams.map((team) => team.name) };
 }
 
 /**
