@@ -40,6 +40,44 @@ function parseLeagueUrl(
   return { baseUrl: parsedUrl };
 }
 
+function findStandingsAnchors(document: Document) {
+  const standingsSections = Array.from(
+    document.querySelectorAll('section.section-container')
+  );
+
+  for (const section of standingsSections) {
+    const heading =
+      section.querySelector('.section-container-header__title') ||
+      section.querySelector('h1, h2, h3, h4, h5, h6');
+
+    if (heading && /standings/i.test(heading.textContent || '')) {
+      const anchors = Array.from(
+        section.querySelectorAll('table a[href*="/team/"]')
+      );
+
+      if (anchors.length > 0) {
+        return anchors;
+      }
+    }
+  }
+
+  const anchors: HTMLAnchorElement[] = [];
+  const tables = Array.from(document.querySelectorAll('table'));
+  for (const table of tables) {
+    const headerTexts = Array.from(table.querySelectorAll('thead th'))
+      .map((th) => th.textContent?.trim().toLowerCase())
+      .filter(Boolean) as string[];
+
+    if (!headerTexts.includes('team')) {
+      continue;
+    }
+
+    anchors.push(...table.querySelectorAll('tbody a[href*="/team/"]'));
+  }
+
+  return anchors;
+}
+
 async function fetchLeagueTeams(
   leagueUrl: string
 ): Promise<{ baseUrl: URL; teams: StandingsTeam[] } | { error: string }> {
@@ -60,9 +98,7 @@ async function fetchLeagueTeams(
     const dom = new JSDOM(html);
     const document = dom.window.document;
 
-    const anchors = Array.from(
-      document.querySelectorAll('.standings-table a[href*="/team/"]')
-    );
+    const anchors = findStandingsAnchors(document);
 
     const teams = anchors
       .map((anchor) => {
