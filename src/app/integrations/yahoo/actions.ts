@@ -255,7 +255,7 @@ export async function getYahooUserTeams(integrationId: number) {
 
     if (!teamsFromYahoo) {
       logger.info('No teams found in Yahoo API response.');
-      return { teams: [] };
+      return { teams: [], accessToken: access_token };
     }
 
     const teamsToInsert = Object.values(teamsFromYahoo).filter((t: any) => t.team).map((t: any) => {
@@ -282,10 +282,10 @@ export async function getYahooUserTeams(integrationId: number) {
         logger.error(upsertError, 'Could not upsert teams.');
         return { error: `Failed to save teams to database: ${upsertError.message}` };
       }
-      return { teams: upsertedTeams };
+      return { teams: upsertedTeams, accessToken: access_token };
     }
 
-    return { teams: [] };
+    return { teams: [], accessToken: access_token };
   } catch (error) {
     logger.error(error, 'An unexpected error occurred while fetching teams from Yahoo.');
     return { error: 'An unexpected error occurred while fetching teams from Yahoo.' };
