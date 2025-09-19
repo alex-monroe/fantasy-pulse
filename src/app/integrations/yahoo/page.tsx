@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getYahooIntegration, getLeagues, removeYahooIntegration, getYahooLeagues, getYahooRoster, getYahooUserTeams, getTeams } from './actions';
+import { AppNavigation } from '@/components/app-navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -136,83 +137,91 @@ export default function YahooPage() {
   }, [integration]);
 
   if (loading) {
-    return <main className="p-4">Loading...</main>;
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppNavigation />
+        <main className="flex-1 p-4 sm:p-6 md:p-8">Loading...</main>
+      </div>
+    );
   }
 
   return (
-    <main className="p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Connect to Yahoo</CardTitle>
-          <CardDescription>
-            {integration
-              ? "You have successfully connected your Yahoo account."
-              : "Click the button below to connect your Yahoo account."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!integration ? (
-            <Button onClick={handleConnect}>Connect Yahoo</Button>
-          ) : (
-            <div>
-              <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
-                {isRemoving ? 'Removing...' : 'Remove Integration'}
-              </Button>
-            </div>
-          )}
-          {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
-          {leagues.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-lg font-medium">Your Leagues</h3>
-              <ul className="mt-2 space-y-2">
-                {leagues.map((league) => (
-                  <li key={league.league_id} className="p-2 border rounded-md flex justify-between items-center">
-                    <span>{league.name}</span>
-                    <Button
-                      onClick={() => handleFetchRoster(league.league_id)}
-                      size="sm"
-                      disabled={loadingRosterLeagueId === league.league_id}
-                    >
-                      {loadingRosterLeagueId === league.league_id ? 'Loading...' : 'View Roster'}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {players.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-lg font-medium">Roster</h3>
-              <ul className="mt-2 space-y-2">
-                {players.map((player) => (
-                  <li key={player.player_key} className="p-2 border rounded-md">
-                    {player.name} ({player.display_position})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen flex-col">
+      <AppNavigation />
+      <main className="flex-1 p-4 sm:p-6 md:p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Connect to Yahoo</CardTitle>
+            <CardDescription>
+              {integration
+                ? "You have successfully connected your Yahoo account."
+                : "Click the button below to connect your Yahoo account."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!integration ? (
+              <Button onClick={handleConnect}>Connect Yahoo</Button>
+            ) : (
+              <div>
+                <Button onClick={handleRemove} disabled={isRemoving} variant="destructive">
+                  {isRemoving ? 'Removing...' : 'Remove Integration'}
+                </Button>
+              </div>
+            )}
+            {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+            {leagues.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium">Your Leagues</h3>
+                <ul className="mt-2 space-y-2">
+                  {leagues.map((league) => (
+                    <li key={league.league_id} className="flex items-center justify-between rounded-md border p-2">
+                      <span>{league.name}</span>
+                      <Button
+                        onClick={() => handleFetchRoster(league.league_id)}
+                        size="sm"
+                        disabled={loadingRosterLeagueId === league.league_id}
+                      >
+                        {loadingRosterLeagueId === league.league_id ? 'Loading...' : 'View Roster'}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {players.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium">Roster</h3>
+                <ul className="mt-2 space-y-2">
+                  {players.map((player) => (
+                    <li key={player.player_key} className="rounded-md border p-2">
+                      {player.name} ({player.display_position})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      <Card className="mt-4 bg-gray-800 text-white">
-        <CardHeader>
-          <CardTitle>Troubleshooting</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="list-disc list-inside space-y-2">
-            <li>
-              If you see a &quot;Yahoo integration not found&quot; error, please try removing the integration and connecting again.
-            </li>
-            <li>
-              If your leagues or teams are not showing up, it might be because you don&apos;t have any active teams for the current NFL season in your Yahoo account.
-            </li>
-            <li>
-              The &quot;Could not find a team for this league&quot; error can happen if your team data is out of sync. Removing and re-adding the integration should resolve this.
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </main>
+        <Card className="mt-4 bg-gray-800 text-white">
+          <CardHeader>
+            <CardTitle>Troubleshooting</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-inside list-disc space-y-2">
+              <li>
+                If you see a &quot;Yahoo integration not found&quot; error, please try removing the integration and connecting again.
+              </li>
+              <li>
+                If your leagues or teams are not showing up, it might be because you don&apos;t have any active teams for the current NFL season in your Yahoo account.
+              </li>
+              <li>
+                The &quot;Could not find a team for this league&quot; error can happen if your team data is out of sync. Removing and re-adding the integration should resolve this.
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
   );
 }
