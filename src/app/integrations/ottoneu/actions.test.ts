@@ -129,6 +129,57 @@ describe('ottoneu actions', () => {
     });
   });
 
+  describe('getOttoneuLeagueTeams', () => {
+    it('returns teams from standings table', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<section class="section-container"><header class="section-container-header"><h3 class="section-container-header__title">2025 Standings</h3></header><div class="table-container"><table><thead><tr><th>Team</th><th>Record</th><th>PF</th><th>PA</th></tr></thead><tbody><tr class="subheader"><td colspan="4">Division</td></tr><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td><td>1-1</td><td>207.16</td><td>230.02</td></tr><tr><td><a href="/football/309/team/2531">Tinseltown Little Gold Men</a></td><td>2-0</td><td>231.44</td><td>190.16</td></tr></tbody></table></div></section>'
+          ),
+      });
+
+      const result = await actions.getOttoneuLeagueTeams(
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+
+      expect(result).toEqual({
+        teams: ['The Witchcraft', 'Tinseltown Little Gold Men'],
+      });
+    });
+
+    it('returns error for invalid url', async () => {
+      const result = await actions.getOttoneuLeagueTeams('https://example.com');
+      expect(result).toEqual({ error: 'Invalid Ottoneu league URL.' });
+    });
+
+    it('returns error when fetch fails', async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+
+      const result = await actions.getOttoneuLeagueTeams(
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+
+      expect(result).toEqual({ error: 'Failed to fetch league page.' });
+    });
+
+    it('returns error when no teams found', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            '<table><thead><tr><th>Team</th></tr></thead><tbody></tbody></table>'
+          ),
+      });
+
+      const result = await actions.getOttoneuLeagueTeams(
+        'https://ottoneu.fangraphs.com/football/309/'
+      );
+
+      expect(result).toEqual({ error: 'Could not find teams in standings.' });
+    });
+  });
+
   describe('connectOttoneu', () => {
     const buildSupabase = () => {
       const singleMock = jest
@@ -167,7 +218,7 @@ describe('ottoneu actions', () => {
           ok: true,
           text: () =>
             Promise.resolve(
-              '<table><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td></tr></tbody></table>'
+              '<section class="section-container"><header class="section-container-header"><h3 class="section-container-header__title">2025 Standings</h3></header><div class="table-container"><table><thead><tr><th>Team</th><th>Record</th><th>PF</th><th>PA</th></tr></thead><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td><td>1-1</td><td>207.16</td><td>230.02</td></tr></tbody></table></div></section>'
             ),
         })
         .mockResolvedValueOnce({
