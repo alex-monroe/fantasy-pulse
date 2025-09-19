@@ -88,6 +88,8 @@ export type Team = {
   name: string;
   /** The total score of the team. */
   totalScore: number;
+  /** The projected score of the team. */
+  projectedScore?: number;
   /** The list of players on the team. */
   players: Player[];
   /** The opponent's team. */
@@ -96,6 +98,8 @@ export type Team = {
     name: string;
     /** The total score of the opponent's team. */
     totalScore: number;
+    /** The projected score of the opponent's team. */
+    projectedScore?: number;
     /** The list of players on the opponent's team. */
     players: Player[];
   };

@@ -171,8 +171,22 @@ function AppContent({
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
-                                    <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
+                                    <p className="font-bold text-lg text-primary">
+                                        {(team.totalScore ?? 0).toFixed(1)}
+                                        {team.projectedScore && (
+                                            <span className="text-sm text-muted-foreground ml-1">
+                                                ({team.projectedScore.toFixed(1)})
+                                            </span>
+                                        )}
+                                    </p>
+                                    <p className="font-bold text-lg text-muted-foreground">
+                                        {(team.opponent?.totalScore ?? 0).toFixed(1)}
+                                        {team.opponent?.projectedScore && (
+                                            <span className="text-sm text-muted-foreground ml-1">
+                                                ({team.opponent.projectedScore.toFixed(1)})
+                                            </span>
+                                        )}
+                                    </p>
                                 </div>
                             </div>
                         </Card>

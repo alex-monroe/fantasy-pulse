@@ -571,6 +571,7 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
         name: parsedUserTeam.name,
         logo_url: parsedUserTeam.team_logos?.[0]?.team_logo?.url,
         totalPoints: userTeamData.team[1]?.team_points?.total,
+        projectedScore: userTeamData.team[1]?.team_projected_points?.total,
       },
       opponentTeam: {
         team_key: parsedOpponentTeam.team_key,
@@ -578,6 +579,7 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
         name: parsedOpponentTeam.name,
         logo_url: parsedOpponentTeam.team_logos?.[0]?.team_logo?.url,
         totalPoints: opponentTeamData.team[1]?.team_points?.total,
+        projectedScore: opponentTeamData.team[1]?.team_projected_points?.total,
       },
     };
 
