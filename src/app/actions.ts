@@ -444,7 +444,7 @@ export async function getSleeperPlayersResources({
   return sleeperPlayersCachePromise;
 }
 
-export function invalidateSleeperPlayersCache() {
+export async function invalidateSleeperPlayersCache() {
   sleeperPlayersCachePromise = null;
   sleeperPlayersCacheExpiresAt = 0;
 }

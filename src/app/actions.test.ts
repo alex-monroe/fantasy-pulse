@@ -101,7 +101,7 @@ describe('actions', () => {
 
   let consoleErrorSpy: jest.SpyInstance;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     (fetch as jest.Mock).mockReset();
 
@@ -116,7 +116,7 @@ describe('actions', () => {
     (getOttoneuTeamInfo as jest.Mock).mockClear();
     (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    invalidateSleeperPlayersCache();
+    await invalidateSleeperPlayersCache();
   });
 
   afterEach(() => {
