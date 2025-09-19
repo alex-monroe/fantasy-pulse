@@ -569,6 +569,12 @@ export async function buildSleeperTeams(
   return teams;
 }
 
+type BuildYahooTeamsOptions = {
+  week?: number;
+  accessToken?: string;
+  prefetchedTeams?: any[];
+};
+
 /**
  * Builds teams for a Yahoo integration.
  * @param integration The yahoo integration record.
@@ -578,11 +584,49 @@ export async function buildSleeperTeams(
 export async function buildYahooTeams(
   integration: any,
   playerNameMap: { [key: string]: string },
-  accessToken?: string,
-  prefetchedTeams?: any[]
+  weekOrAccessTokenOrOptions?:
+    | number
+    | string
+    | BuildYahooTeamsOptions
+    | any[],
+  accessTokenOrPrefetchedTeams?: string | any[],
+  prefetchedTeamsArg?: any[]
 ): Promise<Team[]> {
-  let yahooApiTeams = prefetchedTeams;
-  let resolvedAccessToken = accessToken;
+  let yahooApiTeams: any[] | undefined;
+  let resolvedAccessToken: string | undefined;
+  let week: number | undefined;
+
+  if (typeof weekOrAccessTokenOrOptions === 'number') {
+    week = weekOrAccessTokenOrOptions;
+  } else if (typeof weekOrAccessTokenOrOptions === 'string') {
+    resolvedAccessToken = weekOrAccessTokenOrOptions;
+  } else if (Array.isArray(weekOrAccessTokenOrOptions)) {
+    yahooApiTeams = weekOrAccessTokenOrOptions;
+  } else if (
+    weekOrAccessTokenOrOptions &&
+    typeof weekOrAccessTokenOrOptions === 'object'
+  ) {
+    const options = weekOrAccessTokenOrOptions as BuildYahooTeamsOptions;
+    week = options.week;
+    resolvedAccessToken = options.accessToken ?? resolvedAccessToken;
+    yahooApiTeams = options.prefetchedTeams ?? yahooApiTeams;
+  }
+
+  if (typeof accessTokenOrPrefetchedTeams === 'string') {
+    resolvedAccessToken = accessTokenOrPrefetchedTeams;
+  } else if (Array.isArray(accessTokenOrPrefetchedTeams)) {
+    yahooApiTeams = accessTokenOrPrefetchedTeams;
+  }
+
+  if (Array.isArray(prefetchedTeamsArg)) {
+    yahooApiTeams = prefetchedTeamsArg;
+  }
+
+  if (week === undefined) {
+    week = await getCurrentNflWeek();
+  }
+
+  const resolvedWeek = week as number;
 
   if (!yahooApiTeams) {
     const {
@@ -615,8 +659,6 @@ export async function buildYahooTeams(
 
     resolvedAccessToken = freshToken;
   }
-
-  const week = await getCurrentNflWeek();
 
   const teams: Team[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
@@ -651,7 +693,7 @@ export async function buildYahooTeams(
       integration.id,
       team.team_key,
       resolvedAccessToken,
-      week
+      resolvedWeek
     );
 
     if (matchupsError || !matchups) {
@@ -692,13 +734,13 @@ export async function buildYahooTeams(
         integration.id,
         userTeam.team_key,
         resolvedAccessToken,
-        week
+        resolvedWeek
       ),
       getYahooPlayerScores(
         integration.id,
         opponentTeam.team_key,
         resolvedAccessToken,
-        week
+        resolvedWeek
       ),
     ]);
 
@@ -1111,6 +1153,7 @@ export async function getTeams() {
         return teamBuilders.buildYahooTeams(
           integration,
           playerNameMap,
+          week,
           accessToken,
           yahooTeams
         );
