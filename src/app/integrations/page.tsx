@@ -1,13 +1,24 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 import { AppNavigation } from '@/components/app-navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * The integrations page, where users can connect their fantasy football accounts.
  * @returns The integrations page.
  */
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppNavigation />
