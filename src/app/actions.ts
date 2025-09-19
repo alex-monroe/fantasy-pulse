@@ -577,24 +577,43 @@ export async function buildSleeperTeams(
  */
 export async function buildYahooTeams(
   integration: any,
-  playerNameMap: { [key: string]: string }
+  playerNameMap: { [key: string]: string },
+  accessToken?: string,
+  prefetchedTeams?: any[]
 ): Promise<Team[]> {
-  const { teams: yahooApiTeams, error: teamsError } = await getYahooUserTeams(
-    integration.id
-  );
-  if (teamsError || !yahooApiTeams) {
-    return [];
+  let yahooApiTeams = prefetchedTeams;
+  let resolvedAccessToken = accessToken;
+
+  if (!yahooApiTeams) {
+    const {
+      teams: fetchedTeams,
+      error: teamsError,
+      accessToken: teamsAccessToken,
+    } = await getYahooUserTeams(integration.id);
+
+    if (teamsError || !fetchedTeams) {
+      return [];
+    }
+
+    yahooApiTeams = fetchedTeams;
+    if (!resolvedAccessToken) {
+      resolvedAccessToken = teamsAccessToken;
+    }
   }
 
-  const { access_token: accessToken, error: accessTokenError } =
-    await getYahooAccessToken(integration.id);
+  if (!resolvedAccessToken) {
+    const { access_token: freshToken, error: accessTokenError } =
+      await getYahooAccessToken(integration.id);
 
-  if (accessTokenError || !accessToken) {
-    console.error(
-      `Could not fetch Yahoo access token for integration ${integration.id}`,
-      accessTokenError || 'Unknown error'
-    );
-    return [];
+    if (accessTokenError || !freshToken) {
+      console.error(
+        `Could not fetch Yahoo access token for integration ${integration.id}`,
+        accessTokenError || 'Unknown error'
+      );
+      return [];
+    }
+
+    resolvedAccessToken = freshToken;
   }
 
   const week = await getCurrentNflWeek();
@@ -631,7 +650,7 @@ export async function buildYahooTeams(
     const { matchups, error: matchupsError } = await getYahooMatchups(
       integration.id,
       team.team_key,
-      accessToken,
+      resolvedAccessToken,
       week
     );
 
@@ -649,13 +668,13 @@ export async function buildYahooTeams(
         integration.id,
         team.league_id,
         userTeam.team_id,
-        accessToken
+        resolvedAccessToken
       ),
       getYahooRoster(
         integration.id,
         team.league_id,
         opponentTeam.team_id,
-        accessToken
+        resolvedAccessToken
       ),
     ]);
 
@@ -672,13 +691,13 @@ export async function buildYahooTeams(
       getYahooPlayerScores(
         integration.id,
         userTeam.team_key,
-        accessToken,
+        resolvedAccessToken,
         week
       ),
       getYahooPlayerScores(
         integration.id,
         opponentTeam.team_key,
-        accessToken,
+        resolvedAccessToken,
         week
       ),
     ]);
@@ -749,7 +768,7 @@ export async function buildYahooTeams(
   };
 
   const builtTeams = await Promise.all(
-    yahooApiTeams.map((team: any) => buildTeam(team))
+    (yahooApiTeams ?? []).map((team: any) => buildTeam(team))
   );
   const successfulTeams = builtTeams.filter(
     (team): team is Team => Boolean(team)
@@ -1078,7 +1097,24 @@ export async function getTeams() {
         sleeperPlayerResources
       );
     } else if (integration.provider === 'yahoo') {
-      builderPromise = teamBuilders.buildYahooTeams(integration, playerNameMap);
+      builderPromise = (async () => {
+        const {
+          teams: yahooTeams,
+          error: yahooTeamsError,
+          accessToken,
+        } = await getYahooUserTeams(integration.id);
+
+        if (yahooTeamsError || !yahooTeams) {
+          return [] as Team[];
+        }
+
+        return teamBuilders.buildYahooTeams(
+          integration,
+          playerNameMap,
+          accessToken,
+          yahooTeams
+        );
+      })();
     } else if (integration.provider === 'ottoneu') {
       builderPromise = teamBuilders.buildOttoneuTeams(
         integration,
