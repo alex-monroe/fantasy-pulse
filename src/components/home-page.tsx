@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppNavigation } from '@/components/app-navigation';
 import { MatchupSelector } from '@/components/matchup-selector';
-import { MatchupPriorityProvider, useMatchupPriority } from '@/hooks/use-matchup-priority.tsx';
+import { MatchupPriorityProvider, useMatchupPriority } from '@/hooks/use-matchup-priority';
 
 /**
  * Groups a list of players by their position.

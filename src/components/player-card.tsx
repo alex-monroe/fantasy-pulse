@@ -7,7 +7,7 @@ import { User, Users } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useMatchupPriority } from "@/hooks/use-matchup-priority.tsx";
+import { useMatchupPriority } from "@/hooks/use-matchup-priority";
 
 function formatKickoffTime(gameStartTime: string | null): string | null {
   if (!gameStartTime) {

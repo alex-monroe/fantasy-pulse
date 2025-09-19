@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { PlayerCard, getGameStatusLabel } from '@/components/player-card'
 import type { GroupedPlayer, Team } from '@/lib/types'
-import { MatchupPriorityProvider } from '@/hooks/use-matchup-priority.tsx'
+import { MatchupPriorityProvider } from '@/hooks/use-matchup-priority'
 
 describe('PlayerCard', () => {
   const player: GroupedPlayer = {
