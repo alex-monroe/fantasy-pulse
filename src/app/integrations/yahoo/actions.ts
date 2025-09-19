@@ -436,11 +436,22 @@ export async function getYahooLeagues(integrationId: number) {
  * @param teamId - The ID of the team.
  * @returns A list of players or an error.
  */
-export async function getYahooRoster(integrationId: number, leagueId: string, teamId: string) {
-  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+export async function getYahooRoster(
+  integrationId: number,
+  leagueId: string,
+  teamId: string,
+  accessToken?: string
+) {
+  let resolvedAccessToken = accessToken;
 
-  if (tokenError || !access_token) {
-    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  if (!resolvedAccessToken) {
+    const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+
+    if (tokenError || !access_token) {
+      return { error: tokenError || 'Failed to get Yahoo access token.' };
+    }
+
+    resolvedAccessToken = access_token;
   }
 
   const teamKey = `${leagueId}.t.${teamId}`;
@@ -449,7 +460,7 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
   try {
     const { data, error } = await fetchJson<any>(url, {
       headers: {
-        'Authorization': `Bearer ${access_token}`,
+        'Authorization': `Bearer ${resolvedAccessToken}`,
         'Accept': 'application/json',
       },
     });
@@ -525,19 +536,31 @@ export async function getYahooRoster(integrationId: number, leagueId: string, te
  * @param teamKey - The key of the team.
  * @returns The matchup for the team or an error.
  */
-export async function getYahooMatchups(integrationId: number, teamKey: string) {
-  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
-  if (tokenError || !access_token) {
-    return { error: tokenError || 'Failed to get Yahoo access token.' };
+export async function getYahooMatchups(
+  integrationId: number,
+  teamKey: string,
+  accessToken?: string,
+  week?: number | string
+) {
+  let resolvedAccessToken = accessToken;
+  if (!resolvedAccessToken) {
+    const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+    if (tokenError || !access_token) {
+      return { error: tokenError || 'Failed to get Yahoo access token.' };
+    }
+
+    resolvedAccessToken = access_token;
   }
 
-  const week = await getCurrentNflWeek();
-  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/matchups;weeks=${week}?format=json`;
+  const hasProvidedWeek =
+    typeof week === 'number' || (typeof week === 'string' && week.trim() !== '');
+  const resolvedWeek = hasProvidedWeek ? week : await getCurrentNflWeek();
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/matchups;weeks=${resolvedWeek}?format=json`;
 
   try {
     const { data, error } = await fetchJson<any>(url, {
       headers: {
-        'Authorization': `Bearer ${access_token}`,
+        'Authorization': `Bearer ${resolvedAccessToken}`,
         'Accept': 'application/json',
       },
     });
@@ -594,19 +617,31 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
  * @param teamKey - The key of the team.
  * @returns A list of player scores or an error.
  */
-export async function getYahooPlayerScores(integrationId: number, teamKey: string) {
-  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
-  if (tokenError || !access_token) {
-    return { error: tokenError || 'Failed to get Yahoo access token.' };
+export async function getYahooPlayerScores(
+  integrationId: number,
+  teamKey: string,
+  accessToken?: string,
+  week?: number | string
+) {
+  let resolvedAccessToken = accessToken;
+  if (!resolvedAccessToken) {
+    const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+    if (tokenError || !access_token) {
+      return { error: tokenError || 'Failed to get Yahoo access token.' };
+    }
+
+    resolvedAccessToken = access_token;
   }
 
-  const week = await getCurrentNflWeek();
-  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;week=${week}/players/stats?format=json`;
+  const hasProvidedWeek =
+    typeof week === 'number' || (typeof week === 'string' && week.trim() !== '');
+  const resolvedWeek = hasProvidedWeek ? week : await getCurrentNflWeek();
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${teamKey}/roster;week=${resolvedWeek}/players/stats?format=json`;
 
   try {
     const { data, error } = await fetchJson<any>(url, {
       headers: {
-        'Authorization': `Bearer ${access_token}`,
+        'Authorization': `Bearer ${resolvedAccessToken}`,
         'Accept': 'application/json',
       },
       disableCache: true,
