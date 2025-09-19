@@ -280,12 +280,14 @@ describe('actions', () => {
             name: 'Yahoo User Team',
             totalPoints: '120',
             team_key: 'user-team-key',
+            projectedPoints: '130.5',
           },
           opponentTeam: {
             team_id: 'opp-team-id',
             name: 'Yahoo Opponent Team',
             totalPoints: '110',
             team_key: 'opp-team-key',
+            projectedPoints: '118.25',
           },
         },
         error: null,
@@ -339,6 +341,8 @@ describe('actions', () => {
       expect(result[0].opponent.players[0].imageUrl).toBe(
         'https://sleepercdn.com/images/v2/icons/player_default.webp'
       );
+      expect(result[0].projectedScore).toBe(130.5);
+      expect(result[0].opponent.projectedScore).toBe(118.25);
     });
 
     it('skips team when user roster fetch fails while still requesting opponent roster', async () => {

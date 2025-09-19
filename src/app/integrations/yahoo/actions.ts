@@ -564,20 +564,42 @@ export async function getYahooMatchups(integrationId: number, teamKey: string) {
     const parsedUserTeam = parseYahooTeamData(userTeamData.team[0]);
     const parsedOpponentTeam = parseYahooTeamData(opponentTeamData.team[0]);
 
+    const extractTeamScoring = (teamData: any) => {
+      let totalPoints = teamData?.team_points?.total;
+      let projectedPoints = teamData?.team_projected_points?.total;
+
+      const entries = Array.isArray(teamData?.team) ? teamData.team : [];
+      for (const entry of entries) {
+        if (entry?.team_points?.total !== undefined) {
+          totalPoints = entry.team_points.total;
+        }
+        if (entry?.team_projected_points?.total !== undefined) {
+          projectedPoints = entry.team_projected_points.total;
+        }
+      }
+
+      return { totalPoints, projectedPoints };
+    };
+
+    const userScoring = extractTeamScoring(userTeamData);
+    const opponentScoring = extractTeamScoring(opponentTeamData);
+
     const matchup = {
       userTeam: {
         team_key: parsedUserTeam.team_key,
         team_id: parsedUserTeam.team_id,
         name: parsedUserTeam.name,
         logo_url: parsedUserTeam.team_logos?.[0]?.team_logo?.url,
-        totalPoints: userTeamData.team[1]?.team_points?.total,
+        totalPoints: userScoring.totalPoints,
+        projectedPoints: userScoring.projectedPoints,
       },
       opponentTeam: {
         team_key: parsedOpponentTeam.team_key,
         team_id: parsedOpponentTeam.team_id,
         name: parsedOpponentTeam.name,
         logo_url: parsedOpponentTeam.team_logos?.[0]?.team_logo?.url,
-        totalPoints: opponentTeamData.team[1]?.team_points?.total,
+        totalPoints: opponentScoring.totalPoints,
+        projectedPoints: opponentScoring.projectedPoints,
       },
     };
 

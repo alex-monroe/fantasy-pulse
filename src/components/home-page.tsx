@@ -122,6 +122,9 @@ function AppContent({
   const opponentPlayersByPosition = groupPlayersByPosition(opponentStarters);
   const positions = ['QB', 'WR', 'RB', 'TE', 'Other'];
 
+  const formatProjection = (score?: number) =>
+    typeof score === 'number' && Number.isFinite(score) ? score.toFixed(1) : null;
+
   const handleRefreshClick = () => {
     void onRefresh();
   };
@@ -160,23 +163,38 @@ function AppContent({
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
-                    {teams.map((team, index) => (
+                    {teams.map((team, index) => {
+                      const userProjection = formatProjection(team.projectedScore);
+                      const opponentProjection = formatProjection(team.opponent?.projectedScore);
+
+                      return (
                         <Card key={team.id} className="p-4">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                                    <div>
-                                        <p className="font-semibold">{team.name}</p>
-                                        <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
-                                    <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
-                                </div>
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                              <div>
+                                <p className="font-semibold">{team.name}</p>
+                                <p className="text-sm text-muted-foreground">vs {team.opponent.name}</p>
+                              </div>
                             </div>
+                            <div className="text-right space-y-3">
+                              <div>
+                                <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
+                                {userProjection && (
+                                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Proj {userProjection}</p>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
+                                {opponentProjection && (
+                                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Proj {opponentProjection}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </Card>
-                    ))}
+                      );
+                    })}
                 </CardContent>
              </Card>
 

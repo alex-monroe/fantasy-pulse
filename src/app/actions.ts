@@ -360,6 +360,17 @@ export async function buildYahooTeams(
   const teams: Team[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
+  const parseScoreValue = (value: unknown): number | undefined => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : undefined;
+    }
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  };
+
   for (const team of yahooApiTeams) {
     const { matchups, error: matchupsError } = await getYahooMatchups(
       integration.id,
@@ -465,10 +476,12 @@ export async function buildYahooTeams(
       id: team.id,
       name: userTeam.name,
       totalScore: parseFloat(userTeam.totalPoints) || 0,
+      projectedScore: parseScoreValue(userTeam.projectedPoints),
       players: mappedUserPlayers,
       opponent: {
         name: opponentTeam.name,
         totalScore: parseFloat(opponentTeam.totalPoints) || 0,
+        projectedScore: parseScoreValue(opponentTeam.projectedPoints),
         players: mappedOpponentPlayers,
       },
     });
