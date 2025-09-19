@@ -42,6 +42,12 @@ export type Player = {
   score: number;
   /** The status of the player's game. */
   gameStatus: string;
+  /** The scheduled kickoff time for the player's game, if known. */
+  gameStartTime: string | null;
+  /** The current quarter for games in progress. */
+  gameQuarter: string | null;
+  /** The current game clock for games in progress. */
+  gameClock: string | null;
   /** The number of user's teams the player is on. */
   onUserTeams: number;
   /** The number of opponent's teams the player is on. */

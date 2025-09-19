@@ -8,6 +8,51 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
+function formatKickoffTime(gameStartTime: string | null): string | null {
+  if (!gameStartTime) {
+    return null;
+  }
+
+  const kickoffDate = new Date(gameStartTime);
+  if (Number.isNaN(kickoffDate.getTime())) {
+    return null;
+  }
+
+  try {
+    const day = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(kickoffDate);
+    const time = new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(kickoffDate);
+    return `${day} ${time}`;
+  } catch {
+    return null;
+  }
+}
+
+export function getGameStatusLabel(player: GroupedPlayer): string | null {
+  const status = player.gameStatus?.toLowerCase?.() ?? '';
+
+  if ((status === 'pregame' || status === 'pre') && player.gameStartTime) {
+    return formatKickoffTime(player.gameStartTime);
+  }
+
+  if (status === 'in_progress' || status === 'in' || status === 'in-progress') {
+    const quarter = player.gameQuarter?.trim() || null;
+    const clock = player.gameClock?.trim() || null;
+    if (quarter || clock) {
+      return [quarter, clock].filter(Boolean).join(' ').trim();
+    }
+  }
+
+  if (status === 'final' || status === 'post') {
+    const detail = player.gameQuarter?.trim();
+    return detail && detail.length > 0 ? detail : 'Final';
+  }
+
+  return null;
+}
+
 /**
  * A card that displays information about a player.
  * @param player - The player to display.
@@ -17,6 +62,7 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
     const matchupColors = player.onBench
         ? player.matchupColors
         : player.matchupColors.filter((matchup) => !matchup.onBench);
+    const statusLabel = getGameStatusLabel(player);
 
     return (
         <TooltipProvider>
@@ -40,6 +86,9 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground">{player.position} - {player.realTeam}</p>
+                    {statusLabel && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{statusLabel}</p>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground mr-2">
                     {player.onUserTeams > 0 && (
