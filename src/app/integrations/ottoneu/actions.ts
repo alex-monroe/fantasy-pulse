@@ -302,6 +302,27 @@ export async function connectOttoneu(
 
   const { teamName, leagueName, leagueId, teamId, matchup } = info;
 
+  const {
+    data: existingIntegration,
+    error: existingIntegrationError,
+  } = await supabase
+    .from('user_integrations')
+    .select('id')
+    .match({
+      user_id: user.id,
+      provider: 'ottoneu',
+      provider_user_id: teamId,
+    })
+    .single();
+
+  if (existingIntegrationError && existingIntegrationError.code !== 'PGRST116') {
+    return { error: existingIntegrationError.message };
+  }
+
+  if (existingIntegration) {
+    return { error: 'This Ottoneu team is already connected.' };
+  }
+
   const { data: integration, error: insertError } = await supabase
     .from('user_integrations')
     .insert({

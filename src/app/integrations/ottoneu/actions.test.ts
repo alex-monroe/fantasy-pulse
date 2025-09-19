@@ -182,11 +182,22 @@ describe('ottoneu actions', () => {
 
   describe('connectOttoneu', () => {
     const buildSupabase = () => {
-      const singleMock = jest
+      const existingSingleMock = jest.fn().mockResolvedValue({
+        data: null,
+        error: { code: 'PGRST116', message: 'No rows' },
+      });
+      const matchMock = jest.fn().mockReturnValue({ single: existingSingleMock });
+      const selectExistingMock = jest.fn().mockReturnValue({ match: matchMock });
+
+      const insertSingleMock = jest
         .fn()
         .mockResolvedValue({ data: { id: 42 }, error: null });
-      const selectMock = jest.fn().mockReturnValue({ single: singleMock });
-      const insertMock = jest.fn().mockReturnValue({ select: selectMock });
+      const selectAfterInsertMock = jest
+        .fn()
+        .mockReturnValue({ single: insertSingleMock });
+      const insertMock = jest
+        .fn()
+        .mockReturnValue({ select: selectAfterInsertMock });
       const upsertMock = jest.fn().mockResolvedValue({ error: null });
 
       const supabase = {
@@ -197,7 +208,10 @@ describe('ottoneu actions', () => {
         },
         from: jest.fn((table: string) => {
           if (table === 'user_integrations') {
-            return { insert: insertMock } as any;
+            return {
+              insert: insertMock,
+              select: selectExistingMock,
+            } as any;
           }
           if (table === 'leagues') {
             return { upsert: upsertMock } as any;
@@ -206,11 +220,27 @@ describe('ottoneu actions', () => {
         }),
       } as any;
 
-      return { supabase, insertMock, upsertMock };
+      return {
+        supabase,
+        insertMock,
+        insertSingleMock,
+        matchMock,
+        selectExistingMock,
+        existingSingleMock,
+        upsertMock,
+      };
     };
 
     it('connects using league page and team name', async () => {
-      const { supabase, insertMock, upsertMock } = buildSupabase();
+      const {
+        supabase,
+        insertMock,
+        insertSingleMock,
+        matchMock,
+        selectExistingMock,
+        existingSingleMock,
+        upsertMock,
+      } = buildSupabase();
       createClient.mockReturnValue(supabase);
 
       fetchMock
@@ -238,11 +268,19 @@ describe('ottoneu actions', () => {
         1,
         'https://ottoneu.fangraphs.com/football/309/'
       );
+      expect(selectExistingMock).toHaveBeenCalledWith('id');
+      expect(matchMock).toHaveBeenCalledWith({
+        user_id: 'user-1',
+        provider: 'ottoneu',
+        provider_user_id: '2514',
+      });
+      expect(existingSingleMock).toHaveBeenCalled();
       expect(insertMock).toHaveBeenCalledWith({
         user_id: 'user-1',
         provider: 'ottoneu',
         provider_user_id: '2514',
       });
+      expect(insertSingleMock).toHaveBeenCalled();
       expect(upsertMock).toHaveBeenCalledWith({
         league_id: '309',
         name: 'The SOFA',
@@ -253,6 +291,47 @@ describe('ottoneu actions', () => {
         leagueName: 'The SOFA',
       });
       expect(result.matchup).toBeUndefined();
+    });
+
+    it('returns error when team is already connected', async () => {
+      const {
+        supabase,
+        existingSingleMock,
+        insertMock,
+        upsertMock,
+      } = buildSupabase();
+      existingSingleMock.mockResolvedValueOnce({
+        data: { id: 99 },
+        error: null,
+      });
+      createClient.mockReturnValue(supabase);
+
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              '<section class="section-container"><header class="section-container-header"><h3 class="section-container-header__title">2025 Standings</h3></header><div class="table-container"><table><thead><tr><th>Team</th><th>Record</th><th>PF</th><th>PA</th></tr></thead><tbody><tr><td><a href="/football/309/team/2514">The Witchcraft</a></td><td>1-1</td><td>207.16</td><td>230.02</td></tr></tbody></table></div></section>'
+            ),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              '<span class="teamName">The Witchcraft</span><a href="/football/309/"><span class="desktop-navigation">The SOFA</span></a>'
+            ),
+        });
+
+      const result = await actions.connectOttoneu(
+        'https://ottoneu.fangraphs.com/football/309/',
+        'The Witchcraft'
+      );
+
+      expect(result).toEqual({
+        error: 'This Ottoneu team is already connected.',
+      });
+      expect(insertMock).not.toHaveBeenCalled();
+      expect(upsertMock).not.toHaveBeenCalled();
     });
 
     it('returns error when team cannot be found', async () => {
