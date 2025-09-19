@@ -44,6 +44,16 @@ const TEAM_ABBREVIATION_ALIASES: Record<string, string[]> = {
   JAX: ['JAC'],
 };
 
+const SLEEPER_PLAYERS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type SleeperPlayersResources = {
+  playersData: Record<string, SleeperPlayer>;
+  playerNameMap: { [key: string]: string };
+};
+
+let sleeperPlayersCachePromise: Promise<SleeperPlayersResources> | null = null;
+let sleeperPlayersCacheExpiresAt = 0;
+
 type TeamGameInfo = {
   status: 'pregame' | 'in_progress' | 'final';
   startDate: string | null;
@@ -344,18 +354,116 @@ export async function getCurrentNflWeek() {
   return nflState.week;
 }
 
+async function loadSleeperPlayersResources(): Promise<SleeperPlayersResources> {
+  const playersFetchStart = startTimer();
+  const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
+  logDuration('getTeams: fetch Sleeper players', playersFetchStart, {
+    status: playersResponse.status,
+    ok: playersResponse.ok,
+  });
+
+  const playersParseStart = startTimer();
+  const playersJson = await playersResponse.json();
+  logDuration('getTeams: parse Sleeper players response', playersParseStart);
+
+  const playersData =
+    playersJson && typeof playersJson === 'object'
+      ? (playersJson as Record<string, SleeperPlayer>)
+      : ({} as Record<string, SleeperPlayer>);
+
+  const playerNameMap: { [key: string]: string } = {};
+  const playerMapBuildStart = startTimer();
+  const playerIds = Object.keys(playersData);
+  const totalPlayers = playerIds.length;
+
+  const addPlayerName = (name: string | null | undefined, playerId: string) => {
+    if (!name) {
+      return;
+    }
+
+    const normalizedName = normalizePlayerName(name);
+    if (!normalizedName) {
+      return;
+    }
+
+    playerNameMap[normalizedName] = playerId;
+
+    const sanitizedName = sanitizePlayerName(name);
+    if (sanitizedName && sanitizedName !== normalizedName) {
+      playerNameMap[sanitizedName] = playerId;
+    }
+  };
+
+  for (const playerId of playerIds) {
+    const player = playersData[playerId];
+    if (!player) {
+      continue;
+    }
+
+    addPlayerName(player.full_name ?? null, playerId);
+
+    const combinedName = [player.first_name, player.last_name]
+      .filter((part) => part && part.trim())
+      .join(' ');
+    addPlayerName(combinedName || null, playerId);
+  }
+
+  logDuration('getTeams: build Sleeper player name map', playerMapBuildStart, {
+    totalPlayers,
+    uniqueNames: Object.keys(playerNameMap).length,
+  });
+
+  return { playersData, playerNameMap };
+}
+
+export async function getSleeperPlayersResources({
+  forceRefresh = false,
+}: { forceRefresh?: boolean } = {}): Promise<SleeperPlayersResources> {
+  const now = Date.now();
+
+  if (!forceRefresh && sleeperPlayersCachePromise && now < sleeperPlayersCacheExpiresAt) {
+    return sleeperPlayersCachePromise;
+  }
+
+  const loadPromise = loadSleeperPlayersResources()
+    .then((result) => {
+      sleeperPlayersCacheExpiresAt = Date.now() + SLEEPER_PLAYERS_CACHE_TTL_MS;
+      return result;
+    })
+    .catch((error) => {
+      if (sleeperPlayersCachePromise === loadPromise) {
+        sleeperPlayersCachePromise = null;
+        sleeperPlayersCacheExpiresAt = 0;
+      }
+      throw error;
+    });
+
+  sleeperPlayersCachePromise = loadPromise;
+  sleeperPlayersCacheExpiresAt = Number.POSITIVE_INFINITY;
+
+  return sleeperPlayersCachePromise;
+}
+
+export async function invalidateSleeperPlayersCache() {
+  sleeperPlayersCachePromise = null;
+  sleeperPlayersCacheExpiresAt = 0;
+}
+
 /**
  * Builds teams for a Sleeper integration.
  * @param integration The sleeper integration record.
  * @param week The current NFL week.
- * @param playersData Sleeper players data.
+ * @param playerResources Sleeper players data and lookup map.
  * @returns A list of teams from Sleeper.
  */
 export async function buildSleeperTeams(
   integration: { id: number; provider_user_id: string },
   week: number,
-  playersData: Record<string, SleeperPlayer>
+  playerResources?: SleeperPlayersResources
 ): Promise<Team[]> {
+  const { playersData } =
+    playerResources ?? (await getSleeperPlayersResources());
+
   const { leagues, error: leaguesError } = await getSleeperLeagues(integration.id);
   if (leaguesError || !leagues) {
     return [];
@@ -953,55 +1061,8 @@ export async function getTeams() {
     }
   })();
 
-  const playersFetchStart = startTimer();
-  const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
-  logDuration('getTeams: fetch Sleeper players', playersFetchStart, {
-    status: playersResponse.status,
-    ok: playersResponse.ok,
-  });
-
-  const playersParseStart = startTimer();
-  const playersData = await playersResponse.json();
-  logDuration('getTeams: parse Sleeper players response', playersParseStart);
-
-  const playerNameMap: { [key: string]: string } = {};
-  const playerMapBuildStart = startTimer();
-  const totalPlayers =
-    playersData && typeof playersData === 'object'
-      ? Object.keys(playersData).length
-      : 0;
-  const addPlayerName = (name: string | null | undefined, playerId: string) => {
-    if (!name) {
-      return;
-    }
-
-    const normalizedName = normalizePlayerName(name);
-    if (!normalizedName) {
-      return;
-    }
-
-    playerNameMap[normalizedName] = playerId;
-
-    const sanitizedName = sanitizePlayerName(name);
-    if (sanitizedName && sanitizedName !== normalizedName) {
-      playerNameMap[sanitizedName] = playerId;
-    }
-  };
-
-  for (const playerId in playersData) {
-    const player = playersData[playerId];
-    addPlayerName(player.full_name ?? null, playerId);
-
-    const combinedName = [player.first_name, player.last_name]
-      .filter((part) => part && part.trim())
-      .join(' ');
-    addPlayerName(combinedName || null, playerId);
-  }
-
-  logDuration('getTeams: build Sleeper player name map', playerMapBuildStart, {
-    totalPlayers,
-    uniqueNames: Object.keys(playerNameMap).length,
-  });
+  const sleeperPlayerResources = await getSleeperPlayersResources();
+  const { playersData, playerNameMap } = sleeperPlayerResources;
 
   const integrationPromises = integrations.map((integration) => {
     const integrationStart = startTimer();
@@ -1011,7 +1072,11 @@ export async function getTeams() {
     let builderPromise: Promise<Team[]> | null = null;
 
     if (integration.provider === 'sleeper') {
-      builderPromise = teamBuilders.buildSleeperTeams(integration, week, playersData);
+      builderPromise = teamBuilders.buildSleeperTeams(
+        integration,
+        week,
+        sleeperPlayerResources
+      );
     } else if (integration.provider === 'yahoo') {
       builderPromise = teamBuilders.buildYahooTeams(integration, playerNameMap);
     } else if (integration.provider === 'ottoneu') {

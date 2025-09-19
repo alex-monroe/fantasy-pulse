@@ -1,5 +1,5 @@
 import * as actions from './actions';
-const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
+const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCache } = actions;
 import { mapSleeperPlayer } from '@/lib/sleeper';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
@@ -101,7 +101,7 @@ describe('actions', () => {
 
   let consoleErrorSpy: jest.SpyInstance;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     (fetch as jest.Mock).mockReset();
 
@@ -116,6 +116,7 @@ describe('actions', () => {
     (getOttoneuTeamInfo as jest.Mock).mockClear();
     (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await invalidateSleeperPlayersCache();
   });
 
   afterEach(() => {
@@ -215,7 +216,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        { playersData: mockPlayersData, playerNameMap: {} }
       );
       expect(result).toEqual([]);
     });
@@ -234,7 +235,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        { playersData: mockPlayersData, playerNameMap: {} }
       );
 
       expect(result).toHaveLength(1);
@@ -255,7 +256,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        { playersData: mockPlayersData, playerNameMap: {} }
       );
 
       expect(result).toEqual([]);
@@ -301,7 +302,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        playersDataWithMissing
+        { playersData: playersDataWithMissing, playerNameMap: {} }
       );
 
       expect(result).toHaveLength(1);
