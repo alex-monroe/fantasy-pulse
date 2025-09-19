@@ -14,6 +14,10 @@ import { Badge } from "@/components/ui/badge";
  * @returns A card that displays information about a player.
  */
 export function PlayerCard({ player }: { player: GroupedPlayer }) {
+    const matchupColors = player.onBench
+        ? player.matchupColors
+        : player.matchupColors.filter((matchup) => !matchup.onBench);
+
     return (
         <TooltipProvider>
             <Card className={cn(
@@ -26,8 +30,12 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                         <p className="text-xs sm:text-sm font-semibold leading-tight">{player.name}</p>
                         {player.onBench && <Badge variant="secondary">BN</Badge>}
                         <div className="flex items-center gap-1">
-                            {player.matchupColors.map((color, index) => (
-                                <div key={index} className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                            {matchupColors.map((matchup, index) => (
+                                <div
+                                    key={`${matchup.color}-${index}`}
+                                    className="w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: matchup.color }}
+                                />
                             ))}
                         </div>
                     </div>

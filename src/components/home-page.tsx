@@ -65,6 +65,19 @@ function AppContent({
 }) {
   const colors = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
 
+  const addMatchupColor = (
+    matchupColors: GroupedPlayer['matchupColors'],
+    color: string,
+    onBench: boolean
+  ) => {
+    const existingMatchup = matchupColors.find((matchup) => matchup.color === color);
+    if (existingMatchup) {
+      existingMatchup.onBench = existingMatchup.onBench && onBench;
+    } else {
+      matchupColors.push({ color, onBench });
+    }
+  };
+
   const groupPlayers = (
     players: Player[],
     existingPlayers: Map<string, GroupedPlayer>,
@@ -76,11 +89,13 @@ function AppContent({
         if (existingPlayers.has(key)) {
           const existingPlayer = existingPlayers.get(key)!;
           existingPlayer.count++;
-          if (!existingPlayer.matchupColors.includes(color)) {
-            existingPlayer.matchupColors.push(color);
-          }
+          addMatchupColor(existingPlayer.matchupColors, color, player.onBench);
         } else {
-          existingPlayers.set(key, { ...player, count: 1, matchupColors: [color] });
+          existingPlayers.set(key, {
+            ...player,
+            count: 1,
+            matchupColors: [{ color, onBench: player.onBench }],
+          });
         }
       }
     });

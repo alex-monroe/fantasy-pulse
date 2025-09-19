@@ -19,7 +19,7 @@ describe('PlayerCard', () => {
     },
     imageUrl: 'https://example.com/player.jpg',
     onBench: false,
-    matchupColors: ['#000000'],
+    matchupColors: [{ color: '#000000', onBench: false }],
     count: 1,
   }
 
