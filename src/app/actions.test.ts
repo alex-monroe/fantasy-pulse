@@ -796,6 +796,11 @@ describe('actions', () => {
       });
 
       const matchupHtml = `
+        <div class="team-scores">
+          <div class="home-team-details"><a href="#">My Team</a></div>
+          <div class="versus-spacer">vs.</div>
+          <div class="away-team-details"><a href="#">Opponent</a></div>
+        </div>
         <div class="game-page-home-team-name">My Team</div>
         <div class="game-page-away-team-name">Opponent</div>
         <table class="game-details-table"><tbody>
@@ -886,6 +891,82 @@ describe('actions', () => {
       expect(result.teams[0].totalScore).toBe(10);
       expect(result.teams[0].opponent.name).toBe('Opponent');
       expect(result.teams[0].opponent.totalScore).toBe(20);
+    });
+
+    it('uses team-scores header when team appears on the away side', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'ottoneu', provider_user_id: '2514' },
+        ],
+        error: null,
+      });
+
+      const matchupHtml = `
+        <div class="team-scores">
+          <div class="home-team-details"><a href="#">Opponent</a></div>
+          <div class="versus-spacer">vs.</div>
+          <div class="away-team-details"><a href="#">My Team</a></div>
+        </div>
+        <table class="game-details-table"><tbody>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-5"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-5" data-position="QB" data-player-id="5">
+              <span class="player-link-desktop"><a href="#">Opp QB</a> <span class="smaller">NYJ QB</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-5">7.5</td>
+            <td class="game-details-position"><span class="position">QB</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-6">12.3</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-6" data-position="QB" data-player-id="6">
+              <span class="player-link-desktop"><a href="#">User QB</a> <span class="smaller">BUF QB</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-6"></td>
+          </tr>
+        </tbody></table>
+      `;
+
+      const sleeperPlayersData = {
+        '5': { full_name: 'Opp QB', first_name: 'Opp', last_name: 'QB', position: 'QB' },
+        '6': { full_name: 'User QB', first_name: 'User', last_name: 'QB', position: 'QB' },
+      } as Record<string, SleeperPlayer>;
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(sleeperPlayersData) })
+        .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(matchupHtml) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+        matchup: {
+          opponentName: 'Opponent',
+          teamScore: 10,
+          opponentScore: 20,
+          url: '/football/309/game/1',
+        },
+      });
+
+      const result = await getTeams();
+
+      expect(result.teams).toHaveLength(1);
+      expect(result.teams[0].players).toHaveLength(1);
+      expect(result.teams[0].players[0]).toMatchObject({
+        id: '6',
+        name: 'User QB',
+        realTeam: 'BUF',
+        score: 12.3,
+      });
+      expect(result.teams[0].opponent.players).toHaveLength(1);
+      expect(result.teams[0].opponent.players[0]).toMatchObject({
+        id: '5',
+        name: 'Opp QB',
+        score: 7.5,
+      });
     });
   });
 
