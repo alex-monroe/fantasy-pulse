@@ -8,7 +8,32 @@ const LOGIN_ROUTE = '/login'
 const isAuthRoute = (pathname: string) =>
   AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
-const isStaticAsset = (pathname: string) => /\.[^/]+$/.test(pathname)
+const isStaticAsset = (pathname: string) =>
+  !pathname.startsWith('/_next/data') && /\.[^/]+$/.test(pathname)
+
+const getRouteFromDataRequest = (pathname: string) => {
+  if (!pathname.startsWith('/_next/data/')) {
+    return pathname
+  }
+
+  const segments = pathname.replace('/_next/data/', '').split('/')
+
+  if (segments.length < 2) {
+    return pathname
+  }
+
+  segments.shift()
+
+  const fileName = segments.pop()
+
+  if (!fileName) {
+    return '/'
+  }
+
+  const routePath = fileName === 'index.json' ? '' : fileName.replace(/\.json$/, '')
+
+  return `/${[...segments, routePath].filter(Boolean).join('/')}` || '/'
+}
 
 const redirectWithCookies = (url: URL, baseResponse: NextResponse) => {
   const response = NextResponse.redirect(url)
@@ -82,9 +107,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  const originalPathname = request.nextUrl.pathname
+  const pathname = getRouteFromDataRequest(originalPathname)
 
-  if (pathname.startsWith('/api') || isStaticAsset(pathname)) {
+  if (originalPathname.startsWith('/api') || isStaticAsset(originalPathname)) {
     return response
   }
 
