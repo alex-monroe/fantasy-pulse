@@ -147,7 +147,7 @@ function AppContent({
           </div>
         )}
       />
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-8">
+      <main className="flex-1 overflow-y-auto p-2 sm:p-6 md:p-8 space-y-8">
           <h1 className="text-2xl font-semibold tracking-tight">Matchup Overview</h1>
           {refreshError && (
             <Alert variant="destructive">
@@ -159,7 +159,7 @@ function AppContent({
                 <CardHeader>
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
+                <CardContent className="grid gap-2 sm:gap-4 md:grid-cols-2">
                     {teams.map((team, index) => (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
@@ -180,7 +180,7 @@ function AppContent({
                 </CardContent>
              </Card>
 
-            <div className="grid grid-cols-2 gap-4 items-start">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 items-start">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>My Players</CardTitle>
