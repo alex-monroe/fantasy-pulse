@@ -690,6 +690,12 @@ export async function buildYahooTeams(
 
   const buildTeam = async (team: any): Promise<Team | null> => {
     const pipelineStart = startTimer();
+    const userPlayerScoresPromise = getYahooPlayerScores(
+      integration.id,
+      team.team_key,
+      resolvedAccessToken,
+      resolvedWeek
+    );
 
     try {
       const { matchups, error: matchupsError } = await getYahooMatchups(
@@ -700,6 +706,7 @@ export async function buildYahooTeams(
       );
 
       if (matchupsError || !matchups) {
+        await Promise.allSettled([userPlayerScoresPromise]);
         logDuration('buildYahooTeams: team pipeline', pipelineStart, {
           integrationId: integration.id,
           leagueId: team.league_id,
@@ -737,6 +744,7 @@ export async function buildYahooTeams(
         opponentRosterError ||
         !opponentPlayers
       ) {
+        await Promise.allSettled([userPlayerScoresPromise]);
         logDuration('buildYahooTeams: team pipeline', pipelineStart, {
           integrationId: integration.id,
           leagueId: team.league_id,
@@ -750,12 +758,7 @@ export async function buildYahooTeams(
       }
 
       const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
-        getYahooPlayerScores(
-          integration.id,
-          userTeam.team_key,
-          resolvedAccessToken,
-          resolvedWeek
-        ),
+        userPlayerScoresPromise,
         getYahooPlayerScores(
           integration.id,
           opponentTeam.team_key,
@@ -853,6 +856,7 @@ export async function buildYahooTeams(
         },
       };
     } catch (error) {
+      await Promise.allSettled([userPlayerScoresPromise]);
       logDuration('buildYahooTeams: team pipeline', pipelineStart, {
         integrationId: integration.id,
         leagueId: team.league_id,
