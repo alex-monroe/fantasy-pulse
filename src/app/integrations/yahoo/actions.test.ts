@@ -115,7 +115,16 @@ describe('yahoo actions', () => {
       player_key: '461.p.40896',
       name: 'Jayden Daniels',
       totalPoints: '19.70',
+      display_position: 'QB',
+      editorial_team_abbr: 'Was',
+      selected_position: 'QB',
+      onBench: false,
     });
+
+    const benchPlayer = result.players.find(
+      (player: any) => player.selected_position === 'BN'
+    );
+    expect(benchPlayer?.onBench).toBe(true);
   });
 
   it('parses roster correctly', async () => {

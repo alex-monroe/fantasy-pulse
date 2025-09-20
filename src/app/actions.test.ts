@@ -6,7 +6,6 @@ import { createClient } from '@/utils/supabase/server';
 import { getLeagues } from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
-  getYahooRoster,
   getYahooMatchups,
   getYahooPlayerScores,
   getYahooAccessToken,
@@ -26,7 +25,6 @@ jest.mock('@/app/integrations/sleeper/actions', () => ({
 
 jest.mock('@/app/integrations/yahoo/actions', () => ({
   getYahooUserTeams: jest.fn(),
-  getYahooRoster: jest.fn(),
   getYahooMatchups: jest.fn(),
   getYahooPlayerScores: jest.fn(),
   getYahooAccessToken: jest.fn(),
@@ -108,7 +106,6 @@ describe('actions', () => {
     (createClient as jest.Mock).mockReturnValue(mockSupabase);
     (getLeagues as jest.Mock).mockClear();
     (getYahooUserTeams as jest.Mock).mockClear();
-    (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
     (getYahooPlayerScores as jest.Mock).mockClear();
     (getYahooAccessToken as jest.Mock).mockClear();
@@ -360,7 +357,7 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock)
+      (getYahooPlayerScores as jest.Mock)
         .mockResolvedValueOnce({
           players: [
             {
@@ -369,7 +366,7 @@ describe('actions', () => {
               display_position: 'QB',
               editorial_team_abbr: 'TEAMC',
               onBench: false,
-              headshot: 'img1',
+              totalPoints: '25',
             },
           ],
           error: null,
@@ -381,20 +378,10 @@ describe('actions', () => {
               name: 'Player Two',
               display_position: 'WR',
               editorial_team_abbr: 'TEAMD',
-              onBench: false,
-              headshot: 'img2',
+              onBench: true,
+              totalPoints: 15,
             },
           ],
-          error: null,
-        });
-
-      (getYahooPlayerScores as jest.Mock)
-        .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          players: [{ player_key: 'p2', totalPoints: 15 }],
           error: null,
         });
 
@@ -402,6 +389,16 @@ describe('actions', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Yahoo User Team');
+      expect(result[0].players[0]).toMatchObject({
+        id: 'p1',
+        score: 25,
+        onBench: false,
+      });
+      expect(result[0].opponent.players[0]).toMatchObject({
+        id: 'p2',
+        score: 15,
+        onBench: true,
+      });
       expect(result[0].players[0].imageUrl).toBe(
         'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
       );
@@ -415,21 +412,23 @@ describe('actions', () => {
         'token',
         1
       );
-      expect(getYahooRoster).toHaveBeenCalledWith(
-        'int-2',
-        'yahoo-league-1',
-        'user-team-id',
-        'token'
-      );
-      expect(getYahooPlayerScores).toHaveBeenCalledWith(
+      expect(getYahooPlayerScores).toHaveBeenNthCalledWith(
+        1,
         'int-2',
         'user-team-key',
         'token',
         1
       );
+      expect(getYahooPlayerScores).toHaveBeenNthCalledWith(
+        2,
+        'int-2',
+        'opp-team-key',
+        'token',
+        1
+      );
     });
 
-    it('skips team when user roster fetch fails while still requesting opponent roster', async () => {
+    it('skips team when user player scores are missing', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
@@ -454,8 +453,8 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock)
-        .mockResolvedValueOnce({ players: null, error: 'User roster error' })
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({ players: null, error: null })
         .mockResolvedValueOnce({
           players: [
             {
@@ -464,7 +463,7 @@ describe('actions', () => {
               display_position: 'WR',
               editorial_team_abbr: 'TEAMD',
               onBench: false,
-              headshot: 'img2',
+              totalPoints: 15,
             },
           ],
           error: null,
@@ -473,11 +472,10 @@ describe('actions', () => {
       const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
 
       expect(result).toEqual([]);
-      expect(getYahooRoster).toHaveBeenCalledTimes(2);
-      expect(getYahooPlayerScores).not.toHaveBeenCalled();
+      expect(getYahooPlayerScores).toHaveBeenCalledTimes(2);
     });
 
-    it('logs and continues when player score fetch rejects', async () => {
+    it('logs an error and skips team when player score fetch rejects', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
@@ -502,20 +500,8 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock)
-        .mockResolvedValueOnce({
-          players: [
-            {
-              player_key: 'p1',
-              name: 'Player One',
-              display_position: 'QB',
-              editorial_team_abbr: 'TEAMC',
-              onBench: false,
-              headshot: 'img1',
-            },
-          ],
-          error: null,
-        })
+      (getYahooPlayerScores as jest.Mock)
+        .mockRejectedValueOnce(new Error('network error'))
         .mockResolvedValueOnce({
           players: [
             {
@@ -524,22 +510,15 @@ describe('actions', () => {
               display_position: 'WR',
               editorial_team_abbr: 'TEAMD',
               onBench: false,
-              headshot: 'img2',
+              totalPoints: 15,
             },
           ],
           error: null,
         });
 
-      (getYahooPlayerScores as jest.Mock)
-        .mockRejectedValueOnce(new Error('network error'))
-        .mockResolvedValueOnce({
-          players: [{ player_key: 'p2', totalPoints: 15 }],
-          error: null,
-        });
-
       const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
 
-      expect(result).toHaveLength(1);
+      expect(result).toEqual([]);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Could not fetch user player scores for team user-team-key',
         expect.any(Error)
@@ -649,16 +628,31 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock)
-        .mockResolvedValue({
-          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
-          error: null,
-        });
-
-
       (getYahooPlayerScores as jest.Mock)
-        .mockResolvedValue({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              onBench: false,
+              totalPoints: 25,
+            },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'RB',
+              editorial_team_abbr: 'TEAMD',
+              onBench: true,
+              totalPoints: 12,
+            },
+          ],
           error: null,
         });
 
@@ -769,18 +763,22 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
-        error: null,
-      });
-
       (getYahooPlayerScores as jest.Mock)
         .mockResolvedValueOnce({
           players: null,
           error: 'User scores fetch error',
         })
         .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              onBench: false,
+              totalPoints: 15,
+            },
+          ],
           error: null,
         });
 
@@ -817,14 +815,18 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
-        error: null,
-      });
-
       (getYahooPlayerScores as jest.Mock)
         .mockResolvedValueOnce({
-          players: [{ player_key: 'p1', totalPoints: 25 }],
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              onBench: false,
+              totalPoints: 25,
+            },
+          ],
           error: null,
         })
         .mockResolvedValueOnce({
@@ -870,23 +872,33 @@ describe('actions', () => {
         error: null,
       });
 
-      (getYahooRoster as jest.Mock).mockResolvedValue({
-        players: [
-          {
-            player_key: 'p1',
-            name: 'Player One Jr.',
-            display_position: 'QB',
-            editorial_team_abbr: 'TEAMC',
-            onBench: false,
-          },
-        ],
-        error: null,
-      });
-
-      (getYahooPlayerScores as jest.Mock).mockResolvedValue({
-        players: [{ player_key: 'p1', totalPoints: 25 }],
-        error: null,
-      });
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One Jr.',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              onBench: false,
+              totalPoints: 25,
+            },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              onBench: true,
+              totalPoints: 10,
+            },
+          ],
+          error: null,
+        });
 
       const result = await getTeams();
 

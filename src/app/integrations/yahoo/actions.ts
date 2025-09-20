@@ -683,19 +683,68 @@ export async function getYahooPlayerScores(
         // `p.player` is an array whose first element contains an array of
         // player details. The remaining elements include selected_position,
         // player_stats, player_points, etc. We need to flatten the details
-        // array and then extract the points separately.
+        // array and then extract the additional metadata and points
+        // separately.
         const playerInfo = p.player;
+
+        if (!Array.isArray(playerInfo)) {
+          return null;
+        }
+
         const detailsArray = playerInfo[0];
+        if (!Array.isArray(detailsArray)) {
+          return null;
+        }
+
         const playerDetails = parseYahooTeamData(detailsArray);
-        const pointsEntry = playerInfo.find((d: any) => d.player_points);
+        const pointsEntry = playerInfo.find((d: any) => d?.player_points);
+        const selectedPositionEntry = playerInfo.find((d: any) =>
+          Array.isArray(d?.selected_position)
+        );
+        const selectedPositionData: Record<string, any> =
+          selectedPositionEntry &&
+          Array.isArray(selectedPositionEntry.selected_position)
+            ? parseYahooTeamData(selectedPositionEntry.selected_position)
+            : {};
+
+        const selectedPosition =
+          typeof selectedPositionData.position === 'string'
+            ? selectedPositionData.position
+            : null;
+        const normalizedPosition = selectedPosition
+          ? selectedPosition.trim().toUpperCase()
+          : '';
+        const isBench =
+          normalizedPosition === 'BN' ||
+          normalizedPosition.startsWith('IR');
+
+        const eligiblePositions = Array.isArray(
+          playerDetails.eligible_positions
+        )
+          ? playerDetails.eligible_positions
+              .map((pos: any) => pos?.position)
+              .filter((pos: any): pos is string => typeof pos === 'string')
+          : undefined;
 
         return {
           player_key: playerDetails.player_key,
           player_id: playerDetails.player_id,
           name: playerDetails.name?.full,
+          editorial_player_key: playerDetails.editorial_player_key,
+          editorial_team_key: playerDetails.editorial_team_key,
+          editorial_team_full_name: playerDetails.editorial_team_full_name,
+          editorial_team_abbr: playerDetails.editorial_team_abbr,
+          bye_weeks: playerDetails.bye_weeks?.week,
+          uniform_number: playerDetails.uniform_number,
+          display_position: playerDetails.display_position,
           headshot: playerDetails.headshot?.url,
+          image_url: playerDetails.image_url,
+          is_undroppable: playerDetails.is_undroppable,
           position_type: playerDetails.position_type,
+          eligible_positions: eligiblePositions,
           totalPoints: pointsEntry?.player_points?.total,
+          selected_position: selectedPosition,
+          onBench: isBench,
         };
       })
       .filter(Boolean);

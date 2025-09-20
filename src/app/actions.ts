@@ -6,7 +6,6 @@ import { logDuration, startTimer } from '@/utils/performance-logger';
 import { getLeagues as getSleeperLeagues } from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
-  getYahooRoster,
   getYahooMatchups,
   getYahooPlayerScores,
   getYahooAccessToken,
@@ -663,19 +662,16 @@ export async function buildYahooTeams(
   const teams: Team[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
 
-  const mapYahooPlayer = (
-    player: any,
-    scoresMap: Map<string, number>
-  ): Player => {
+  const mapYahooPlayer = (player: any): Player => {
     const sleeperId = resolveSleeperId(player.name);
     const imageUrl = getSleeperHeadshotUrl(sleeperId);
 
     return {
       id: player.player_key,
       name: player.name,
-      position: player.display_position,
-      realTeam: player.editorial_team_abbr,
-      score: scoresMap.get(player.player_key) || 0,
+      position: player.display_position || '',
+      realTeam: player.editorial_team_abbr || '',
+      score: Number(player.totalPoints ?? 0) || 0,
       gameStatus: 'pregame',
       gameStartTime: null,
       gameQuarter: null,
@@ -684,7 +680,7 @@ export async function buildYahooTeams(
       onOpponentTeams: 0,
       gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
       imageUrl: imageUrl,
-      onBench: player.onBench,
+      onBench: Boolean(player.onBench),
     };
   };
 
@@ -701,33 +697,6 @@ export async function buildYahooTeams(
     }
 
     const { userTeam, opponentTeam } = matchups;
-
-    const [
-      { players: userPlayers, error: userRosterError },
-      { players: opponentPlayers, error: opponentRosterError },
-    ] = await Promise.all([
-      getYahooRoster(
-        integration.id,
-        team.league_id,
-        userTeam.team_id,
-        resolvedAccessToken
-      ),
-      getYahooRoster(
-        integration.id,
-        team.league_id,
-        opponentTeam.team_id,
-        resolvedAccessToken
-      ),
-    ]);
-
-    if (
-      userRosterError ||
-      !userPlayers ||
-      opponentRosterError ||
-      !opponentPlayers
-    ) {
-      return null;
-    }
 
     const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
       getYahooPlayerScores(
@@ -776,24 +745,15 @@ export async function buildYahooTeams(
       );
     }
 
-    const userScoresMap = new Map(
-      (userPlayerScores ?? []).map((p: any) => [
-        p.player_key,
-        Number(p.totalPoints ?? 0),
-      ])
-    );
-    const opponentScoresMap = new Map(
-      (opponentPlayerScores ?? []).map((p: any) => [
-        p.player_key,
-        Number(p.totalPoints ?? 0),
-      ])
-    );
+    if (!Array.isArray(userPlayerScores) || !Array.isArray(opponentPlayerScores)) {
+      return null;
+    }
 
-    const mappedUserPlayers: Player[] = userPlayers.map((p: any) =>
-      mapYahooPlayer(p, userScoresMap)
+    const mappedUserPlayers: Player[] = userPlayerScores.map((p: any) =>
+      mapYahooPlayer(p)
     );
-    const mappedOpponentPlayers: Player[] = opponentPlayers.map((p: any) =>
-      mapYahooPlayer(p, opponentScoresMap)
+    const mappedOpponentPlayers: Player[] = opponentPlayerScores.map((p: any) =>
+      mapYahooPlayer(p)
     );
 
     return {
