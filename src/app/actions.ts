@@ -689,6 +689,13 @@ export async function buildYahooTeams(
   };
 
   const buildTeam = async (team: any): Promise<Team | null> => {
+    const userPlayerScoresPromise = getYahooPlayerScores(
+      integration.id,
+      team.team_key,
+      resolvedAccessToken,
+      resolvedWeek
+    );
+
     const { matchups, error: matchupsError } = await getYahooMatchups(
       integration.id,
       team.team_key,
@@ -697,6 +704,7 @@ export async function buildYahooTeams(
     );
 
     if (matchupsError || !matchups) {
+      await Promise.allSettled([userPlayerScoresPromise]);
       return null;
     }
 
@@ -729,19 +737,16 @@ export async function buildYahooTeams(
       return null;
     }
 
+    const opponentPlayerScoresPromise = getYahooPlayerScores(
+      integration.id,
+      opponentTeam.team_key,
+      resolvedAccessToken,
+      resolvedWeek
+    );
+
     const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
-      getYahooPlayerScores(
-        integration.id,
-        userTeam.team_key,
-        resolvedAccessToken,
-        resolvedWeek
-      ),
-      getYahooPlayerScores(
-        integration.id,
-        opponentTeam.team_key,
-        resolvedAccessToken,
-        resolvedWeek
-      ),
+      userPlayerScoresPromise,
+      opponentPlayerScoresPromise,
     ]);
 
     let userPlayerScores: any[] | null | undefined;
