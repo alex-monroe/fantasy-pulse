@@ -689,124 +689,181 @@ export async function buildYahooTeams(
   };
 
   const buildTeam = async (team: any): Promise<Team | null> => {
-    const { matchups, error: matchupsError } = await getYahooMatchups(
-      integration.id,
-      team.team_key,
-      resolvedAccessToken,
-      resolvedWeek
-    );
+    const pipelineStart = startTimer();
 
-    if (matchupsError || !matchups) {
-      return null;
-    }
-
-    const { userTeam, opponentTeam } = matchups;
-
-    const [
-      { players: userPlayers, error: userRosterError },
-      { players: opponentPlayers, error: opponentRosterError },
-    ] = await Promise.all([
-      getYahooRoster(
+    try {
+      const { matchups, error: matchupsError } = await getYahooMatchups(
         integration.id,
-        team.league_id,
-        userTeam.team_id,
-        resolvedAccessToken
-      ),
-      getYahooRoster(
-        integration.id,
-        team.league_id,
-        opponentTeam.team_id,
-        resolvedAccessToken
-      ),
-    ]);
-
-    if (
-      userRosterError ||
-      !userPlayers ||
-      opponentRosterError ||
-      !opponentPlayers
-    ) {
-      return null;
-    }
-
-    const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
-      getYahooPlayerScores(
-        integration.id,
-        userTeam.team_key,
+        team.team_key,
         resolvedAccessToken,
         resolvedWeek
-      ),
-      getYahooPlayerScores(
-        integration.id,
-        opponentTeam.team_key,
-        resolvedAccessToken,
-        resolvedWeek
-      ),
-    ]);
+      );
 
-    let userPlayerScores: any[] | null | undefined;
-    if (userScoresResult.status === 'fulfilled') {
-      userPlayerScores = userScoresResult.value.players;
-      if (userScoresResult.value.error) {
+      if (matchupsError || !matchups) {
+        logDuration('buildYahooTeams: team pipeline', pipelineStart, {
+          integrationId: integration.id,
+          leagueId: team.league_id,
+          teamKey: team.team_key,
+          success: false,
+          stage: 'matchups',
+          errorMessage: matchupsError ?? 'No matchup returned',
+        });
+        return null;
+      }
+
+      const { userTeam, opponentTeam } = matchups;
+
+      const [
+        { players: userPlayers, error: userRosterError },
+        { players: opponentPlayers, error: opponentRosterError },
+      ] = await Promise.all([
+        getYahooRoster(
+          integration.id,
+          team.league_id,
+          userTeam.team_id,
+          resolvedAccessToken
+        ),
+        getYahooRoster(
+          integration.id,
+          team.league_id,
+          opponentTeam.team_id,
+          resolvedAccessToken
+        ),
+      ]);
+
+      if (
+        userRosterError ||
+        !userPlayers ||
+        opponentRosterError ||
+        !opponentPlayers
+      ) {
+        logDuration('buildYahooTeams: team pipeline', pipelineStart, {
+          integrationId: integration.id,
+          leagueId: team.league_id,
+          teamKey: team.team_key,
+          success: false,
+          stage: 'roster',
+          userRosterError: userRosterError ?? undefined,
+          opponentRosterError: opponentRosterError ?? undefined,
+        });
+        return null;
+      }
+
+      const [userScoresResult, opponentScoresResult] = await Promise.allSettled([
+        getYahooPlayerScores(
+          integration.id,
+          userTeam.team_key,
+          resolvedAccessToken,
+          resolvedWeek
+        ),
+        getYahooPlayerScores(
+          integration.id,
+          opponentTeam.team_key,
+          resolvedAccessToken,
+          resolvedWeek
+        ),
+      ]);
+
+      let userPlayerScores: any[] | null | undefined;
+      if (userScoresResult.status === 'fulfilled') {
+        userPlayerScores = userScoresResult.value.players;
+        if (userScoresResult.value.error) {
+          console.error(
+            `Could not fetch user player scores for team ${userTeam.team_key}`,
+            userScoresResult.value.error
+          );
+        }
+      } else {
         console.error(
           `Could not fetch user player scores for team ${userTeam.team_key}`,
-          userScoresResult.value.error
+          userScoresResult.reason || 'Unknown error'
         );
       }
-    } else {
-      console.error(
-        `Could not fetch user player scores for team ${userTeam.team_key}`,
-        userScoresResult.reason || 'Unknown error'
-      );
-    }
 
-    let opponentPlayerScores: any[] | null | undefined;
-    if (opponentScoresResult.status === 'fulfilled') {
-      opponentPlayerScores = opponentScoresResult.value.players;
-      if (opponentScoresResult.value.error) {
+      let opponentPlayerScores: any[] | null | undefined;
+      if (opponentScoresResult.status === 'fulfilled') {
+        opponentPlayerScores = opponentScoresResult.value.players;
+        if (opponentScoresResult.value.error) {
+          console.error(
+            `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
+            opponentScoresResult.value.error
+          );
+        }
+      } else {
         console.error(
           `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
-          opponentScoresResult.value.error
+          opponentScoresResult.reason || 'Unknown error'
         );
       }
-    } else {
-      console.error(
-        `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
-        opponentScoresResult.reason || 'Unknown error'
+
+      const userScoresMap = new Map(
+        (userPlayerScores ?? []).map((p: any) => [
+          p.player_key,
+          Number(p.totalPoints ?? 0),
+        ])
       );
+      const opponentScoresMap = new Map(
+        (opponentPlayerScores ?? []).map((p: any) => [
+          p.player_key,
+          Number(p.totalPoints ?? 0),
+        ])
+      );
+
+      const mappedUserPlayers: Player[] = userPlayers.map((p: any) =>
+        mapYahooPlayer(p, userScoresMap)
+      );
+      const mappedOpponentPlayers: Player[] = opponentPlayers.map((p: any) =>
+        mapYahooPlayer(p, opponentScoresMap)
+      );
+
+      const userScoreStatus =
+        userScoresResult.status === 'fulfilled'
+          ? userScoresResult.value.error
+            ? 'error'
+            : 'success'
+          : 'rejected';
+      const opponentScoreStatus =
+        opponentScoresResult.status === 'fulfilled'
+          ? opponentScoresResult.value.error
+            ? 'error'
+            : 'success'
+          : 'rejected';
+
+      logDuration('buildYahooTeams: team pipeline', pipelineStart, {
+        integrationId: integration.id,
+        leagueId: team.league_id,
+        teamKey: team.team_key,
+        success: true,
+        stage: 'complete',
+        userPlayerCount: mappedUserPlayers.length,
+        opponentPlayerCount: mappedOpponentPlayers.length,
+        userScoreStatus,
+        opponentScoreStatus,
+      });
+
+      return {
+        id: team.id,
+        name: userTeam.name,
+        totalScore: parseFloat(userTeam.totalPoints) || 0,
+        players: mappedUserPlayers,
+        opponent: {
+          name: opponentTeam.name,
+          totalScore: parseFloat(opponentTeam.totalPoints) || 0,
+          players: mappedOpponentPlayers,
+        },
+      };
+    } catch (error) {
+      logDuration('buildYahooTeams: team pipeline', pipelineStart, {
+        integrationId: integration.id,
+        leagueId: team.league_id,
+        teamKey: team.team_key,
+        success: false,
+        stage: 'exception',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      console.error('Failed to build Yahoo team pipeline', error);
+      return null;
     }
-
-    const userScoresMap = new Map(
-      (userPlayerScores ?? []).map((p: any) => [
-        p.player_key,
-        Number(p.totalPoints ?? 0),
-      ])
-    );
-    const opponentScoresMap = new Map(
-      (opponentPlayerScores ?? []).map((p: any) => [
-        p.player_key,
-        Number(p.totalPoints ?? 0),
-      ])
-    );
-
-    const mappedUserPlayers: Player[] = userPlayers.map((p: any) =>
-      mapYahooPlayer(p, userScoresMap)
-    );
-    const mappedOpponentPlayers: Player[] = opponentPlayers.map((p: any) =>
-      mapYahooPlayer(p, opponentScoresMap)
-    );
-
-    return {
-      id: team.id,
-      name: userTeam.name,
-      totalScore: parseFloat(userTeam.totalPoints) || 0,
-      players: mappedUserPlayers,
-      opponent: {
-        name: opponentTeam.name,
-        totalScore: parseFloat(opponentTeam.totalPoints) || 0,
-        players: mappedOpponentPlayers,
-      },
-    };
   };
 
   const builtTeams = await Promise.all(
