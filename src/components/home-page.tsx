@@ -159,7 +159,7 @@ function AppContent({
                 <CardHeader>
                     <CardTitle>Weekly Matchups</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
+                <CardContent className="grid gap-4 grid-cols-1 md:grid-cols-2">
                     {teams.map((team, index) => (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
@@ -180,7 +180,7 @@ function AppContent({
                 </CardContent>
              </Card>
 
-            <div className="grid grid-cols-2 gap-4 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>My Players</CardTitle>
