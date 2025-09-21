@@ -250,7 +250,7 @@ function AppContent({
           )}
           <Card>
                 <CardHeader>
-                    <CardTitle>Weekly Matchups</CardTitle>
+                    <h2 className="text-2xl font-semibold leading-none tracking-tight">Weekly Matchups</h2>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
                     {teams.map((team, index) => {
