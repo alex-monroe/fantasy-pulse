@@ -223,6 +223,11 @@ function AppContent({
       <AppNavigation
         endContent={(
           <div className="flex items-center gap-2">
+            <MatchupPrioritySelector
+              teams={priorityOrderedTeams}
+              teamColors={teamColors}
+              onPriorityChange={(order) => setMatchupPriority(order)}
+            />
             <Button
               variant="outline"
               onClick={handleRefreshClick}
@@ -243,11 +248,6 @@ function AppContent({
               <AlertDescription>{refreshError}</AlertDescription>
             </Alert>
           )}
-          <MatchupPrioritySelector
-            teams={priorityOrderedTeams}
-            teamColors={teamColors}
-            onPriorityChange={(order) => setMatchupPriority(order)}
-          />
           <Card>
                 <CardHeader>
                     <CardTitle>Weekly Matchups</CardTitle>
