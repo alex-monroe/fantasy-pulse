@@ -53,6 +53,47 @@ export function getGameStatusLabel(player: GroupedPlayer): string | null {
   return null;
 }
 
+export function getGamePercentRemaining(player: GroupedPlayer): number | null {
+  const status = player.gameStatus?.toLowerCase?.() ?? '';
+  if (status !== 'in_progress' && status !== 'in' && status !== 'in-progress') {
+    return null;
+  }
+
+  const quarterRaw = player.gameQuarter?.trim() ?? '';
+  const quarterMatch = quarterRaw.match(/(\d+)/);
+  if (!quarterMatch) {
+    return null;
+  }
+
+  const quarterNumber = Number.parseInt(quarterMatch[1], 10);
+  if (Number.isNaN(quarterNumber) || quarterNumber <= 0) {
+    return null;
+  }
+
+  const minutesPerQuarter = 15;
+  const totalQuarters = 4;
+  const totalMinutes = minutesPerQuarter * totalQuarters;
+
+  const normalizedQuarter = Math.min(Math.max(quarterNumber, 1), totalQuarters);
+  const remainingFullQuarters = Math.max(0, totalQuarters - normalizedQuarter);
+
+  const clockRaw = player.gameClock?.trim() ?? '';
+  const clockMatch = clockRaw.match(/^(\d{1,2}):(\d{2})$/);
+  let minutesRemainingInCurrentQuarter = 0;
+  if (clockMatch) {
+    const minutes = Number.parseInt(clockMatch[1], 10);
+    const seconds = Number.parseInt(clockMatch[2], 10);
+    if (!Number.isNaN(minutes) && minutes >= 0 && !Number.isNaN(seconds) && seconds >= 0) {
+      minutesRemainingInCurrentQuarter = minutes + seconds / 60;
+    }
+  }
+
+  const remainingMinutes = remainingFullQuarters * minutesPerQuarter + minutesRemainingInCurrentQuarter;
+  const percentageRemaining = (remainingMinutes / totalMinutes) * 100;
+
+  return Math.max(0, Math.min(100, percentageRemaining));
+}
+
 /**
  * A card that displays information about a player.
  * @param player - The player to display.
@@ -63,6 +104,11 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
         ? player.matchupColors
         : player.matchupColors.filter((matchup) => !matchup.onBench);
     const statusLabel = getGameStatusLabel(player);
+    const gamePercentRemaining = getGamePercentRemaining(player);
+    const formattedPercentRemaining =
+        typeof gamePercentRemaining === 'number'
+            ? `${Math.round(gamePercentRemaining)}% remaining`
+            : null;
 
     return (
         <TooltipProvider>
@@ -87,7 +133,10 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                     </div>
                     <p className="text-xs text-muted-foreground">{player.position} - {player.realTeam}</p>
                     {statusLabel && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{statusLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                          {statusLabel}
+                          {formattedPercentRemaining && ` • ${formattedPercentRemaining}`}
+                      </p>
                     )}
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground mr-2">
