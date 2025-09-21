@@ -62,7 +62,7 @@ describe('PlayerCard', () => {
     }
 
     render(<PlayerCard player={livePlayer} />)
-    expect(screen.getByText('Q3 4:12 • 32% remaining')).toBeInTheDocument()
+    expect(screen.getByText('Q3 4:12')).toBeInTheDocument()
   })
 
   it('shows the percentage remaining for a live game', () => {
@@ -74,7 +74,11 @@ describe('PlayerCard', () => {
     }
 
     render(<PlayerCard player={livePlayer} />)
-    expect(screen.getByText(/92% remaining/)).toBeInTheDocument()
+    const expectedHeight = getGamePercentRemaining(livePlayer)
+    expect(expectedHeight).not.toBeNull()
+
+    const overlay = screen.getByTestId('game-progress-overlay')
+    expect(overlay).toHaveStyle(`height: ${expectedHeight}%`)
   })
 })
 
