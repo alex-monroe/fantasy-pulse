@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent, useEffect } from 'react';
+import ReactConfetti from 'react-confetti';
 import {
   connectSleeper,
   getSleeperLeagues,
@@ -34,6 +35,16 @@ export default function SleeperPage() {
   const [selectedWeek, setSelectedWeek] = useState('1');
   const [matchups, setMatchups] = useState<SleeperEnrichedMatchup[]>([]);
   const [loadingMatchups, setLoadingMatchups] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  useEffect(() => {
+    if (showConfetti) {
+      const timer = setTimeout(() => {
+        setShowConfetti(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showConfetti]);
 
   useEffect(() => {
     const checkIntegration = async () => {
@@ -61,6 +72,7 @@ export default function SleeperPage() {
       setError(integrationError);
     } else {
       setIntegration(integration);
+      setShowConfetti(true);
     }
   };
 
@@ -146,6 +158,7 @@ export default function SleeperPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {showConfetti && <ReactConfetti />}
       <AppNavigation />
       <main className="flex-1 p-4 sm:p-6 md:p-8">
         <Card>

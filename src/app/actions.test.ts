@@ -1,5 +1,5 @@
 import * as actions from './actions';
-const { getTeams, buildSleeperTeams, buildYahooTeams } = actions;
+const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCache } = actions;
 import { mapSleeperPlayer } from '@/lib/sleeper';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
@@ -9,6 +9,7 @@ import {
   getYahooRoster,
   getYahooMatchups,
   getYahooPlayerScores,
+  getYahooAccessToken,
 } from '@/app/integrations/yahoo/actions';
 import {
   getLeagues as getOttoneuLeagues,
@@ -28,6 +29,7 @@ jest.mock('@/app/integrations/yahoo/actions', () => ({
   getYahooRoster: jest.fn(),
   getYahooMatchups: jest.fn(),
   getYahooPlayerScores: jest.fn(),
+  getYahooAccessToken: jest.fn(),
 }));
 
 jest.mock('@/app/integrations/ottoneu/actions', () => ({
@@ -99,19 +101,27 @@ describe('actions', () => {
 
   let consoleErrorSpy: jest.SpyInstance;
 
-  beforeEach(() => {
-    (createClient as jest.Mock).mockReturnValue(mockSupabase);
-    (fetch as jest.Mock).mockClear();
+  beforeEach(async () => {
     jest.clearAllMocks();
+    (fetch as jest.Mock).mockReset();
 
+    (createClient as jest.Mock).mockReturnValue(mockSupabase);
     (getLeagues as jest.Mock).mockClear();
     (getYahooUserTeams as jest.Mock).mockClear();
     (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
     (getYahooPlayerScores as jest.Mock).mockClear();
+    (getYahooAccessToken as jest.Mock).mockClear();
+    (getYahooUserTeams as jest.Mock).mockResolvedValue({
+      teams: [],
+      error: null,
+      accessToken: 'token',
+    });
     (getOttoneuLeagues as jest.Mock).mockClear();
     (getOttoneuTeamInfo as jest.Mock).mockClear();
+    (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await invalidateSleeperPlayersCache();
   });
 
   afterEach(() => {
@@ -211,7 +221,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        { playersData: mockPlayersData, playerNameMap: {} }
       );
       expect(result).toEqual([]);
     });
@@ -230,7 +240,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        { playersData: mockPlayersData, playerNameMap: {} }
       );
 
       expect(result).toHaveLength(1);
@@ -251,7 +261,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        mockPlayersData
+        { playersData: mockPlayersData, playerNameMap: {} }
       );
 
       expect(result).toEqual([]);
@@ -297,7 +307,7 @@ describe('actions', () => {
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
-        playersDataWithMissing
+        { playersData: playersDataWithMissing, playerNameMap: {} }
       );
 
       expect(result).toHaveLength(1);
@@ -310,19 +320,26 @@ describe('actions', () => {
   describe('buildYahooTeams', () => {
     const playerNameMap = { 'player one': '1' };
 
+    beforeEach(() => {
+      (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
+    });
+
     it('returns empty array when getYahooUserTeams fails', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: null,
         error: 'err',
+        accessToken: null,
       });
-      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
       expect(result).toEqual([]);
+      expect(getYahooAccessToken).not.toHaveBeenCalled();
     });
 
     it('builds yahoo teams correctly', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -381,7 +398,7 @@ describe('actions', () => {
           error: null,
         });
 
-      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Yahoo User Team');
@@ -391,12 +408,32 @@ describe('actions', () => {
       expect(result[0].opponent.players[0].imageUrl).toBe(
         'https://sleepercdn.com/images/v2/icons/player_default.webp'
       );
+      expect(getYahooAccessToken).not.toHaveBeenCalled();
+      expect(getYahooMatchups).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-team-1',
+        'token',
+        1
+      );
+      expect(getYahooRoster).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-league-1',
+        'user-team-id',
+        'token'
+      );
+      expect(getYahooPlayerScores).toHaveBeenCalledWith(
+        'int-2',
+        'user-team-key',
+        'token',
+        1
+      );
     });
 
     it('skips team when user roster fetch fails while still requesting opponent roster', async () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -433,7 +470,7 @@ describe('actions', () => {
           error: null,
         });
 
-      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
 
       expect(result).toEqual([]);
       expect(getYahooRoster).toHaveBeenCalledTimes(2);
@@ -444,6 +481,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -499,7 +537,7 @@ describe('actions', () => {
           error: null,
         });
 
-      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap);
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
 
       expect(result).toHaveLength(1);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -600,6 +638,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -670,6 +709,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: null,
         error: 'Failed to fetch yahoo teams',
+        accessToken: null,
       });
 
       const result = await getTeams();
@@ -691,6 +731,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -717,6 +758,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -764,6 +806,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({
@@ -816,6 +859,7 @@ describe('actions', () => {
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
         error: null,
+        accessToken: 'token',
       });
 
       (getYahooMatchups as jest.Mock).mockResolvedValue({

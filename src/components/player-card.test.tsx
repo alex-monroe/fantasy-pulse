@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { PlayerCard, getGameStatusLabel } from '@/components/player-card'
+import { PlayerCard, getGameStatusLabel, getGamePercentRemaining } from '@/components/player-card'
 import type { GroupedPlayer } from '@/lib/types'
 
 describe('PlayerCard', () => {
@@ -63,5 +63,94 @@ describe('PlayerCard', () => {
 
     render(<PlayerCard player={livePlayer} />)
     expect(screen.getByText('Q3 4:12')).toBeInTheDocument()
+  })
+
+  it('shows the percentage remaining for a live game', () => {
+    const livePlayer = {
+      ...player,
+      gameStatus: 'in_progress',
+      gameQuarter: 'Q1',
+      gameClock: '10:00',
+    }
+
+    render(<PlayerCard player={livePlayer} />)
+    const expectedHeight = getGamePercentRemaining(livePlayer)
+    expect(expectedHeight).not.toBeNull()
+
+    const overlay = screen.getByTestId('game-progress-overlay')
+    expect(overlay).toHaveStyle(`height: ${expectedHeight}%`)
+  })
+
+  it.each([
+    {
+      description: 'more than 25% remaining',
+      gameQuarter: 'Q3' as const,
+      gameClock: '10:00',
+      expectedClass: 'bg-emerald-500/20',
+    },
+    {
+      description: '25% or less remaining',
+      gameQuarter: 'Q4' as const,
+      gameClock: '15:00',
+      expectedClass: 'bg-yellow-400/20',
+    },
+    {
+      description: '10% or less remaining',
+      gameQuarter: 'Q4' as const,
+      gameClock: '6:00',
+      expectedClass: 'bg-red-500/20',
+    },
+  ])('uses $description overlay color', ({ gameQuarter, gameClock, expectedClass }) => {
+    const livePlayer = {
+      ...player,
+      gameStatus: 'in_progress' as const,
+      gameQuarter,
+      gameClock,
+    }
+
+    render(<PlayerCard player={livePlayer} />)
+    const overlay = screen.getByTestId('game-progress-overlay')
+    expect(overlay).toHaveClass(expectedClass)
+  })
+})
+
+describe('getGamePercentRemaining', () => {
+  const basePlayer: GroupedPlayer = {
+    id: '1',
+    name: 'Test Player',
+    position: 'QB',
+    realTeam: 'TB',
+    score: 0,
+    gameStatus: 'in_progress',
+    gameStartTime: null,
+    gameQuarter: 'Q2',
+    gameClock: '12:30',
+    onUserTeams: 0,
+    onOpponentTeams: 0,
+    gameDetails: {
+      score: '',
+      timeRemaining: '',
+      fieldPosition: '',
+    },
+    imageUrl: '',
+    onBench: false,
+    matchupColors: [],
+    count: 1,
+  }
+
+  it('calculates the remaining percentage for a valid in-progress game', () => {
+    const result = getGamePercentRemaining(basePlayer)
+    expect(result).not.toBeNull()
+    expect(result as number).toBeCloseTo(70.8, 1)
+  })
+
+  it('returns null when the game is not in progress', () => {
+    const result = getGamePercentRemaining({ ...basePlayer, gameStatus: 'final' })
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the quarter is missing', () => {
+    const result = getGamePercentRemaining({ ...basePlayer, gameQuarter: null })
+    expect(result).toBeNull()
   })
 })
