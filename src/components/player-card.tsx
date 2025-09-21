@@ -105,6 +105,17 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
         : player.matchupColors.filter((matchup) => !matchup.onBench);
     const statusLabel = getGameStatusLabel(player);
     const gamePercentRemaining = getGamePercentRemaining(player);
+    const progressOverlayClassName =
+        typeof gamePercentRemaining === 'number'
+            ? cn(
+                  'absolute inset-x-0 bottom-0',
+                  gamePercentRemaining <= 10
+                      ? 'bg-red-500/20'
+                      : gamePercentRemaining <= 25
+                        ? 'bg-yellow-400/20'
+                        : 'bg-emerald-500/20'
+              )
+            : null;
 
     return (
         <TooltipProvider>
@@ -114,11 +125,11 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                     { "opacity-50": player.onBench }
                 )}
             >
-                {typeof gamePercentRemaining === 'number' && (
+                {typeof gamePercentRemaining === 'number' && progressOverlayClassName && (
                     <div
                         aria-hidden="true"
                         data-testid="game-progress-overlay"
-                        className="absolute inset-x-0 bottom-0 bg-emerald-500/20"
+                        className={progressOverlayClassName}
                         style={{ height: `${gamePercentRemaining}%` }}
                     />
                 )}

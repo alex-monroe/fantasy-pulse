@@ -80,6 +80,38 @@ describe('PlayerCard', () => {
     const overlay = screen.getByTestId('game-progress-overlay')
     expect(overlay).toHaveStyle(`height: ${expectedHeight}%`)
   })
+
+  it.each([
+    {
+      description: 'more than 25% remaining',
+      gameQuarter: 'Q3' as const,
+      gameClock: '10:00',
+      expectedClass: 'bg-emerald-500/20',
+    },
+    {
+      description: '25% or less remaining',
+      gameQuarter: 'Q4' as const,
+      gameClock: '15:00',
+      expectedClass: 'bg-yellow-400/20',
+    },
+    {
+      description: '10% or less remaining',
+      gameQuarter: 'Q4' as const,
+      gameClock: '6:00',
+      expectedClass: 'bg-red-500/20',
+    },
+  ])('uses $description overlay color', ({ gameQuarter, gameClock, expectedClass }) => {
+    const livePlayer = {
+      ...player,
+      gameStatus: 'in_progress' as const,
+      gameQuarter,
+      gameClock,
+    }
+
+    render(<PlayerCard player={livePlayer} />)
+    const overlay = screen.getByTestId('game-progress-overlay')
+    expect(overlay).toHaveClass(expectedClass)
+  })
 })
 
 describe('getGamePercentRemaining', () => {
