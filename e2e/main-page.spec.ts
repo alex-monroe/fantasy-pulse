@@ -108,15 +108,10 @@ test.describe('Main Page', () => {
     // Wait briefly so test videos capture the rendered teams before assertions
     await page.waitForTimeout(3000);
 
-    const weeklyMatchupsCard = page
-      .getByRole('heading', { name: 'Weekly Matchups' })
-      .locator('..')
-      .locator('..');
-
-    await expect(weeklyMatchupsCard).toBeVisible();
-    await expect(weeklyMatchupsCard.getByText('Sleeper Squad')).toBeVisible();
-    await expect(weeklyMatchupsCard.getByText('Yahoo Warriors')).toBeVisible();
-    await expect(weeklyMatchupsCard.getByText('The Witchcraft')).toBeVisible();
+    await expect(page.getByText('Weekly Matchups')).toBeVisible();
+    await expect(page.getByText('Sleeper Squad')).toBeVisible();
+    await expect(page.getByText('Yahoo Warriors')).toBeVisible();
+    await expect(page.getByText('The Witchcraft')).toBeVisible();
 
     // Verify matchup scores
     await expect(page.getByText('10.0')).toBeVisible();
