@@ -97,9 +97,10 @@ export function getGamePercentRemaining(player: GroupedPlayer): number | null {
 /**
  * A card that displays information about a player.
  * @param player - The player to display.
+ * @param isScoreChanged - Indicates whether the player's score changed during the last refresh.
  * @returns A card that displays information about a player.
  */
-export function PlayerCard({ player }: { player: GroupedPlayer }) {
+export function PlayerCard({ player, isScoreChanged = false }: { player: GroupedPlayer; isScoreChanged?: boolean }) {
     const matchupColors = player.onBench
         ? player.matchupColors
         : player.matchupColors.filter((matchup) => !matchup.onBench);
@@ -184,7 +185,9 @@ export function PlayerCard({ player }: { player: GroupedPlayer }) {
                     </div>
                     <div className="text-right">
                         <p className="text-sm sm:text-base lg:text-xl font-bold text-foreground">
-                            {player.score.toFixed(1)}
+                            <span className={cn('inline-block', isScoreChanged && 'score-celebrate')}>
+                                {player.score.toFixed(1)}
+                            </span>
                         </p>
                     </div>
                 </div>

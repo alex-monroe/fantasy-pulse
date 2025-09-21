@@ -86,3 +86,42 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes score-celebration {
+  0% {
+    transform: scale(1) rotate(0deg);
+    text-shadow: none;
+    filter: none;
+  }
+  25% {
+    transform: scale(1.35) rotate(-6deg);
+    text-shadow: 0 0 12px rgba(236, 72, 153, 0.9), 0 0 20px rgba(250, 204, 21, 0.8);
+    filter: hue-rotate(25deg) saturate(180%);
+  }
+  45% {
+    transform: scale(0.9) rotate(4deg);
+    text-shadow: 0 0 18px rgba(59, 130, 246, 0.85);
+    filter: hue-rotate(-20deg) saturate(160%);
+  }
+  65% {
+    transform: scale(1.28) rotate(-3deg);
+    text-shadow: 0 0 22px rgba(16, 185, 129, 0.9), 0 0 30px rgba(244, 114, 182, 0.85);
+    filter: hue-rotate(10deg) saturate(210%);
+  }
+  85% {
+    transform: scale(1.12) rotate(2deg);
+    text-shadow: 0 0 14px rgba(251, 191, 36, 0.75);
+    filter: hue-rotate(-12deg) saturate(150%);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    text-shadow: none;
+    filter: none;
+  }
+}
+
+.score-celebrate {
+  animation: score-celebration 1.4s ease-out;
+  animation-fill-mode: both;
+  will-change: transform, filter;
+}
