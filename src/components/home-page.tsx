@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { Team, Player, GroupedPlayer } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,21 @@ import { AppNavigation } from '@/components/app-navigation';
 import { MatchupPrioritySelector } from '@/components/matchup-priority-selector';
 
 const MATCHUP_COLORS = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
+
+const createPlayerAggregationKey = (player: Player | GroupedPlayer): string | null => {
+  if (!player) {
+    return null;
+  }
+
+  const name = typeof player.name === 'string' ? player.name.trim().toLowerCase() : '';
+  const realTeam = typeof player.realTeam === 'string' ? player.realTeam.trim().toLowerCase() : '';
+
+  if (!name || !realTeam) {
+    return null;
+  }
+
+  return `${name}-${realTeam}`;
+};
 
 /**
  * Groups a list of players by their position.
@@ -67,6 +82,121 @@ function AppContent({
   refreshError: string | null,
 }) {
   const [matchupPriority, setMatchupPriority] = useState<number[]>(() => teams.map((team) => team.id));
+  const [changedTeamScores, setChangedTeamScores] = useState<string[]>([]);
+  const [changedPlayerScores, setChangedPlayerScores] = useState<string[]>([]);
+  const previousTeamsRef = useRef<Team[] | null>(null);
+
+  useEffect(() => {
+    const previousTeams = previousTeamsRef.current;
+    previousTeamsRef.current = teams;
+
+    if (!previousTeams) {
+      return;
+    }
+
+    const nextTeamChanges = new Set<string>();
+    const nextPlayerChanges = new Set<string>();
+
+    const previousTeamMap = new Map<number, Team>();
+    previousTeams.forEach((team) => {
+      previousTeamMap.set(team.id, team);
+    });
+
+    const buildPlayerMap = (players: Player[]) => {
+      const map = new Map<string, Player>();
+      players.forEach((player) => {
+        const key = createPlayerAggregationKey(player);
+        if (key) {
+          map.set(key, player);
+        }
+      });
+      return map;
+    };
+
+    const markChangedPlayers = (players: Player[], previousPlayerMap: Map<string, Player>) => {
+      players.forEach((player) => {
+        const key = createPlayerAggregationKey(player);
+        if (!key) {
+          return;
+        }
+
+        const previousPlayer = previousPlayerMap.get(key);
+        if (!previousPlayer || previousPlayer.score !== player.score) {
+          nextPlayerChanges.add(key);
+        }
+      });
+    };
+
+    teams.forEach((team) => {
+      const teamScoreKey = `team-${team.id}-total`;
+      const opponentScoreKey = `team-${team.id}-opponent`;
+      const previousTeam = previousTeamMap.get(team.id);
+
+      if (!previousTeam) {
+        nextTeamChanges.add(teamScoreKey);
+        nextTeamChanges.add(opponentScoreKey);
+        markChangedPlayers(team.players, new Map());
+        markChangedPlayers(team.opponent.players, new Map());
+        return;
+      }
+
+      if (team.totalScore !== previousTeam.totalScore) {
+        nextTeamChanges.add(teamScoreKey);
+      }
+
+      if ((team.opponent?.totalScore ?? 0) !== (previousTeam.opponent?.totalScore ?? 0)) {
+        nextTeamChanges.add(opponentScoreKey);
+      }
+
+      const previousPlayerMap = buildPlayerMap(previousTeam.players);
+      const previousOpponentPlayerMap = buildPlayerMap(previousTeam.opponent.players);
+
+      markChangedPlayers(team.players, previousPlayerMap);
+      markChangedPlayers(team.opponent.players, previousOpponentPlayerMap);
+    });
+
+    setChangedTeamScores((previousKeys) => {
+      if (nextTeamChanges.size === 0) {
+        return previousKeys.length > 0 ? [] : previousKeys;
+      }
+
+      const nextKeys = Array.from(nextTeamChanges);
+      const previousKeySet = new Set(previousKeys);
+      const isSameSize = previousKeys.length === nextKeys.length;
+      const hasSameMembers = isSameSize && nextKeys.every((key) => previousKeySet.has(key));
+
+      return hasSameMembers ? previousKeys : nextKeys;
+    });
+
+    setChangedPlayerScores((previousKeys) => {
+      if (nextPlayerChanges.size === 0) {
+        return previousKeys.length > 0 ? [] : previousKeys;
+      }
+
+      const nextKeys = Array.from(nextPlayerChanges);
+      const previousKeySet = new Set(previousKeys);
+      const isSameSize = previousKeys.length === nextKeys.length;
+      const hasSameMembers = isSameSize && nextKeys.every((key) => previousKeySet.has(key));
+
+      return hasSameMembers ? previousKeys : nextKeys;
+    });
+  }, [teams]);
+
+  useEffect(() => {
+    if (changedTeamScores.length === 0 && changedPlayerScores.length === 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setChangedTeamScores([]);
+      setChangedPlayerScores([]);
+    }, 1600);
+
+    return () => window.clearTimeout(timeout);
+  }, [changedTeamScores, changedPlayerScores]);
+
+  const changedTeamScoreKeys = useMemo(() => new Set(changedTeamScores), [changedTeamScores]);
+  const changedPlayerScoreKeys = useMemo(() => new Set(changedPlayerScores), [changedPlayerScores]);
 
   useEffect(() => {
     setMatchupPriority((previousOrder) => {
@@ -160,8 +290,8 @@ function AppContent({
     teamPriority: number
   ) => {
     players.forEach((player) => {
-      if (player && player.name && player.realTeam) {
-        const key = `${player.name.toLowerCase()}-${player.realTeam.toLowerCase()}`;
+      const key = createPlayerAggregationKey(player);
+      if (key) {
         const existingPlayer = existingPlayers.get(key);
         const currentMatchupColors = existingPlayer ? [...existingPlayer.matchupColors] : [];
         addMatchupColor(currentMatchupColors, color, player.onBench);
@@ -218,6 +348,11 @@ function AppContent({
     void onSignOut();
   };
 
+  const isPlayerScoreChanged = (player: GroupedPlayer) => {
+    const key = createPlayerAggregationKey(player);
+    return key ? changedPlayerScoreKeys.has(key) : false;
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppNavigation
@@ -255,6 +390,8 @@ function AppContent({
                 <CardContent className="grid gap-4 md:grid-cols-2">
                     {teams.map((team, index) => {
                       const color = teamColors.get(team.id) ?? MATCHUP_COLORS[index % MATCHUP_COLORS.length];
+                      const teamScoreKey = `team-${team.id}-total`;
+                      const opponentScoreKey = `team-${team.id}-opponent`;
                       return (
                         <Card key={team.id} className="p-4">
                             <div className="flex justify-between items-start">
@@ -266,8 +403,16 @@ function AppContent({
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">{(team.totalScore ?? 0).toFixed(1)}</p>
-                                    <p className="font-bold text-lg text-muted-foreground">{(team.opponent?.totalScore ?? 0).toFixed(1)}</p>
+                                    <p className="font-bold text-lg text-primary">
+                                      <span className={cn('inline-block', changedTeamScoreKeys.has(teamScoreKey) && 'score-celebrate')}>
+                                        {(team.totalScore ?? 0).toFixed(1)}
+                                      </span>
+                                    </p>
+                                    <p className="font-bold text-lg text-muted-foreground">
+                                      <span className={cn('inline-block', changedTeamScoreKeys.has(opponentScoreKey) && 'score-celebrate')}>
+                                        {(team.opponent?.totalScore ?? 0).toFixed(1)}
+                                      </span>
+                                    </p>
                                 </div>
                             </div>
                         </Card>
@@ -291,8 +436,12 @@ function AppContent({
                                 {myPlayersByPosition[position]
                                   .sort((a, b) => b.score - a.score)
                                   .map(player => (
-                                    <PlayerCard key={`my-player-${player.id}-${player.name}`} player={player} />
-                                ))}
+                                    <PlayerCard
+                                      key={`my-player-${player.id}-${player.name}`}
+                                      player={player}
+                                      isScoreChanged={isPlayerScoreChanged(player)}
+                                    />
+                                  ))}
                               </div>
                             </div>
                           )
@@ -304,7 +453,11 @@ function AppContent({
                                     {myBench
                                         .sort((a, b) => b.score - a.score)
                                         .map(player => (
-                                            <PlayerCard key={`my-bench-${player.id}-${player.name}`} player={player} />
+                                            <PlayerCard
+                                              key={`my-bench-${player.id}-${player.name}`}
+                                              player={player}
+                                              isScoreChanged={isPlayerScoreChanged(player)}
+                                            />
                                         ))}
                                 </div>
                             </div>
@@ -325,8 +478,12 @@ function AppContent({
                                 {opponentPlayersByPosition[position]
                                   .sort((a, b) => b.score - a.score)
                                   .map(player => (
-                                    <PlayerCard key={`opponent-player-${player.id}-${player.name}`} player={player} />
-                                ))}
+                                    <PlayerCard
+                                      key={`opponent-player-${player.id}-${player.name}`}
+                                      player={player}
+                                      isScoreChanged={isPlayerScoreChanged(player)}
+                                    />
+                                  ))}
                               </div>
                             </div>
                           )
@@ -338,7 +495,11 @@ function AppContent({
                                     {opponentBench
                                         .sort((a, b) => b.score - a.score)
                                         .map(player => (
-                                            <PlayerCard key={`opponent-bench-${player.id}-${player.name}`} player={player} />
+                                            <PlayerCard
+                                              key={`opponent-bench-${player.id}-${player.name}`}
+                                              player={player}
+                                              isScoreChanged={isPlayerScoreChanged(player)}
+                                            />
                                         ))}
                                 </div>
                             </div>
