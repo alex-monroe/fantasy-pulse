@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
-  { href: '/integrations', label: 'Integrations' },
   { href: '/matchup-report', label: 'Matchup Report' },
+  { href: '/integrations', label: 'Integrations' },
 ];
 
 /**
