@@ -1,6 +1,6 @@
 import { test, expect } from 'playwright/test';
-import { createClient } from '@supabase/supabase-js';
 import { v4 as uuid } from 'uuid';
+import { createAdminClient } from './lib/supabase-admin';
 
 const email = `test-${uuid()}@test.com`;
 const password = 'testtest';
@@ -10,10 +10,7 @@ test.describe('Main Page', () => {
   let sleeperIntegration: any;
   let yahooIntegration: any;
   let ottoneuIntegration: any;
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createAdminClient();
 
   test.beforeAll(async () => {
 
