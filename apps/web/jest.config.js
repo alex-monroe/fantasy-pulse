@@ -1,0 +1,17 @@
+const nextJest = require('next/jest')
+
+const createJestConfig = nextJest({ dir: './' })
+
+const customJestConfig = {
+  testEnvironment: 'jsdom',
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@roster-loom/core$': '<rootDir>/../../packages/core/src/index.ts',
+    '^@roster-loom/core/(.*)$': '<rootDir>/../../packages/core/src/$1',
+  },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  transformIgnorePatterns: ['/node_modules/(?!lucide-react)'],
+  testPathIgnorePatterns: ['<rootDir>/e2e/']
+}
+
+module.exports = createJestConfig(customJestConfig)

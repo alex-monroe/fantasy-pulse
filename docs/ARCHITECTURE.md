@@ -14,30 +14,38 @@ High-level design of Roster Loom (a.k.a. fantasy-pulse).
 | Unit tests       | Jest 29 + Testing Library (jsdom env)                          |
 | E2E tests        | Playwright 1.55 (CI-only; see [TESTING.md](TESTING.md))        |
 | Lint             | ESLint via `next lint` (`next/core-web-vitals`)                |
-| Hosting          | Firebase App Hosting (`apphosting.yaml`)                       |
+| Hosting          | Vercel (per-PR previews)                                       |
 | Observability    | Vercel Speed Insights, `pino` logs, `performance-logger` utility |
 
 ## Top-level layout
 
 ```
-src/
-├── app/                # Next.js App Router
-│   ├── (dashboard)/    # Authenticated dashboard route group
-│   ├── api/            # Route handlers (OAuth callbacks, teams API)
-│   ├── integrations/   # One folder per provider (sleeper, yahoo, ottoneu)
-│   ├── login/  register/
-│   ├── actions.ts      # Cross-provider server actions (team building, scoring)
-│   ├── layout.tsx  page.tsx  loading.tsx
-│   └── globals.css
-├── components/         # App-specific + shadcn UI primitives (`components/ui`)
-├── hooks/              # React hooks (`use-mobile`, `use-toast`)
-├── lib/                # Shared types, sleeper helpers, env, fetch utilities
-├── utils/              # logger, performance-logger, supabase clients
-├── ai/                 # Generative AI helpers (currently `dev.ts`)
-└── middleware.ts       # Supabase session refresh middleware
+apps/web/                     # Next.js app (Vercel deploys this)
+├── src/
+│   ├── app/                  # Next.js App Router
+│   │   ├── (dashboard)/      # Authenticated dashboard route group
+│   │   ├── api/              # Route handlers (OAuth callbacks, teams API)
+│   │   ├── integrations/     # One folder per provider (sleeper, yahoo, ottoneu)
+│   │   ├── login/  register/
+│   │   ├── actions.ts        # Cross-provider server actions (team building, scoring)
+│   │   ├── layout.tsx  page.tsx  loading.tsx
+│   │   └── globals.css
+│   ├── components/           # App-specific + shadcn UI primitives (`components/ui`)
+│   ├── hooks/                # React hooks (`use-mobile`, `use-toast`)
+│   ├── lib/                  # Web-only: env, `cn`, doc-map test
+│   ├── utils/                # logger, performance-logger, supabase clients
+│   ├── ai/                   # Generative AI helpers (currently `dev.ts`)
+│   └── middleware.ts         # Supabase session refresh middleware
+└── e2e/                      # Playwright specs (do not run locally — see TESTING.md)
 
-supabase/migrations/    # SQL migrations (source of truth for schema)
-e2e/                    # Playwright specs (do not run locally — see TESTING.md)
+packages/core/                # @roster-loom/core — shared with the mobile app
+└── src/
+    ├── types.ts              # Shared TS types (Team, Player, Sleeper*)
+    ├── sleeper.ts            # `mapSleeperPlayer` and related helpers
+    ├── fetch-json.ts         # Typed JSON fetch with caching/retry
+    └── mock-data.ts          # Fixtures for tests and dev
+
+supabase/migrations/          # SQL migrations (source of truth for schema)
 ```
 
 See [CODE_ORGANIZATION.md](CODE_ORGANIZATION.md) for module boundaries and conventions.
@@ -46,8 +54,8 @@ See [CODE_ORGANIZATION.md](CODE_ORGANIZATION.md) for module boundaries and conve
 
 ```
 User → / (home)
-      → src/app/page.tsx (server component)
-        → src/app/actions.ts:buildAllTeams()
+      → apps/web/src/app/page.tsx (server component)
+        → apps/web/src/app/actions.ts:buildAllTeams()
           → for each user_integration:
               → sleeper/actions.ts | yahoo/actions.ts | ottoneu/actions.ts
                 → external API (cached/throttled per provider)
@@ -62,10 +70,10 @@ Every provider follows the same shape: an `actions.ts` (server), a `page.tsx`
 
 ## Provider integration pattern
 
-Each integration under `src/app/integrations/<provider>/`:
+Each integration under `apps/web/src/app/integrations/<provider>/`:
 
 - `actions.ts` — `'use server'` API calls + DB writes; export
-  `build<Provider>Teams` consumed by `src/app/actions.ts`
+  `build<Provider>Teams` consumed by `apps/web/src/app/actions.ts`
 - `actions.test.ts` — unit tests colocated next to implementation
 - `page.tsx` — UI for connecting and managing the integration
 - `README.md` — flow + payload shapes
@@ -88,8 +96,8 @@ repo's tables on the shared OttoneuDB project):
 - `fp_teams` — teams pulled from each league
 - `fp_notes` — free-form user notes
 
-Server-side Supabase access goes through `src/utils/supabase/server.ts`;
-client-side through `src/utils/supabase/client.ts`. `middleware.ts`
+Server-side Supabase access goes through `apps/web/src/utils/supabase/server.ts`;
+client-side through `apps/web/src/utils/supabase/client.ts`. `middleware.ts`
 keeps sessions fresh on every request.
 
 ## Performance discipline
@@ -97,7 +105,7 @@ keeps sessions fresh on every request.
 The home page assembles data from 1–3 external fantasy APIs on every
 load. Recent commits (see `git log`) have focused on:
 
-- `Promise.all` fan-out in `src/app/actions.ts`
+- `Promise.all` fan-out in `apps/web/src/app/actions.ts`
 - Reusing Yahoo access tokens across a single request
 - Caching Sleeper player data (TTL in `actions.ts`)
 - `performance-logger.ts` wrapping every external call so we can spot

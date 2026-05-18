@@ -1,0 +1,1176 @@
+import * as actions from './actions';
+const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCache } = actions;
+import { mapSleeperPlayer } from '@roster-loom/core';
+import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@roster-loom/core';
+import { createClient } from '@/utils/supabase/server';
+import { getLeagues } from '@/app/integrations/sleeper/actions';
+import {
+  getYahooUserTeams,
+  getYahooRoster,
+  getYahooMatchups,
+  getYahooPlayerScores,
+  getYahooAccessToken,
+} from '@/app/integrations/yahoo/actions';
+import {
+  getLeagues as getOttoneuLeagues,
+  getOttoneuTeamInfo,
+} from '@/app/integrations/ottoneu/actions';
+
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(),
+}));
+
+jest.mock('@/app/integrations/sleeper/actions', () => ({
+  getLeagues: jest.fn(),
+}));
+
+jest.mock('@/app/integrations/yahoo/actions', () => ({
+  getYahooUserTeams: jest.fn(),
+  getYahooRoster: jest.fn(),
+  getYahooMatchups: jest.fn(),
+  getYahooPlayerScores: jest.fn(),
+  getYahooAccessToken: jest.fn(),
+}));
+
+jest.mock('@/app/integrations/ottoneu/actions', () => ({
+  getLeagues: jest.fn(),
+  getOttoneuTeamInfo: jest.fn(),
+}));
+
+
+global.fetch = jest.fn();
+
+describe('actions', () => {
+  const mockSupabase = {
+    auth: {
+      getUser: jest.fn(),
+    },
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn(),
+  };
+
+  const mockScoreboard = {
+    events: [
+      {
+        date: '2025-09-21T17:00:00Z',
+        status: {
+          type: { state: 'pre', shortDetail: 'Sun 1:00 PM' },
+          displayClock: '0:00',
+          period: 0,
+        },
+        competitions: [
+          {
+            startDate: '2025-09-21T17:00:00Z',
+            status: {
+              type: { state: 'pre', shortDetail: 'Sun 1:00 PM' },
+              displayClock: '0:00',
+              period: 0,
+            },
+            competitors: [
+              { team: { abbreviation: 'TEAMA' } },
+              { team: { abbreviation: 'TEAMB' } },
+            ],
+          },
+        ],
+      },
+      {
+        date: '2025-09-21T17:25:00Z',
+        status: {
+          type: { state: 'in', shortDetail: 'Q2 05:10' },
+          displayClock: '5:10',
+          period: 2,
+        },
+        competitions: [
+          {
+            startDate: '2025-09-21T17:25:00Z',
+            status: {
+              type: { state: 'in', shortDetail: 'Q2 05:10' },
+              displayClock: '5:10',
+              period: 2,
+            },
+            competitors: [
+              { team: { abbreviation: 'TEAMC' } },
+              { team: { abbreviation: 'TEAMD' } },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    (fetch as jest.Mock).mockReset();
+
+    (createClient as jest.Mock).mockReturnValue(mockSupabase);
+    (getLeagues as jest.Mock).mockClear();
+    (getYahooUserTeams as jest.Mock).mockClear();
+    (getYahooRoster as jest.Mock).mockClear();
+    (getYahooMatchups as jest.Mock).mockClear();
+    (getYahooPlayerScores as jest.Mock).mockClear();
+    (getYahooAccessToken as jest.Mock).mockClear();
+    (getYahooUserTeams as jest.Mock).mockResolvedValue({
+      teams: [],
+      error: null,
+      accessToken: 'token',
+    });
+    (getOttoneuLeagues as jest.Mock).mockClear();
+    (getOttoneuTeamInfo as jest.Mock).mockClear();
+    (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await invalidateSleeperPlayersCache();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  describe('mapSleeperPlayer', () => {
+    const matchup: SleeperMatchup = {
+      roster_id: 1,
+      matchup_id: 1,
+      points: 0,
+      players: ['1'],
+      players_points: { '1': 12 },
+    };
+
+    const roster: SleeperRoster = {
+      owner_id: 'sleeper-user-1',
+      roster_id: 1,
+      players: ['1'],
+      starters: ['1'],
+    };
+
+    const playersData: Record<string, SleeperPlayer> = {
+      '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+    };
+
+    it('maps player data when Sleeper information exists', () => {
+      const result = mapSleeperPlayer({
+        playerId: '1',
+        playersData,
+        matchup,
+        roster,
+      });
+
+      expect(result).toEqual({
+        id: '1',
+        name: 'Player One',
+        position: 'QB',
+        realTeam: 'TEAMA',
+        score: 12,
+        gameStatus: 'pregame',
+        gameStartTime: null,
+        gameQuarter: null,
+        gameClock: null,
+        onUserTeams: 0,
+        onOpponentTeams: 0,
+        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+        imageUrl: 'https://sleepercdn.com/content/nfl/players/thumb/1.jpg',
+        onBench: false,
+      });
+    });
+
+    it('returns null when player data is not available', () => {
+      const result = mapSleeperPlayer({
+        playerId: 'unknown',
+        playersData,
+        matchup,
+        roster,
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('buildSleeperTeams', () => {
+    const mockPlayersData: Record<string, SleeperPlayer> = {
+      '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+      '2': { full_name: 'Player Two', position: 'WR', team: 'TEAMB' },
+    };
+    const mockRosters: SleeperRoster[] = [
+      { owner_id: 'sleeper-user-1', roster_id: 1, players: ['1'], starters: ['1'] },
+      { owner_id: 'sleeper-user-2', roster_id: 2, players: ['2'], starters: ['2'] },
+    ];
+    const mockMatchups: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 1,
+        points: 100,
+        players_points: { '1': 20 },
+        players: ['1'],
+      },
+      {
+        roster_id: 2,
+        matchup_id: 1,
+        points: 90,
+        players_points: { '2': 15 },
+        players: ['2'],
+      },
+    ];
+    const mockLeagueUsers: SleeperUser[] = [
+      { user_id: 'sleeper-user-1', display_name: 'User A', metadata: { team_name: 'Team A' } },
+      { user_id: 'sleeper-user-2', display_name: 'User B', metadata: { team_name: 'Team B' } },
+    ];
+
+    it('returns empty array when getLeagues fails', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({ leagues: null, error: 'err' });
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('builds sleeper teams correctly', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Team A');
+    });
+
+    it('skips leagues when sleeper data is incomplete', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(null) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('omits players without Sleeper player data', async () => {
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      const playersDataWithMissing: Record<string, SleeperPlayer> = {
+        '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+      };
+
+      const rostersWithUnknown: SleeperRoster[] = [
+        { owner_id: 'sleeper-user-1', roster_id: 1, players: ['1'], starters: ['1'] },
+        { owner_id: 'sleeper-user-2', roster_id: 2, players: ['3'], starters: ['3'] },
+      ];
+
+      const matchupsWithUnknown: SleeperMatchup[] = [
+        {
+          roster_id: 1,
+          matchup_id: 1,
+          points: 100,
+          players_points: { '1': 20 },
+          players: ['1'],
+        },
+        {
+          roster_id: 2,
+          matchup_id: 1,
+          points: 90,
+          players_points: { '3': 15 },
+          players: ['3'],
+        },
+      ];
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(rostersWithUnknown) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(matchupsWithUnknown) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: playersDataWithMissing, playerNameMap: {} }
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].players).toHaveLength(1);
+      expect(result[0].players[0].id).toBe('1');
+      expect(result[0].opponent.players).toEqual([]);
+    });
+  });
+
+  describe('buildYahooTeams', () => {
+    const playerNameMap = { 'player one': '1' };
+
+    beforeEach(() => {
+      (getYahooAccessToken as jest.Mock).mockResolvedValue({ access_token: 'token' });
+    });
+
+    it('returns empty array when getYahooUserTeams fails', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: null,
+        error: 'err',
+        accessToken: null,
+      });
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
+      expect(result).toEqual([]);
+      expect(getYahooAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('builds yahoo teams correctly', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              onBench: false,
+              headshot: 'img1',
+            },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              onBench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p2', totalPoints: 15 }],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Yahoo User Team');
+      expect(result[0].players[0].imageUrl).toBe(
+        'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
+      );
+      expect(result[0].opponent.players[0].imageUrl).toBe(
+        'https://sleepercdn.com/images/v2/icons/player_default.webp'
+      );
+      expect(getYahooAccessToken).not.toHaveBeenCalled();
+      expect(getYahooMatchups).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-team-1',
+        'token',
+        1
+      );
+      expect(getYahooRoster).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-league-1',
+        'user-team-id',
+        'token'
+      );
+      expect(getYahooPlayerScores).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-team-1',
+        'token',
+        1
+      );
+    });
+
+    it('skips team when user roster fetch fails while still requesting opponent roster', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({ players: null, error: 'User roster error' })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              onBench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
+
+      expect(result).toEqual([]);
+      expect(getYahooRoster).toHaveBeenCalledTimes(2);
+      // User player scores are prefetched alongside matchups (PR #177), so
+      // the call has already fired by the time we discover the roster error.
+      // We never request opponent scores, so only the prefetch should show up.
+      expect(getYahooPlayerScores).toHaveBeenCalledTimes(1);
+      expect(getYahooPlayerScores).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-team-1',
+        'token',
+        1
+      );
+    });
+
+    it('logs and continues when player score fetch rejects', async () => {
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: {
+            team_id: 'user-team-id',
+            name: 'Yahoo User Team',
+            totalPoints: '120',
+            team_key: 'user-team-key',
+          },
+          opponentTeam: {
+            team_id: 'opp-team-id',
+            name: 'Yahoo Opponent Team',
+            totalPoints: '110',
+            team_key: 'opp-team-key',
+          },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p1',
+              name: 'Player One',
+              display_position: 'QB',
+              editorial_team_abbr: 'TEAMC',
+              onBench: false,
+              headshot: 'img1',
+            },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: [
+            {
+              player_key: 'p2',
+              name: 'Player Two',
+              display_position: 'WR',
+              editorial_team_abbr: 'TEAMD',
+              onBench: false,
+              headshot: 'img2',
+            },
+          ],
+          error: null,
+        });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p2', totalPoints: 15 }],
+          error: null,
+        });
+
+      const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
+
+      expect(result).toHaveLength(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch user player scores for team user-team-key',
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('getTeams', () => {
+    const mockPlayersData = {
+      '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+      '2': { full_name: 'Player Two', position: 'WR', team: 'TEAMB' },
+      'player one': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+    };
+
+    const mockRosters = [
+      { owner_id: 'sleeper-user-1', roster_id: 1, players: ['1'], starters: ['1'] },
+      { owner_id: 'sleeper-user-2', roster_id: 2, players: ['2'], starters: ['2'] },
+    ];
+
+    const mockMatchups = [
+      {
+        roster_id: 1,
+        matchup_id: 1,
+        points: 100,
+        players_points: { '1': 20 },
+        players: ['1'],
+      },
+      {
+        roster_id: 2,
+        matchup_id: 1,
+        points: 90,
+        players_points: { '2': 15 },
+        players: ['2'],
+      },
+    ];
+
+    const mockLeagueUsers = [
+      { user_id: 'sleeper-user-1', display_name: 'User A', metadata: { team_name: 'Team A' } },
+      { user_id: 'sleeper-user-2', display_name: 'User B', metadata: { team_name: 'Team B' } },
+    ];
+
+    it('should return an error if user is not logged in', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
+      const result = await getTeams();
+      expect(result).toEqual({ error: 'You must be logged in.' });
+    });
+
+    it('should return an error if fetching integrations fails', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({ error: { message: 'Integrations fetch error' } });
+      const result = await getTeams();
+      expect(result).toEqual({ error: 'Integrations fetch error' });
+    });
+
+    it('should fetch and process sleeper teams correctly', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-1', provider: 'sleeper', provider_user_id: 'sleeper-user-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }) // nflStateResponse
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }) // playersResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) }) // rostersResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) }) // matchupsResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) }); // leagueUsersResponse
+
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 'league-1', league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+
+      const result = await getTeams();
+
+      expect(result.teams).toBeDefined();
+      expect(result.teams.length).toBe(1);
+      expect(result.teams[0].name).toBe('Team A');
+      expect(result.teams[0].players[0].gameStatus).toBe('pregame');
+      expect(result.teams[0].players[0].gameStartTime).toBe('2025-09-21T17:00:00Z');
+    });
+
+    it('should fetch and process yahoo teams correctly', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }) // nflStateResponse
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }); // playersResponse
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock)
+        .mockResolvedValue({
+          players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
+          error: null,
+        });
+
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValue({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        });
+
+      const result = await getTeams();
+
+      expect(result.teams).toBeDefined();
+      expect(result.teams.length).toBe(1);
+      expect(result.teams[0].name).toBe('Yahoo User Team');
+      expect(result.teams[0].totalScore).toBe(120);
+      expect(result.teams[0].players[0].gameStatus).toBe('in_progress');
+      expect(result.teams[0].players[0].gameQuarter).toBe('Q2');
+      expect(result.teams[0].players[0].gameClock).toBe('5:10');
+    });
+
+    it('should continue if getLeagues returns an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-1', provider: 'sleeper', provider_user_id: 'sleeper-user-1' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getLeagues as jest.Mock).mockResolvedValue({
+        leagues: null,
+        error: 'Failed to fetch leagues',
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toEqual([]);
+    });
+
+    it('should continue if getYahooUserTeams returns an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: null,
+        error: 'Failed to fetch yahoo teams',
+        accessToken: null,
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toEqual([]);
+    });
+
+    it('should continue if getYahooMatchups returns an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: null,
+        error: 'Failed to fetch yahoo matchups',
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toEqual([]);
+    });
+
+    it('should log an error if getYahooPlayerScores for user fails', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120', team_key: 'user-team-key' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110', team_key: 'opp-team-key' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock).mockResolvedValue({
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
+        error: null,
+      });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: null,
+          error: 'User scores fetch error',
+        })
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        });
+
+      await getTeams();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch user player scores for team user-team-key',
+        'User scores fetch error'
+      );
+    });
+
+    it('should log an error if getYahooPlayerScores for opponent fails', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120', team_key: 'user-team-key' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110', team_key: 'opp-team-key' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock).mockResolvedValue({
+        players: [{ player_key: 'p1', name: 'Player One', display_position: 'QB', editorial_team_abbr: 'TEAMC', onBench: false }],
+        error: null,
+      });
+
+      (getYahooPlayerScores as jest.Mock)
+        .mockResolvedValueOnce({
+          players: [{ player_key: 'p1', totalPoints: 25 }],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          players: null,
+          error: 'Opponent scores fetch error',
+        });
+
+      await getTeams();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Could not fetch opponent player scores for team opp-team-key',
+        'Opponent scores fetch error'
+      );
+    });
+
+    it('should map yahoo players to sleeper players with fuzzy name matching', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [{ id: 'int-2', provider: 'yahoo' }],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({
+          json: () =>
+            Promise.resolve({
+              '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+            }),
+        });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
+        error: null,
+        accessToken: 'token',
+      });
+
+      (getYahooMatchups as jest.Mock).mockResolvedValue({
+        matchups: {
+          userTeam: { team_id: 'user-team-id', name: 'Yahoo User Team', totalPoints: '120' },
+          opponentTeam: { team_id: 'opp-team-id', name: 'Yahoo Opponent Team', totalPoints: '110' },
+        },
+        error: null,
+      });
+
+      (getYahooRoster as jest.Mock).mockResolvedValue({
+        players: [
+          {
+            player_key: 'p1',
+            name: 'Player One Jr.',
+            display_position: 'QB',
+            editorial_team_abbr: 'TEAMC',
+            onBench: false,
+          },
+        ],
+        error: null,
+      });
+
+      (getYahooPlayerScores as jest.Mock).mockResolvedValue({
+        players: [{ player_key: 'p1', totalPoints: 25 }],
+        error: null,
+      });
+
+      const result = await getTeams();
+
+      expect(result.teams[0].players[0].imageUrl).toBe('https://sleepercdn.com/content/nfl/players/thumb/1.jpg');
+    });
+  });
+
+  describe('getTeams with Ottoneu integration', () => {
+    it('builds teams from Ottoneu', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'ottoneu', provider_user_id: '2514' },
+        ],
+        error: null,
+      });
+
+      const matchupHtml = `
+        <div class="team-scores">
+          <div class="home-team-details"><a href="#">My Team</a></div>
+          <div class="versus-spacer">vs.</div>
+          <div class="away-team-details"><a href="#">Opponent</a></div>
+        </div>
+        <div class="game-page-home-team-name">My Team</div>
+        <div class="game-page-away-team-name">Opponent</div>
+        <table class="game-details-table"><tbody>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-1"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-1" data-position="FLX" data-player-id="1">
+              <span class="player-link-desktop"><a href="#">Player One</a> <span class="smaller">CHI RB</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-1">5</td>
+            <td class="game-details-position"><span class="position">FLX</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-2">3</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-2" data-position="SFLX" data-player-id="2">
+              <span class="player-link-desktop"><a href="#">Player Two</a> <span class="smaller">BUF WR</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-2"></td>
+          </tr>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-3"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-3" data-position="Bench" data-player-id="3">
+              <span class="player-link-desktop"><a href="#">Bench Guy</a> <span class="smaller">DAL WR</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-3">0</td>
+            <td class="game-details-position"><span class="position">BN</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-4">0</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-4" data-position="Bench" data-player-id="4">
+              <span class="player-link-desktop"><a href="#">Opp Bench</a> <span class="smaller">NYG RB</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-4"></td>
+          </tr>
+        </tbody></table>
+      `;
+
+      const sleeperPlayersData = {
+        '1': { full_name: 'Player One', first_name: 'Player', last_name: 'One', position: 'RB' },
+        '2': { full_name: 'Player Two', first_name: 'Player', last_name: 'Two', position: 'WR' },
+        '3': { full_name: 'Bench Guy', first_name: 'Bench', last_name: 'Guy', position: 'WR' },
+        '4': { full_name: 'Opp Bench', first_name: 'Opp', last_name: 'Bench', position: 'RB' },
+      };
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(sleeperPlayersData) })
+        .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(matchupHtml) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+        matchup: {
+          opponentName: 'Opponent',
+          teamScore: 10,
+          opponentScore: 20,
+          url: '/football/309/game/1',
+        },
+      });
+
+      const result = await getTeams();
+      expect(result.teams).toHaveLength(1);
+      expect(result.teams[0].players).toHaveLength(2);
+      expect(result.teams[0].players[0]).toMatchObject({
+        id: '1',
+        name: 'Player One',
+        position: 'RB',
+        realTeam: 'CHI',
+        score: 5,
+        onBench: false,
+      });
+      expect(result.teams[0].players[0].imageUrl).toBe(
+        'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
+      );
+      expect(result.teams[0].players[1].onBench).toBe(true);
+      expect(result.teams[0].opponent.players).toHaveLength(2);
+      expect(result.teams[0].players[1].position).toBe('WR');
+      expect(result.teams[0].opponent.players[0]).toMatchObject({
+        id: '2',
+        name: 'Player Two',
+        position: 'WR',
+        score: 3,
+      });
+      expect(result.teams[0].opponent.players[0].imageUrl).toBe(
+        'https://sleepercdn.com/content/nfl/players/thumb/2.jpg'
+      );
+      expect(result.teams[0].name).toBe('My Team');
+      expect(result.teams[0].totalScore).toBe(10);
+      expect(result.teams[0].opponent.name).toBe('Opponent');
+      expect(result.teams[0].opponent.totalScore).toBe(20);
+    });
+
+    it('uses team-scores header when team appears on the away side', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'ottoneu', provider_user_id: '2514' },
+        ],
+        error: null,
+      });
+
+      const matchupHtml = `
+        <div class="team-scores">
+          <div class="home-team-details"><a href="#">Opponent</a></div>
+          <div class="versus-spacer">vs.</div>
+          <div class="away-team-details"><a href="#">My Team</a></div>
+        </div>
+        <table class="game-details-table"><tbody>
+          <tr>
+            <td class="player-stat-details game-page-home-team-text player-stat-details-5"></td>
+            <td class="home-team-position-player game-page-home-team-text" id="player-bio-5" data-position="QB" data-player-id="5">
+              <span class="player-link-desktop"><a href="#">Opp QB</a> <span class="smaller">NYJ QB</span></span>
+            </td>
+            <td class="game-page-home-team-text game-page-points player-points-5">7.5</td>
+            <td class="game-details-position"><span class="position">QB</span></td>
+            <td class="game-page-away-team-text game-page-points player-points-6">12.3</td>
+            <td class="away-team-position-player game-page-away-team-text" id="player-bio-6" data-position="QB" data-player-id="6">
+              <span class="player-link-desktop"><a href="#">User QB</a> <span class="smaller">BUF QB</span></span>
+            </td>
+            <td class="player-stat-details game-page-away-team-text player-stat-details-6"></td>
+          </tr>
+        </tbody></table>
+      `;
+
+      const sleeperPlayersData = {
+        '5': { full_name: 'Opp QB', first_name: 'Opp', last_name: 'QB', position: 'QB' },
+        '6': { full_name: 'User QB', first_name: 'User', last_name: 'QB', position: 'QB' },
+      } as Record<string, SleeperPlayer>;
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(sleeperPlayersData) })
+        .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(matchupHtml) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+        matchup: {
+          opponentName: 'Opponent',
+          teamScore: 10,
+          opponentScore: 20,
+          url: '/football/309/game/1',
+        },
+      });
+
+      const result = await getTeams();
+
+      expect(result.teams).toHaveLength(1);
+      expect(result.teams[0].players).toHaveLength(1);
+      expect(result.teams[0].players[0]).toMatchObject({
+        id: '6',
+        name: 'User QB',
+        realTeam: 'BUF',
+        score: 12.3,
+      });
+      expect(result.teams[0].opponent.players).toHaveLength(1);
+      expect(result.teams[0].opponent.players[0]).toMatchObject({
+        id: '5',
+        name: 'Opp QB',
+        score: 7.5,
+      });
+    });
+  });
+
+  describe('getTeams execution', () => {
+    it('fetches all providers in parallel', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'sleeper', provider_user_id: 's1' },
+          { id: 2, provider: 'yahoo', provider_user_id: 'y1' },
+          { id: 3, provider: 'ottoneu', provider_user_id: 'o1' },
+        ],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+
+      const builders = await actions.getTeamBuilders();
+
+      const sleeperSpy = jest
+        .spyOn(builders, 'buildSleeperTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
+      const yahooSpy = jest
+        .spyOn(builders, 'buildYahooTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
+      const ottoneuSpy = jest
+        .spyOn(builders, 'buildOttoneuTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
+
+      const start = Date.now();
+      await getTeams();
+      const elapsed = Date.now() - start;
+
+      expect(sleeperSpy).toHaveBeenCalled();
+      expect(yahooSpy).toHaveBeenCalled();
+      expect(ottoneuSpy).toHaveBeenCalled();
+      expect(elapsed).toBeLessThan(120);
+
+      sleeperSpy.mockRestore();
+      yahooSpy.mockRestore();
+      ottoneuSpy.mockRestore();
+    });
+
+    it('continues when a provider throws an error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'sleeper', provider_user_id: 's1' },
+          { id: 2, provider: 'yahoo', provider_user_id: 'y1' },
+        ],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+
+      const builders = await actions.getTeamBuilders();
+
+      const sleeperSpy = jest
+        .spyOn(builders, 'buildSleeperTeams')
+        .mockResolvedValue([
+          { id: 1, name: 'S', totalScore: 0, players: [], opponent: { name: '', totalScore: 0, players: [] } } as any,
+        ]);
+      const yahooSpy = jest
+        .spyOn(builders, 'buildYahooTeams')
+        .mockRejectedValue(new Error('fail'));
+
+      const result = await getTeams();
+
+      expect(result.teams).toHaveLength(1);
+
+      sleeperSpy.mockRestore();
+      yahooSpy.mockRestore();
+    });
+  });
+});

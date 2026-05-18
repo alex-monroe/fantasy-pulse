@@ -12,9 +12,10 @@ teams into a single live scoreboard. The home page fans out to
 token reuse, caching) matters more than feature volume.
 
 - **Tech stack:** Next.js 15.3.6 (App Router, Turbopack) · React 18 · TypeScript 5 · Tailwind 3 · Supabase · Jest 29 · Playwright 1.55
+- **Monorepo:** npm workspaces. Web app at `apps/web/`; shared logic (Sleeper helpers, types, `fetchJson`) at `packages/core/` published as `@roster-loom/core`. A mobile app will live at `apps/mobile/` in a future PR.
 - **Package manager:** `npm` — never use `pnpm` or `yarn` in this repo
 - **Node:** `nvm use` will pick **20.x** from `.nvmrc`
-- **Dev port:** **9002** (set in `package.json`; Playwright + Yahoo redirect URI assume it)
+- **Dev port:** **9002** (Playwright + Yahoo redirect URI assume it)
 
 ## Quick Reference
 
@@ -48,6 +49,9 @@ AGENTS.md                          # Universal entry point
 CLAUDE.md                          <- you are here
 CONTRIBUTING.md                    # Human contributor pointer
 .claude/commands/                  # Claude Code skills
+apps/web/                          # Next.js web app (was the repo root pre-monorepo)
+packages/core/                     # @roster-loom/core — shared logic + types
+supabase/                          # Migrations (shared OttoneuDB)
 docs/
 ├── ARCHITECTURE.md                # System design, tech stack, data flow
 ├── COMMANDS.md                    # All CLI commands grouped by domain
@@ -78,7 +82,7 @@ docs/
 - **Never commit directly to `main`.** Branch, push, `gh pr create`.
 - **Test credentials:** `test@test.com` / `test`.
 - **Update the docs map** when you add/rename files referenced from
-  `AGENTS.md` or `CLAUDE.md`. The Jest test in `src/lib/doc-map.test.ts`
+  `AGENTS.md` or `CLAUDE.md`. The Jest test in `apps/web/src/lib/doc-map.test.ts`
   will fail otherwise.
 - **Shared Supabase project (OttoneuDB).** This project is shared with
   another repo. Every table owned by **this** repo is prefixed `fp_`

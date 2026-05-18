@@ -10,6 +10,7 @@ and Ottoneu accounts; the app aggregates their teams and renders live
 matchup data with cross-team player-share indicators.
 
 - **Tech stack:** Next.js 15.3.6 (App Router) · React 18 · TypeScript 5 · Tailwind 3 · Supabase (Postgres + Auth) · Jest 29 · Playwright 1.55
+- **Monorepo:** npm workspaces. Web app at `apps/web/`; shared code at `packages/core/` (`@roster-loom/core`). Mobile app planned at `apps/mobile/`.
 - **Package manager:** **npm** (lockfile is committed; CI requires it in sync)
 - **Node:** **20.x** (from `.nvmrc` and `engines`)
 - **Dev port:** **9002** (not 3000)
@@ -31,6 +32,9 @@ matchup data with cross-team player-share indicators.
 AGENTS.md                          <- you are here (universal entry point)
 CLAUDE.md                          # Claude-Code-specific extensions
 CONTRIBUTING.md                    # Human contributor pointer (mostly defers here)
+apps/web/                          # Next.js web app
+packages/core/                     # @roster-loom/core — shared logic + types
+supabase/                          # Migrations (shared OttoneuDB)
 docs/
 ├── ARCHITECTURE.md                # System design, tech stack, data flow
 ├── COMMANDS.md                    # All CLI commands grouped by domain
@@ -45,35 +49,40 @@ docs/
 ```
 
 Per-provider docs are colocated with their code under
-`src/app/integrations/<provider>/README.md`.
+`apps/web/src/app/integrations/<provider>/README.md`.
 
 ## Code Style
 
-- TypeScript everywhere. No new `.js` files in `src/`.
+- TypeScript everywhere. No new `.js` files in `apps/web/src/`.
 - Server-only modules start with `'use server';` — keep client and
   server boundaries explicit.
 - Tests are **colocated** as `<name>.test.ts(x)` next to implementation.
-- Tailwind for styling; reuse shadcn primitives in `src/components/ui/`
+- Tailwind for styling; reuse shadcn primitives in `apps/web/src/components/ui/`
   before hand-rolling.
-- Import via the `@/...` alias (mapped to `src/`).
-- Log structured data via `src/utils/logger.ts`; never `console.log` in
-  production paths.
+- Inside `apps/web/`, import via the `@/...` alias (mapped to `apps/web/src/`).
+- Shared business logic (types, Sleeper helpers, `fetchJson`) lives in
+  `packages/core/`; import it as `@roster-loom/core`.
+- Log structured data via `apps/web/src/utils/logger.ts`; never `console.log`
+  in production paths.
 
 ## Architectural Rules
 
 1. **Providers don't import providers.** `integrations/yahoo` may not
    import from `integrations/sleeper`. Cross-provider work lives in
-   `src/app/actions.ts`.
-2. **Supabase access is centralized** in `src/utils/supabase/`
+   `apps/web/src/app/actions.ts`.
+2. **Supabase access is centralized** in `apps/web/src/utils/supabase/`
    (`server.ts` for RSC/route handlers, `client.ts` for the browser).
 3. **External API calls are timed.** Wrap them with `startTimer` /
-   `logDuration` from `src/utils/performance-logger.ts`.
+   `logDuration` from `apps/web/src/utils/performance-logger.ts`.
 4. **Schema changes happen via new SQL migrations** under
    `supabase/migrations/`. Never edit a committed migration. Regenerate
    `docs/references/database-schema.md` afterward.
 5. **Every new provider follows the five-file pattern**
    (`actions.ts`, `actions.test.ts`, `page.tsx`, `README.md`,
    `*.example.json`) — see [docs/adding-integrations.md](docs/adding-integrations.md).
+6. **Web-only deps stay in `apps/web/`.** Anything in `packages/core/`
+   must not import React, Next.js, or browser-only modules — the mobile
+   app will share it.
 
 ## Critical Rules
 
@@ -88,4 +97,4 @@ Per-provider docs are colocated with their code under
 - **Test credentials** for any login step: `test@test.com` / `test`.
 - **Update the docs map** when you add/rename files referenced from
   `AGENTS.md` or `CLAUDE.md`. A Jest test enforces this — see
-  `src/lib/doc-map.test.ts`.
+  `apps/web/src/lib/doc-map.test.ts`.

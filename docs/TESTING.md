@@ -6,19 +6,19 @@
 - Env: `jsdom` (so React component tests work out of the box)
 - Setup: `jest.setup.ts` (jest-dom matchers)
 - Pattern: tests are **colocated** next to the implementation as
-  `*.test.ts` / `*.test.tsx` (e.g. `src/app/actions.test.ts`,
-  `src/components/player-card.test.tsx`).
+  `*.test.ts` / `*.test.tsx` (e.g. `apps/web/src/app/actions.test.ts`,
+  `apps/web/src/components/player-card.test.tsx`).
 - `e2e/` is excluded from Jest via `testPathIgnorePatterns`.
 
 Run:
 
 ```bash
 npm test
-npm test -- src/app/actions.test.ts
+npm test -- apps/web/src/app/actions.test.ts
 npm test -- -t "buildSleeperTeams"
 ```
 
-When adding a new module under `src/app/integrations/<provider>/actions.ts`,
+When adding a new module under `apps/web/src/app/integrations/<provider>/actions.ts`,
 add a sibling `actions.test.ts` — every existing provider follows this rule.
 
 ## E2E tests (Playwright) — do not run locally
