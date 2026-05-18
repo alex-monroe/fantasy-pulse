@@ -12,7 +12,7 @@ teams into a single live scoreboard. The home page fans out to
 token reuse, caching) matters more than feature volume.
 
 - **Tech stack:** Next.js 15.3.6 (App Router, Turbopack) · React 18 · TypeScript 5 · Tailwind 3 · Supabase · Jest 29 · Playwright 1.55
-- **Monorepo:** npm workspaces. Web app at `apps/web/`; shared logic (Sleeper helpers, types, `fetchJson`) at `packages/core/` published as `@roster-loom/core`. A mobile app will live at `apps/mobile/` in a future PR.
+- **Monorepo:** npm workspaces. Web app at `apps/web/`; mobile app at `apps/mobile/` (Expo / React Native); shared logic (Sleeper helpers, types, `fetchJson`) at `packages/core/` published as `@roster-loom/core`. Mobile quickstart in [docs/MOBILE.md](docs/MOBILE.md).
 - **Package manager:** `npm` — never use `pnpm` or `yarn` in this repo
 - **Node:** `nvm use` will pick **20.x** from `.nvmrc`
 - **Dev port:** **9002** (Playwright + Yahoo redirect URI assume it)
@@ -25,6 +25,7 @@ token reuse, caching) matters more than feature volume.
 - **Testing:** [docs/TESTING.md](docs/TESTING.md)
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
+- **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
 
@@ -50,6 +51,7 @@ CLAUDE.md                          <- you are here
 CONTRIBUTING.md                    # Human contributor pointer
 .claude/commands/                  # Claude Code skills
 apps/web/                          # Next.js web app (was the repo root pre-monorepo)
+apps/mobile/                       # Expo / React Native app
 packages/core/                     # @roster-loom/core — shared logic + types
 supabase/                          # Migrations (shared OttoneuDB)
 docs/

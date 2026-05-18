@@ -10,7 +10,7 @@ and Ottoneu accounts; the app aggregates their teams and renders live
 matchup data with cross-team player-share indicators.
 
 - **Tech stack:** Next.js 15.3.6 (App Router) · React 18 · TypeScript 5 · Tailwind 3 · Supabase (Postgres + Auth) · Jest 29 · Playwright 1.55
-- **Monorepo:** npm workspaces. Web app at `apps/web/`; shared code at `packages/core/` (`@roster-loom/core`). Mobile app planned at `apps/mobile/`.
+- **Monorepo:** npm workspaces. Web app at `apps/web/`; mobile app at `apps/mobile/` (Expo / React Native); shared code at `packages/core/` (`@roster-loom/core`). See [docs/MOBILE.md](docs/MOBILE.md) for the mobile quickstart.
 - **Package manager:** **npm** (lockfile is committed; CI requires it in sync)
 - **Node:** **20.x** (from `.nvmrc` and `engines`)
 - **Dev port:** **9002** (not 3000)
@@ -23,6 +23,7 @@ matchup data with cross-team player-share indicators.
 - **Testing:** [docs/TESTING.md](docs/TESTING.md) — Jest setup, why E2E is off-limits
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — branch + PR rules
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
+- **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
 
@@ -33,6 +34,7 @@ AGENTS.md                          <- you are here (universal entry point)
 CLAUDE.md                          # Claude-Code-specific extensions
 CONTRIBUTING.md                    # Human contributor pointer (mostly defers here)
 apps/web/                          # Next.js web app
+apps/mobile/                       # Expo / React Native app
 packages/core/                     # @roster-loom/core — shared logic + types
 supabase/                          # Migrations (shared OttoneuDB)
 docs/
@@ -41,6 +43,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries, conventions
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── MOBILE.md                      # Mobile app quickstart (Expo Go, env, layout)
 ├── adding-integrations.md         # How to add a new fantasy provider
 ├── blueprint.md                   # Original product brief (style + features)
 └── references/

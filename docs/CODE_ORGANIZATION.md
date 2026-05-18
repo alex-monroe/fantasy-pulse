@@ -7,22 +7,28 @@ Where things live and why. Pair this with [ARCHITECTURE.md](ARCHITECTURE.md).
 ```
 fantasy-pulse/
 ├── apps/
-│   └── web/             # Next.js app (this is what Vercel deploys)
-│       ├── src/
-│       ├── e2e/
-│       ├── public/
-│       └── (configs: next, tsconfig, jest, tailwind, playwright, eslint)
+│   ├── web/             # Next.js app (this is what Vercel deploys)
+│   │   ├── src/
+│   │   ├── e2e/
+│   │   ├── public/
+│   │   └── (configs: next, tsconfig, jest, tailwind, playwright, eslint)
+│   └── mobile/          # Expo / React Native app
+│       ├── app/         # Expo Router screens
+│       ├── lib/         # supabase client, session provider
+│       ├── components/, hooks/, constants/   # UI primitives (scaffolded)
+│       ├── __tests__/   # Jest tests (jest-expo)
+│       └── (configs: app.json, tsconfig, jest)
 ├── packages/
 │   └── core/            # @roster-loom/core — shared logic + types
 │       └── src/
 ├── supabase/            # Migrations (shared OttoneuDB; not app-specific)
 ├── docs/                # This directory
-└── package.json         # Workspace root — delegates to apps/web/
+└── package.json         # Workspace root
 ```
 
-`apps/mobile/` will be added in a later PR (Expo / React Native).
+Mobile-specific guide: [MOBILE.md](MOBILE.md).
 
-### What goes in `packages/core/`
+### What goes in `packages/core/` {#what-goes-in-packagescore}
 
 Pure TypeScript only. No React, no Next.js, no browser-only globals
 (`window`, `document`), no node-only globals (`fs`, `process.cwd`). The
