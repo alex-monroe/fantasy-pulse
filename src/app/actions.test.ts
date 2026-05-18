@@ -423,7 +423,7 @@ describe('actions', () => {
       );
       expect(getYahooPlayerScores).toHaveBeenCalledWith(
         'int-2',
-        'user-team-key',
+        'yahoo-team-1',
         'token',
         1
       );
@@ -474,7 +474,16 @@ describe('actions', () => {
 
       expect(result).toEqual([]);
       expect(getYahooRoster).toHaveBeenCalledTimes(2);
-      expect(getYahooPlayerScores).not.toHaveBeenCalled();
+      // User player scores are prefetched alongside matchups (PR #177), so
+      // the call has already fired by the time we discover the roster error.
+      // We never request opponent scores, so only the prefetch should show up.
+      expect(getYahooPlayerScores).toHaveBeenCalledTimes(1);
+      expect(getYahooPlayerScores).toHaveBeenCalledWith(
+        'int-2',
+        'yahoo-team-1',
+        'token',
+        1
+      );
     });
 
     it('logs and continues when player score fetch rejects', async () => {
