@@ -51,7 +51,7 @@ export async function getYahooAccessToken(integrationId: number): Promise<{ acce
   }
 
   const { data: integration, error: integrationError } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .select('access_token, refresh_token, expires_at')
     .eq('id', integrationId)
     .eq('user_id', user.id)
@@ -103,7 +103,7 @@ export async function getYahooAccessToken(integrationId: number): Promise<{ acce
       const newExpiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
 
       const { error: updateError } = await supabase
-        .from('user_integrations')
+        .from('fp_user_integrations')
         .update({
           access_token: data.access_token,
           refresh_token: data.refresh_token || integration.refresh_token, // Yahoo may issue a new refresh token
@@ -150,7 +150,7 @@ export async function removeYahooIntegration(integrationId: number) {
 
   // First, delete all teams associated with the integration
   const { error: deleteTeamsError } = await supabase
-    .from('teams')
+    .from('fp_teams')
     .delete()
     .eq('user_integration_id', integrationId);
 
@@ -160,7 +160,7 @@ export async function removeYahooIntegration(integrationId: number) {
 
   // Then, delete all leagues associated with the integration
   const { error: deleteLeaguesError } = await supabase
-    .from('leagues')
+    .from('fp_leagues')
     .delete()
     .eq('user_integration_id', integrationId);
 
@@ -170,7 +170,7 @@ export async function removeYahooIntegration(integrationId: number) {
 
   // Then, delete the integration itself
   const { error: deleteIntegrationError } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .delete()
     .eq('id', integrationId);
 
@@ -189,7 +189,7 @@ export async function removeYahooIntegration(integrationId: number) {
 export async function getLeagues(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('leagues')
+    .from('fp_leagues')
     .select('*')
     .eq('user_integration_id', integrationId);
 
@@ -208,7 +208,7 @@ export async function getLeagues(integrationId: number) {
 export async function getTeams(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('teams')
+    .from('fp_teams')
     .select('*')
     .eq('user_integration_id', integrationId);
 
@@ -305,7 +305,7 @@ export async function getYahooUserTeams(integrationId: number) {
     if (teamsToInsert.length > 0) {
       const supabase = createClient();
       const { data: upsertedTeams, error: upsertError } = await supabase
-        .from('teams')
+        .from('fp_teams')
         .upsert(teamsToInsert, { onConflict: 'team_key,user_integration_id' })
         .select();
 
@@ -341,7 +341,7 @@ export async function getYahooIntegration() {
   }
 
   const { data, error } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .select('*')
     .eq('user_id', user.id)
     .eq('provider', 'yahoo')
@@ -433,7 +433,7 @@ export async function getYahooLeagues(integrationId: number) {
     if (leaguesToInsert.length > 0) {
       const supabase = createClient();
       const { data: upsertedLeagues, error: upsertError } = await supabase
-        .from('leagues')
+        .from('fp_leagues')
         .upsert(leaguesToInsert, { onConflict: 'league_id' })
         .select();
 

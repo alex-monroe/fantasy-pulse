@@ -79,13 +79,14 @@ Supabase Postgres. Schema is owned by SQL migrations in
 `supabase/migrations/` and reproduced for reference in
 [references/database-schema.md](references/database-schema.md).
 
-Core tables:
+Core tables (all prefixed `fp_` to distinguish them from the sibling
+repo's tables on the shared OttoneuDB project):
 
-- `user_integrations` — per-user provider connections (Sleeper ID, Yahoo
-  OAuth tokens, etc.)
-- `leagues` — league rows imported from each provider
-- `teams` — teams pulled from each league
-- `notes` — free-form user notes
+- `fp_user_integrations` — per-user provider connections (Sleeper ID,
+  Yahoo OAuth tokens, etc.)
+- `fp_leagues` — league rows imported from each provider
+- `fp_teams` — teams pulled from each league
+- `fp_notes` — free-form user notes
 
 Server-side Supabase access goes through `src/utils/supabase/server.ts`;
 client-side through `src/utils/supabase/client.ts`. `middleware.ts`

@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const expires_at = new Date(Date.now() + expires_in * 1000).toISOString();
 
     const { error: insertError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'yahoo',

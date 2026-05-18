@@ -27,14 +27,14 @@ test.describe('Main Page', () => {
 
     // Insert mock integrations and leagues
     const { data: sleeper, error: sleeperError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({ user_id: user.id, provider: 'sleeper', provider_user_id: 'sleeperUser' })
       .select()
       .single();
     if (sleeperError) throw sleeperError;
     sleeperIntegration = sleeper;
 
-    await supabase.from('leagues').insert({
+    await supabase.from('fp_leagues').insert({
       league_id: 'league1',
       name: 'Mock Sleeper League',
       user_integration_id: sleeper.id,
@@ -45,7 +45,7 @@ test.describe('Main Page', () => {
     });
 
     const { data: yahoo, error: yahooError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'yahoo',
@@ -60,7 +60,7 @@ test.describe('Main Page', () => {
     yahooIntegration = yahoo;
 
     const { data: ottoneu, error: ottoneuError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'ottoneu',
@@ -71,7 +71,7 @@ test.describe('Main Page', () => {
     if (ottoneuError) throw ottoneuError;
     ottoneuIntegration = ottoneu;
 
-    await supabase.from('leagues').insert({
+    await supabase.from('fp_leagues').insert({
       league_id: '309',
       name: 'The SOFA',
       user_integration_id: ottoneu.id,
@@ -85,15 +85,15 @@ test.describe('Main Page', () => {
   test.afterAll(async () => {
     if (user) {
       await supabase
-        .from('teams')
+        .from('fp_teams')
         .delete()
         .eq('user_integration_id', yahooIntegration.id);
       await supabase
-        .from('teams')
+        .from('fp_teams')
         .delete()
         .eq('user_integration_id', ottoneuIntegration.id);
-      await supabase.from('leagues').delete().eq('user_id', user.id);
-      await supabase.from('user_integrations').delete().eq('user_id', user.id);
+      await supabase.from('fp_leagues').delete().eq('user_id', user.id);
+      await supabase.from('fp_user_integrations').delete().eq('user_id', user.id);
       await supabase.auth.admin.deleteUser(user.id);
     }
   });

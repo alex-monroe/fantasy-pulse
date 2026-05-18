@@ -303,7 +303,7 @@ export async function connectOttoneu(
   const { teamName, leagueName, leagueId, teamId, matchup } = info;
 
   const { data: integration, error: insertError } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .insert({
       user_id: user.id,
       provider: 'ottoneu',
@@ -316,7 +316,7 @@ export async function connectOttoneu(
     return { error: insertError.message };
   }
 
-  const { error: leagueError } = await supabase.from('leagues').upsert({
+  const { error: leagueError } = await supabase.from('fp_leagues').upsert({
     league_id: leagueId,
     name: leagueName,
     user_integration_id: integration.id,
@@ -337,7 +337,7 @@ export async function removeOttoneuIntegration(integrationId: number) {
   const supabase = createClient();
 
   const { error: deleteLeaguesError } = await supabase
-    .from('leagues')
+    .from('fp_leagues')
     .delete()
     .eq('user_integration_id', integrationId);
 
@@ -346,7 +346,7 @@ export async function removeOttoneuIntegration(integrationId: number) {
   }
 
   const { error: deleteIntegrationError } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .delete()
     .eq('id', integrationId);
 
@@ -368,7 +368,7 @@ export async function getOttoneuIntegration() {
   }
 
   const { data, error } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .select('*')
     .eq('user_id', user.id)
     .eq('provider', 'ottoneu')
@@ -388,7 +388,7 @@ export async function getOttoneuIntegration() {
 export async function getLeagues(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('leagues')
+    .from('fp_leagues')
     .select('*')
     .eq('user_integration_id', integrationId);
 

@@ -80,3 +80,13 @@ docs/
 - **Update the docs map** when you add/rename files referenced from
   `AGENTS.md` or `CLAUDE.md`. The Jest test in `src/lib/doc-map.test.ts`
   will fail otherwise.
+- **Shared Supabase project (OttoneuDB).** This project is shared with
+  another repo. Every table owned by **this** repo is prefixed `fp_`
+  (for fantasy-pulse): `fp_user_integrations`, `fp_leagues`, `fp_teams`,
+  `fp_notes` (plus the standard `auth.*` / `storage.*` schemas managed
+  by Supabase). Any non-`fp_` public table you see via the `supabase`
+  MCP tools belongs to the sibling repo — **do not** drop, alter,
+  rename, or suggest "cleaning up" those tables, and do not assume
+  their presence indicates a bug here. When adding new tables in this
+  repo, give them an `fp_` prefix. If a schema change here would
+  affect a non-`fp_` table, stop and ask.

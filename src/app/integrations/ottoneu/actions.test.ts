@@ -196,10 +196,10 @@ describe('ottoneu actions', () => {
             .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
         },
         from: jest.fn((table: string) => {
-          if (table === 'user_integrations') {
+          if (table === 'fp_user_integrations') {
             return { insert: insertMock } as any;
           }
-          if (table === 'leagues') {
+          if (table === 'fp_leagues') {
             return { upsert: upsertMock } as any;
           }
           return {} as any;

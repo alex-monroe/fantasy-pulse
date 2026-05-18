@@ -37,7 +37,7 @@ export async function connectSleeper(username: string) {
     }
 
     const { error: insertError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'sleeper',
@@ -64,7 +64,7 @@ export async function removeSleeperIntegration(integrationId: number) {
 
   // First, delete all leagues associated with the integration
   const { error: deleteLeaguesError } = await supabase
-    .from('leagues')
+    .from('fp_leagues')
     .delete()
     .eq('user_integration_id', integrationId);
 
@@ -74,7 +74,7 @@ export async function removeSleeperIntegration(integrationId: number) {
 
   // Then, delete the integration itself
   const { error: deleteIntegrationError } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .delete()
     .eq('id', integrationId);
 
@@ -93,7 +93,7 @@ export async function removeSleeperIntegration(integrationId: number) {
 export async function getLeagues(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('leagues')
+    .from('fp_leagues')
     .select('*')
     .eq('user_integration_id', integrationId);
 
@@ -117,7 +117,7 @@ export async function getSleeperIntegration() {
   }
 
   const { data, error } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .select('*')
     .eq('user_id', user.id)
     .eq('provider', 'sleeper')
@@ -157,7 +157,7 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
         status: league.status,
       }));
 
-      const { error: insertError } = await supabase.from('leagues').upsert(leaguesToInsert);
+      const { error: insertError } = await supabase.from('fp_leagues').upsert(leaguesToInsert);
       if (insertError) {
         return { error: insertError.message };
       }
