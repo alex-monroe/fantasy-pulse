@@ -66,6 +66,7 @@
       "Bash(git switch *)",
       "Bash(git commit *)",
       "Bash(git pull*)",
+      "Bash(git push*)",
       "Bash(git merge*)",
       "Bash(git rebase*)",
       "Bash(git stash)",
