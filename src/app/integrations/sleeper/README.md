@@ -8,14 +8,14 @@ The Sleeper integration allows users to connect their Sleeper account to the app
 
 The integration flow is as follows:
 
-1.  **Authentication**: The user provides their Sleeper username. The application uses this to fetch the user's account information from the Sleeper API. The user's Sleeper ID is then securely stored in the `user_integrations` table in the database.
+1.  **Authentication**: The user provides their Sleeper username. The application uses this to fetch the user's account information from the Sleeper API. The user's Sleeper ID is then securely stored in the `fp_user_integrations` table in the database.
 
 2.  **Data Fetching**: With the user's Sleeper ID, the application can make requests to the Sleeper API to fetch data. The following functions in `src/app/integrations/sleeper/actions.ts` are responsible for fetching data:
     *   `getSleeperLeagues`: Fetches the user's leagues for the current season.
     *   `getRosters`: Fetches the rosters for a specific league.
     *   `getNflPlayers`: Fetches all NFL players from the Sleeper API.
 
-3.  **Data Storage**: The data fetched from the Sleeper API is then parsed and stored in the application's database. For example, league data is stored in the `leagues` table. This allows the application to use the data without having to repeatedly call the Sleeper API.
+3.  **Data Storage**: The data fetched from the Sleeper API is then parsed and stored in the application's database. For example, league data is stored in the `fp_leagues` table. This allows the application to use the data without having to repeatedly call the Sleeper API.
 
 ## Data Formats
 

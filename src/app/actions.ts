@@ -1068,7 +1068,7 @@ export async function getTeams() {
 
   const integrationsStart = startTimer();
   const { data: integrations, error: integrationsError } = await supabase
-    .from('user_integrations')
+    .from('fp_user_integrations')
     .select('*')
     .eq('user_id', user.id);
   logDuration('getTeams: load integrations', integrationsStart, {

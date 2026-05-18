@@ -34,7 +34,7 @@ test.describe('Matchup Report Page', () => {
         status: string;
       }
     ) => {
-      const { error: leagueError } = await supabase.from('leagues').insert({
+      const { error: leagueError } = await supabase.from('fp_leagues').insert({
         ...league,
         user_integration_id: userIntegrationId,
         user_id: user.id,
@@ -43,7 +43,7 @@ test.describe('Matchup Report Page', () => {
     };
 
     const { data: sleeperUser, error: sleeperUserError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'sleeper',
@@ -62,7 +62,7 @@ test.describe('Matchup Report Page', () => {
     });
 
     const { data: sleeperOpponent, error: sleeperOpponentError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'sleeper',
@@ -83,7 +83,7 @@ test.describe('Matchup Report Page', () => {
     const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
 
     const { data: yahooOne, error: yahooOneError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'yahoo',
@@ -98,7 +98,7 @@ test.describe('Matchup Report Page', () => {
     yahooIntegrations.push(yahooOne);
 
     const { data: yahooTwo, error: yahooTwoError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'yahoo',
@@ -113,7 +113,7 @@ test.describe('Matchup Report Page', () => {
     yahooIntegrations.push(yahooTwo);
 
     const { data: ottoneuOne, error: ottoneuOneError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'ottoneu',
@@ -132,7 +132,7 @@ test.describe('Matchup Report Page', () => {
     });
 
     const { data: ottoneuTwo, error: ottoneuTwoError } = await supabase
-      .from('user_integrations')
+      .from('fp_user_integrations')
       .insert({
         user_id: user.id,
         provider: 'ottoneu',
@@ -159,10 +159,10 @@ test.describe('Matchup Report Page', () => {
         ...ottoneuIntegrations,
       ];
       for (const integration of allIntegrations) {
-        await supabase.from('teams').delete().eq('user_integration_id', integration.id);
-        await supabase.from('leagues').delete().eq('user_integration_id', integration.id);
+        await supabase.from('fp_teams').delete().eq('user_integration_id', integration.id);
+        await supabase.from('fp_leagues').delete().eq('user_integration_id', integration.id);
       }
-      await supabase.from('user_integrations').delete().eq('user_id', user.id);
+      await supabase.from('fp_user_integrations').delete().eq('user_id', user.id);
       await supabase.auth.admin.deleteUser(user.id);
     }
   });

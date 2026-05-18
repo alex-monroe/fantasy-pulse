@@ -8,9 +8,10 @@ Playwright, and `setup.sh` all read from `.env.local`.
 Roster Loom shares the **`OttoneuDB`** Supabase project (ref
 `rbinbcwinchphipvcfqk`). It was migrated from a standalone
 `fantasy-pulse` project in May 2026 to consolidate fantasy-football
-infrastructure under one project; the four app tables (`notes`,
-`user_integrations`, `leagues`, `teams`) coexist with OttoneuDB's
-unrelated tables in the `public` schema.
+infrastructure under one project; Roster Loom's tables all carry an
+`fp_` prefix (`fp_user_integrations`, `fp_leagues`, `fp_teams`,
+`fp_notes`) so they're visually distinct from OttoneuDB's unrelated
+tables in the `public` schema.
 
 Pull project credentials from the
 [OttoneuDB API settings](https://supabase.com/dashboard/project/rbinbcwinchphipvcfqk/settings/api-keys).
