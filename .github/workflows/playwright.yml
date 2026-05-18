@@ -32,10 +32,12 @@ jobs:
 
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+      working-directory: apps/web
 
     - name: Run Playwright tests
       id: tests
       run: npx playwright test
+      working-directory: apps/web
       continue-on-error: true
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -47,8 +49,8 @@ jobs:
       run: |
         REPORT_DIR="playwright-report-${{ github.run_id }}"
         mkdir -p "$REPORT_DIR"
-        cp -r playwright-report/* "$REPORT_DIR/"
-        if [ -d test-results ]; then cp -r test-results "$REPORT_DIR/"; fi
+        cp -r apps/web/playwright-report/* "$REPORT_DIR/"
+        if [ -d apps/web/test-results ]; then cp -r apps/web/test-results "$REPORT_DIR/"; fi
 
     - name: Checkout existing GitHub Pages
       if: always()

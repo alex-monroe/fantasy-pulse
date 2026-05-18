@@ -10,7 +10,7 @@ Run after any change under `supabase/migrations/`.
    ```
 2. Regenerate TypeScript types:
    ```bash
-   npx supabase gen types typescript --linked > src/lib/database.types.ts
+   npx supabase gen types typescript --linked > apps/web/src/lib/database.types.ts
    ```
 3. Update the schema snapshot at
    [docs/references/database-schema.md](../../docs/references/database-schema.md)

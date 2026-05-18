@@ -12,7 +12,7 @@ npm test
 To target a single file or test name:
 
 ```bash
-npm test -- src/app/actions.test.ts
+npm test -- src/app/actions.test.ts        # path resolves from apps/web/
 npm test -- -t "buildSleeperTeams"
 ```
 

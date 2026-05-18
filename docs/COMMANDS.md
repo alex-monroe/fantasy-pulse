@@ -2,12 +2,16 @@
 
 Every CLI command you need, grouped by domain. Package manager is **npm**.
 
+This is an npm-workspaces monorepo. Most scripts can be run from the
+repo root and will delegate into `apps/web/`; you can also run them
+directly from `apps/web/` if you prefer.
+
 ## Setup
 
 ```bash
-nvm use                 # picks Node 20 from .nvmrc
-npm install             # install deps (also: regenerates package-lock.json)
-cp .env.example .env.local   # then fill in Supabase + Yahoo credentials
+nvm use                                    # picks Node 20 from .nvmrc
+npm install                                # installs all workspaces
+cp apps/web/.env.example apps/web/.env.local   # fill in Supabase + Yahoo credentials
 ```
 
 See [references/environment.md](references/environment.md) for what each
@@ -56,7 +60,7 @@ The Supabase CLI is installed as a dev dependency.
 npx supabase migration new <name>   # create a new SQL migration
 npx supabase db diff                # generate a migration from local changes
 npx supabase db push                # apply migrations to the linked project
-npx supabase gen types typescript --linked > src/lib/database.types.ts
+npx supabase gen types typescript --linked > apps/web/src/lib/database.types.ts
 ```
 
 After changing schema, regenerate the schema reference at
