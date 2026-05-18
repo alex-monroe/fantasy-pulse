@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 
 test.describe('Matchup Report Page', () => {
   const email = `test-${uuid()}@test.com`;
-  const password = 'test';
+  const password = 'testtest';
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

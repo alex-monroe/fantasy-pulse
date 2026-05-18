@@ -82,7 +82,7 @@ docs/
 - **After any `package.json` change**, run `npm install` and commit the
   regenerated `package-lock.json` in the same commit.
 - **Never commit directly to `main`.** Branch, push, `gh pr create`.
-- **Test credentials:** `test@test.com` / `test`.
+- **Test credentials (OttoneuDB):** `test@test.com` / `testtest`. Re-created 2026-05-18 after the Supabase project migration — the old `/ test` 4-char password didn't satisfy OttoneuDB's 6-char minimum.
 - **Update the docs map** when you add/rename files referenced from
   `AGENTS.md` or `CLAUDE.md`. The Jest test in `apps/web/src/lib/doc-map.test.ts`
   will fail otherwise.

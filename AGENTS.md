@@ -97,7 +97,7 @@ Per-provider docs are colocated with their code under
   regenerated `package-lock.json` in the same commit; CI breaks otherwise.
 - **Never commit directly to `main`.** Branch off, push, open a PR with
   `gh pr create`.
-- **Test credentials** for any login step: `test@test.com` / `test`.
+- **Test credentials** for any login step: `test@test.com` / `testtest`.
 - **Update the docs map** when you add/rename files referenced from
   `AGENTS.md` or `CLAUDE.md`. A Jest test enforces this — see
   `apps/web/src/lib/doc-map.test.ts`.

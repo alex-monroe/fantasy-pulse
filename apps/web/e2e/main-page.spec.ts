@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { v4 as uuid } from 'uuid';
 
 const email = `test-${uuid()}@test.com`;
-const password = 'test';
+const password = 'testtest';
 
 test.describe('Main Page', () => {
   let user: any;
