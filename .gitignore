@@ -57,3 +57,6 @@ playwright-report/
 .claude/settings.local.json
 # mcp (contains secrets)
 .mcp.json
+
+# Supabase CLI local cache (project ref, service versions, etc.)
+supabase/.temp/
