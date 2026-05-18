@@ -52,3 +52,6 @@ playwright-report/
 # next-pwa
 /public/sw.js
 /public/workbox-*.js
+
+# mcp (contains secrets)
+.mcp.json
