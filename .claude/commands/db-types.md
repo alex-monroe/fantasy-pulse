@@ -17,5 +17,6 @@ Run after any change under `supabase/migrations/`.
    so agents reading the docs map see the new shape.
 4. Commit the regenerated files alongside the migration in the same PR.
 
-If `--linked` fails, the project isn't linked yet — use
-`npx supabase link --project-ref <ref>` first (ask the human for the ref).
+If `--linked` fails, the project isn't linked yet — run
+`npx supabase link --project-ref rbinbcwinchphipvcfqk` (the OttoneuDB
+project; see [../../docs/references/environment.md](../../docs/references/environment.md)).

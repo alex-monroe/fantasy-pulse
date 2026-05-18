@@ -5,6 +5,16 @@ Playwright, and `setup.sh` all read from `.env.local`.
 
 ## Supabase
 
+Roster Loom shares the **`OttoneuDB`** Supabase project (ref
+`rbinbcwinchphipvcfqk`). It was migrated from a standalone
+`fantasy-pulse` project in May 2026 to consolidate fantasy-football
+infrastructure under one project; the four app tables (`notes`,
+`user_integrations`, `leagues`, `teams`) coexist with OttoneuDB's
+unrelated tables in the `public` schema.
+
+Pull project credentials from the
+[OttoneuDB API settings](https://supabase.com/dashboard/project/rbinbcwinchphipvcfqk/settings/api-keys).
+
 | Variable                         | Where used                              | Notes |
 | -------------------------------- | --------------------------------------- | ----- |
 | `NEXT_PUBLIC_SUPABASE_URL`       | Browser + server Supabase clients       | Public — fine to expose. |
