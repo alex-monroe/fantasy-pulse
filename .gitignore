@@ -55,4 +55,5 @@ playwright-report/
 
 # Claude Code — user-local; team-shared skills live in .claude/commands/
 .claude/settings.local.json
+# mcp (contains secrets)
 .mcp.json
