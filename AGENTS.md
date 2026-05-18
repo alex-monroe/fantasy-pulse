@@ -1,78 +1,91 @@
-# AGENTS
+# AGENTS.md
 
-This document provides instructions for agents on how to set up and run this project.
+Universal instructions for AI coding agents working on **Roster Loom**
+(repo: `alex-monroe/fantasy-pulse`).
 
-## Frontend Verification
+## Project Overview
 
-Skip the `frontend_verification` tool. Do not use it to verify frontend changes.
+A one-stop fantasy football scoreboard. Users connect Sleeper, Yahoo,
+and Ottoneu accounts; the app aggregates their teams and renders live
+matchup data with cross-team player-share indicators.
 
-## E2E Tests
+- **Tech stack:** Next.js 15.3.6 (App Router) · React 18 · TypeScript 5 · Tailwind 3 · Supabase (Postgres + Auth) · Jest 29 · Playwright 1.55
+- **Package manager:** **npm** (lockfile is committed; CI requires it in sync)
+- **Node:** **20.x** (from `.nvmrc` and `engines`)
+- **Dev port:** **9002** (not 3000)
 
-Do not run the e2e tests to validate behavior. They are not reliable.
+## Quick Reference
 
-## Test Credentials
-Use the following credentials for any login steps during automated tests:
+- **Commands:** [docs/COMMANDS.md](docs/COMMANDS.md) — every CLI command
+- **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data flow, provider pattern
+- **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md) — where things live, module rules
+- **Testing:** [docs/TESTING.md](docs/TESTING.md) — Jest setup, why E2E is off-limits
+- **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — branch + PR rules
+- **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
+- **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
+- **Env vars:** [docs/references/environment.md](docs/references/environment.md)
 
-- Email: test@test.com
-- Password: test
+## Documentation Map
 
-## Database Schema
-
-```sql
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
-
-CREATE TABLE public.leagues (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  league_id text,
-  name character varying,
-  user_integration_id bigint,
-  season text,
-  total_rosters bigint,
-  status text,
-  user_id uuid DEFAULT auth.uid(),
-  CONSTRAINT leagues_pkey PRIMARY KEY (id),
-  CONSTRAINT leagues_user_integrations_id_fkey FOREIGN KEY (user_integration_id) REFERENCES public.user_integrations(id)
-);
-CREATE TABLE public.notes (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  text text,
-  user_id uuid,
-  CONSTRAINT notes_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.user_integrations (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  user_id uuid DEFAULT auth.uid(),
-  provider character varying,
-  provider_user_id text,
-  CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
-);
+```
+AGENTS.md                          <- you are here (universal entry point)
+CLAUDE.md                          # Claude-Code-specific extensions
+CONTRIBUTING.md                    # Human contributor pointer (mostly defers here)
+docs/
+├── ARCHITECTURE.md                # System design, tech stack, data flow
+├── COMMANDS.md                    # All CLI commands grouped by domain
+├── CODE_ORGANIZATION.md           # File layout, module boundaries, conventions
+├── TESTING.md                     # Jest setup, E2E policy, CI signals
+├── GIT_WORKFLOW.md                # Branch + PR rules
+├── adding-integrations.md         # How to add a new fantasy provider
+├── blueprint.md                   # Original product brief (style + features)
+└── references/
+    ├── database-schema.md         # Snapshot of Supabase schema (regen after migrations)
+    └── environment.md             # Env var reference
 ```
 
-## Development
+Per-provider docs are colocated with their code under
+`src/app/integrations/<provider>/README.md`.
 
-### `package-lock.json` Synchronization
+## Code Style
 
-When making changes to dependencies in `package.json`, you must regenerate the `package-lock.json` file. This is crucial because our continuous integration (CI) pipeline uses the `npm ci` command, which requires `package.json` and `package-lock.json` to be perfectly in sync.
+- TypeScript everywhere. No new `.js` files in `src/`.
+- Server-only modules start with `'use server';` — keep client and
+  server boundaries explicit.
+- Tests are **colocated** as `<name>.test.ts(x)` next to implementation.
+- Tailwind for styling; reuse shadcn primitives in `src/components/ui/`
+  before hand-rolling.
+- Import via the `@/...` alias (mapped to `src/`).
+- Log structured data via `src/utils/logger.ts`; never `console.log` in
+  production paths.
 
-If they are not in sync, the CI pipeline will fail with an error similar to this:
-`npm ERR! clean install a project with an out-of-sync lockfile`
+## Architectural Rules
 
-To prevent this, after any change in `package.json`, run the following command to update `package-lock.json`:
+1. **Providers don't import providers.** `integrations/yahoo` may not
+   import from `integrations/sleeper`. Cross-provider work lives in
+   `src/app/actions.ts`.
+2. **Supabase access is centralized** in `src/utils/supabase/`
+   (`server.ts` for RSC/route handlers, `client.ts` for the browser).
+3. **External API calls are timed.** Wrap them with `startTimer` /
+   `logDuration` from `src/utils/performance-logger.ts`.
+4. **Schema changes happen via new SQL migrations** under
+   `supabase/migrations/`. Never edit a committed migration. Regenerate
+   `docs/references/database-schema.md` afterward.
+5. **Every new provider follows the five-file pattern**
+   (`actions.ts`, `actions.test.ts`, `page.tsx`, `README.md`,
+   `*.example.json`) — see [docs/adding-integrations.md](docs/adding-integrations.md).
 
-```bash
-npm install
-```
+## Critical Rules
 
-After running the command, be sure to commit the updated `package-lock.json` file along with your other changes. If you forget to do this, you will need to pull the latest changes, run `npm install`, and then push the updated `package-lock.json` file.
-
-## Yahoo Player Scores Example
-
-Use `src/app/integrations/yahoo/player-scores.example.json` as a reference when developing against the Yahoo player scores API.
-
-## Sleeper Matchups Example
-
-Use `src/app/integrations/sleeper/matchups.example.json` as a reference when developing or updating Sleeper matchup logic.
+- **Do not run `npm run test:e2e`.** Playwright tests are flaky and
+  CI-only; rely on the workflow comment posted on each PR.
+- **Skip `frontend_verification`** if your harness offers it — it's
+  unreliable here.
+- **After any `package.json` change, run `npm install`** and commit the
+  regenerated `package-lock.json` in the same commit; CI breaks otherwise.
+- **Never commit directly to `main`.** Branch off, push, open a PR with
+  `gh pr create`.
+- **Test credentials** for any login step: `test@test.com` / `test`.
+- **Update the docs map** when you add/rename files referenced from
+  `AGENTS.md` or `CLAUDE.md`. A Jest test enforces this — see
+  `src/lib/doc-map.test.ts`.

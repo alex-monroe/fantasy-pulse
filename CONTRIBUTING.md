@@ -1,91 +1,29 @@
 # Contributing to Roster Loom
 
-First off, thank you for considering contributing to Roster Loom! It's people like you that make Roster Loom such a great tool.
+Thanks for your interest! Most of what you need lives in the docs.
 
-## Running the E2E Tests
+## For humans
 
-To run the end-to-end tests, follow these steps:
+- **Local setup, env vars, dev server:** see the [README](README.md)
+  and [docs/COMMANDS.md](docs/COMMANDS.md).
+- **How the codebase is laid out:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md)
+- **Running tests:** [docs/TESTING.md](docs/TESTING.md)
+- **Branching and PRs:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
+- **Adding a new fantasy provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 
-1.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+## For AI coding agents
 
-2.  **Create the environment file:**
-    Create a `.env.local` file in the root of the project and add the necessary environment variables. You can use the `.env.example` file as a template.
+Start at [AGENTS.md](AGENTS.md) (universal) or [CLAUDE.md](CLAUDE.md)
+(Claude Code specific). Both are intentionally short maps that point to
+the docs above.
 
-3.  **Install Playwright browsers:**
-    ```bash
-    npx playwright install
-    ```
+## Test credentials
 
-4.  **Install Playwright dependencies:**
-    ```bash
-    npx playwright install-deps
-    ```
+For any login step in automated tests: `test@test.com` / `test`.
 
-5.  **Run the tests:**
-    ```bash
-    npm run test:e2e
-    ```
+## `package-lock.json`
 
-## Test Credentials
-Use the following credentials for any login steps during automated tests:
-
-- Email: test@test.com
-- Password: test
-
-## Database Schema
-
-The following is the database schema for the project.
-
-```sql
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
-
-CREATE TABLE public.leagues (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  league_id text,
-  name character varying,
-  user_integration_id bigint,
-  season text,
-  total_rosters bigint,
-  status text,
-  user_id uuid DEFAULT auth.uid(),
-  CONSTRAINT leagues_pkey PRIMARY KEY (id),
-  CONSTRAINT leagues_user_integrations_id_fkey FOREIGN KEY (user_integration_id) REFERENCES public.user_integrations(id)
-);
-CREATE TABLE public.notes (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  text text,
-  user_id uuid,
-  CONSTRAINT notes_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.user_integrations (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  user_id uuid DEFAULT auth.uid(),
-  provider character varying,
-  provider_user_id text,
-  CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
-);
-```
-
-## Development
-
-### `package-lock.json` Synchronization
-
-When making changes to dependencies in `package.json`, you must regenerate the `package-lock.json` file. This is crucial because our continuous integration (CI) pipeline uses the `npm ci` command, which requires `package.json` and `package-lock.json` to be perfectly in sync.
-
-If they are not in sync, the CI pipeline will fail with an error similar to this:
-`npm ERR! clean install a project with an out-of-sync lockfile`
-
-To prevent this, after any change in `package.json`, run the following command to update `package-lock.json`:
-
-```bash
-npm install
-```
-
-After running the command, be sure to commit the updated `package-lock.json` file along with your other changes. If you forget to do this, you will need to pull the latest changes, run `npm install`, and then push the updated `package-lock.json` file.
+CI installs from the lockfile. After **any** change to `package.json`,
+run `npm install` and commit the regenerated `package-lock.json` in the
+same commit — otherwise CI fails with
+`npm ERR! clean install a project with an out-of-sync lockfile`.
