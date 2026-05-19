@@ -44,4 +44,7 @@ jobs:
         uses: expo/expo-github-action/preview@v8
         with:
           working-directory: apps/mobile
-          command: eas update --branch pr-${{ github.event.pull_request.number }} --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" --non-interactive
+          # NB: avoid `#` in the message string — YAML treats ` # ` (space-hash)
+          # as a comment delimiter even mid-line, which truncates the command.
+          # The action appends `--json` itself; do not add it here.
+          command: eas update --branch pr-${{ github.event.pull_request.number }} --message "PR ${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}" --non-interactive
