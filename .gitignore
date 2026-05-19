@@ -53,6 +53,14 @@ playwright-report/
 apps/web/public/sw.js
 apps/web/public/workbox-*.js
 
+# expo
+.expo/
+expo-env.d.ts
+apps/mobile/dist/
+apps/mobile/web-build/
+apps/mobile/ios/
+apps/mobile/android/
+
 # Claude Code — user-local; team-shared skills live in .claude/commands/
 .claude/settings.local.json
 # mcp (contains secrets)

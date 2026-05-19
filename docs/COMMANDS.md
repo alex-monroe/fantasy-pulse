@@ -20,10 +20,13 @@ env var does.
 ## Dev server
 
 ```bash
-npm run dev             # Next.js dev server with Turbopack on http://localhost:9002
+npm run dev             # Next.js (web) dev server with Turbopack on http://localhost:9002
+npm run mobile          # Expo dev server (QR code for Expo Go on your phone)
 ```
 
-Note: dev port is **9002**, not 3000. Playwright assumes this port.
+Note: web dev port is **9002**, not 3000. Playwright assumes this port.
+
+Mobile-specific quickstart in [MOBILE.md](MOBILE.md).
 
 ## Build / start (production)
 

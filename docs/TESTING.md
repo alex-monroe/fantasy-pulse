@@ -40,7 +40,7 @@ or hand it back to the human.
 For any login step in automated tests:
 
 - Email: `test@test.com`
-- Password: `test`
+- Password: `testtest`
 
 ## Lint and types
 
