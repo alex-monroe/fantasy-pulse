@@ -49,6 +49,10 @@ jobs:
           # builds don't show the red-screen error overlay).
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Web base URL the mobile app calls for /api/teams/refresh.
+          # PR-preview mobile bundles always hit production web — they
+          # don't try to pair with a sibling web PR preview.
+          EXPO_PUBLIC_API_URL: https://www.rosterloom.com
         with:
           working-directory: apps/mobile
           # NB: avoid `#` in the message string — YAML treats ` # ` (space-hash)

@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 import { getLeagues as getSleeperLeagues } from '@/app/integrations/sleeper/actions';
@@ -1052,25 +1053,29 @@ export async function getTeamBuilders() {
  * Gets the user's teams from all integrated platforms.
  * @returns A list of teams.
  */
-export async function getTeams() {
+export async function getTeams(client?: SupabaseClient, userId?: string) {
   const overallStart = startTimer();
   console.log('[performance] getTeams invoked');
 
-  const supabase = createClient();
+  const supabase = client ?? createClient();
 
-  const userStart = startTimer();
-  const { data: { user } } = await supabase.auth.getUser();
-  logDuration('getTeams: fetch user', userStart, { hasUser: Boolean(user) });
-  if (!user) {
-    logDuration('getTeams total', overallStart, { result: 'no-user' });
-    return { error: 'You must be logged in.' };
+  let resolvedUserId = userId;
+  if (!resolvedUserId) {
+    const userStart = startTimer();
+    const { data: { user } } = await supabase.auth.getUser();
+    logDuration('getTeams: fetch user', userStart, { hasUser: Boolean(user) });
+    if (!user) {
+      logDuration('getTeams total', overallStart, { result: 'no-user' });
+      return { error: 'You must be logged in.' };
+    }
+    resolvedUserId = user.id;
   }
 
   const integrationsStart = startTimer();
   const { data: integrations, error: integrationsError } = await supabase
     .from('fp_user_integrations')
     .select('*')
-    .eq('user_id', user.id);
+    .eq('user_id', resolvedUserId);
   logDuration('getTeams: load integrations', integrationsStart, {
     integrationCount: integrations?.length ?? 0,
   });
