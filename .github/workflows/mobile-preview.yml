@@ -42,6 +42,13 @@ jobs:
 
       - name: Publish preview update + post QR comment
         uses: expo/expo-github-action/preview@v8
+        env:
+          # EXPO_PUBLIC_* env vars are inlined into the JS bundle by Metro
+          # at export time. Without these set, the supabase client throws at
+          # module import on the device and the app crashes silently (prod
+          # builds don't show the red-screen error overlay).
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         with:
           working-directory: apps/mobile
           # NB: avoid `#` in the message string — YAML treats ` # ` (space-hash)
