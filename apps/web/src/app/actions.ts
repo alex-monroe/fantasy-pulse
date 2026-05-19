@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 import { getLeagues as getSleeperLeagues } from '@/app/integrations/sleeper/actions';
@@ -1052,11 +1053,11 @@ export async function getTeamBuilders() {
  * Gets the user's teams from all integrated platforms.
  * @returns A list of teams.
  */
-export async function getTeams() {
+export async function getTeams(client?: SupabaseClient) {
   const overallStart = startTimer();
   console.log('[performance] getTeams invoked');
 
-  const supabase = createClient();
+  const supabase = client ?? createClient();
 
   const userStart = startTimer();
   const { data: { user } } = await supabase.auth.getUser();
