@@ -88,13 +88,59 @@ Anything portable lives in `packages/core/` and is imported as
 APIs there — that package has to compile in both environments. See
 [CODE_ORGANIZATION.md](CODE_ORGANIZATION.md#what-goes-in-packagescore).
 
+## Per-PR previews (EAS Update + Expo Go)
+
+Every PR that touches `apps/mobile/**` or `packages/core/**` triggers
+`.github/workflows/mobile-preview.yml`, which:
+
+1. Publishes a JavaScript-only update to a PR-specific EAS Update
+   channel (`pr-<number>`).
+2. Posts a comment on the PR with a QR code.
+
+To view the preview: open **Expo Go** on your phone, tap "Scan QR code,"
+point at the QR in the PR comment. Expo Go fetches that PR's bundle
+and runs it.
+
+JavaScript-only changes (UI, business logic, data fetching) ship via
+EAS Update — instant, free. Native module changes would require a
+full `eas build`; we don't have any of those yet, so every PR can use
+the Update path.
+
+### One-time setup (required for the workflow to actually publish)
+
+These two steps must be done once by a maintainer; nothing in CI can
+do them automatically.
+
+**1. Bind the app to an EAS project.** From the repo root:
+
+```bash
+cd apps/mobile
+npx eas login                        # if you haven't already
+npx eas init                         # creates the EAS project, writes
+                                     # extra.eas.projectId and
+                                     # updates.url into app.json
+```
+
+Commit the resulting `app.json` change.
+
+**2. Add `EXPO_TOKEN` to GitHub Secrets.** Go to
+[expo.dev → Account Settings → Access Tokens](https://expo.dev/accounts/[username]/settings/access-tokens),
+create a token named `github-actions`, copy it. Then in this repo:
+**Settings → Secrets and variables → Actions → New repository secret**,
+name `EXPO_TOKEN`, paste the token value.
+
+After those two steps land, the next PR will get a QR-code comment.
+
 ## What's not here yet
 
-- **PR preview workflow (Phase 3).** Each PR will eventually publish
-  an EAS Update channel and post a QR code as a PR comment, just like
-  Vercel does for web. Until then, every PR has to be checked out
-  locally and run through `npm run mobile`.
 - **Yahoo OAuth on mobile.** The OAuth flow on web uses the
   `localhost:9002` redirect; mobile will need `expo-auth-session` with
   the `rosterloom://` scheme. Not wired up yet.
-- **Production builds.** No `eas build` yet — see Phase 3.
+- **Custom dev client / `eas build`.** Not needed while every native
+  module we use ships with Expo Go. The first time we add a module
+  that doesn't (likely candidates: push notifications, certain
+  auth/payment SDKs), we'll need to publish a one-time custom dev
+  build via `eas build --profile preview`. That's when the Apple
+  Developer account becomes load-bearing.
+- **Production releases.** No `eas build --profile production` /
+  `eas submit` workflow yet.
