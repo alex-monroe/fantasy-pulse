@@ -19,9 +19,11 @@
     "test:e2e": "npm run test:e2e -w @roster-loom/web",
     "mobile": "npm run start -w @roster-loom/mobile",
     "mobile:ios": "npm run ios -w @roster-loom/mobile",
-    "mobile:android": "npm run android -w @roster-loom/mobile"
+    "mobile:android": "npm run android -w @roster-loom/mobile",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
+    "patch-package": "^8.0.0",
     "supabase": "^2.39.2"
   },
   "overrides": {

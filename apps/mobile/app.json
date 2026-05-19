@@ -8,6 +8,12 @@
     "scheme": "rosterloom",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7645652a-c900-481b-983d-13aa2656835c"
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -43,6 +49,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7645652a-c900-481b-983d-13aa2656835c"
+      }
+    },
+    "owner": "atethebones"
   }
 }
