@@ -115,8 +115,8 @@ do them automatically.
 
 ```bash
 cd apps/mobile
-npx eas login                        # if you haven't already
-npx eas init                         # creates the EAS project, writes
+npx eas-cli login                        # if you haven't already
+npx eas-cli init                         # creates the EAS project, writes
                                      # extra.eas.projectId and
                                      # updates.url into app.json
 ```
