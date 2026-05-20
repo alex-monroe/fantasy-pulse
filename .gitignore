@@ -61,6 +61,10 @@ apps/mobile/web-build/
 apps/mobile/ios/
 apps/mobile/android/
 
+# iOS signing — local-only secrets, never commit
+apps/mobile/credentials/
+apps/mobile/credentials.json
+
 # Claude Code — user-local; team-shared skills live in .claude/commands/
 .claude/settings.local.json
 # mcp (contains secrets)

@@ -131,16 +131,130 @@ name `EXPO_TOKEN`, paste the token value.
 
 After those two steps land, the next PR will get a QR-code comment.
 
+## Submitting to the App Store (iOS)
+
+Single-source runbook. Each step is "you do this once," not part of a
+recurring workflow. Order matters — Apple's UI assumes the previous
+step is done.
+
+### Phase 1 — Prereqs (do once, mostly Apple's web UI)
+
+1. **Apple Developer Program** must be active. Enroll at
+   [developer.apple.com/enroll](https://developer.apple.com/enroll).
+   $99/yr. Individual account is fine; Organization requires DUNS.
+   Allow 24–48h for Apple to activate.
+2. **Bundle identifier** — already configured as `com.rosterloom.app`
+   in `apps/mobile/app.json`. Do not change it after the first submission.
+3. **App Store Connect app record.** In
+   [App Store Connect](https://appstoreconnect.apple.com) → **Apps** →
+   **+** → **New App**:
+   - Platform: iOS
+   - Name: Roster Loom
+   - Primary Language: English (U.S.)
+   - Bundle ID: com.rosterloom.app
+   - SKU: any unique string, e.g. `rosterloom-ios-001`
+4. **App Store Connect API key** (for `eas submit` to upload builds
+   non-interactively). In ASC → **Users and Access** → **Integrations**
+   → **App Store Connect API** → **+**:
+   - Name: `eas-cli`
+   - Access: **App Manager**
+   - Download the `.p8` file (you only get to download it once; store
+     it somewhere safe like 1Password)
+   - Copy the **Key ID** and **Issuer ID** shown on the page
+
+### Phase 2 — First TestFlight build (your laptop)
+
+```bash
+cd apps/mobile
+npx eas-cli login            # if not already authenticated
+npx eas-cli credentials      # one-time: let EAS generate the iOS
+                             # distribution certificate + provisioning
+                             # profile. Select 'Build credentials',
+                             # 'production', 'iOS', and let EAS create
+                             # everything automatically. EAS stores
+                             # these on its servers.
+npx eas-cli build --profile production --platform ios
+                             # ~15-20 min. EAS uploads the build to
+                             # App Store Connect automatically when done.
+```
+
+While the build runs, in App Store Connect → your app → **TestFlight**:
+- Wait for the build to appear with status "Processing" (~5 min after
+  EAS finishes uploading), then "Ready to Test."
+- Apple will email you about an export-compliance question — answer
+  "no, my app does not use non-exempt encryption" (matches the
+  `ITSAppUsesNonExemptEncryption: false` we set in `app.json`).
+
+Then submit it:
+
+```bash
+npx eas-cli submit --profile production --platform ios
+# First run: EAS prompts for ASC API Key ID, Issuer ID, and the .p8
+# file path. Paste/select them. EAS writes the IDs back into eas.json
+# (the .p8 contents are stored on EAS's servers; don't commit them).
+```
+
+Install on your phone: open **TestFlight** app on iOS → accept the
+invite → install. Sign in, scoreboard should render with real data.
+
+### Phase 3 — App Store metadata + review (App Store Connect)
+
+In ASC → your app → **App Store** tab:
+- **App Information**
+  - Category: Sports
+  - Privacy Policy URL: `https://www.rosterloom.com/privacy`
+- **Pricing and Availability**: Free, all territories
+- **App Privacy** (`Manage` next to Data Collected):
+  - Email Address — linked to user, used for App Functionality
+  - User ID (Supabase user UUID) — linked to user, App Functionality
+  - Other Auth Tokens (provider OAuth tokens) — linked to user,
+    App Functionality, **not** shared with third parties
+  - No tracking
+- **Age Rating**: 4+ (no objectionable content)
+- **Version metadata**:
+  - Description: short marketing copy (one paragraph)
+  - Keywords: comma-separated, e.g. "fantasy football, sleeper, yahoo,
+    ottoneu, scoreboard, NFL"
+  - Support URL: `https://www.rosterloom.com` (works until we add a
+    dedicated /support page)
+  - Marketing URL: same as Support
+- **Screenshots**: minimum 3 for **6.5"** and **6.7"** display sizes.
+  Take them from your phone via TestFlight (Screenshots in the
+  Photos app, or use Xcode → Devices and Simulators). Login screen,
+  scoreboard collapsed, scoreboard expanded with players.
+- **Build**: Select the TestFlight build from Phase 2.
+- **App Review Information**:
+  - Sign-in credentials: provide a test account (e.g.
+    `test@test.com` / `testtest`) so Apple reviewers can log in.
+
+Hit **Submit for Review**. Apple typically takes 1–3 business days.
+Common rejection reasons to pre-empt:
+- **Sign in with Apple required**: only triggers if you offer
+  third-party login (Google/Facebook). We use email/password only,
+  so we're exempt.
+- **Broken state**: make sure the test account has at least one
+  connected integration so reviewers see a non-empty scoreboard.
+
+### Subsequent releases
+
+```bash
+# Bump the version in apps/mobile/app.json (e.g. 0.1.0 → 0.2.0)
+# buildNumber auto-increments via eas.json autoIncrement: true.
+npx eas-cli build --profile production --platform ios
+npx eas-cli submit --profile production --platform ios
+# Then in ASC, create a new version, fill in "What's new in this
+# version," select the new build, and submit for review.
+```
+
 ## What's not here yet
 
 - **Yahoo OAuth on mobile.** The OAuth flow on web uses the
   `localhost:9002` redirect; mobile will need `expo-auth-session` with
   the `rosterloom://` scheme. Not wired up yet.
-- **Custom dev client / `eas build`.** Not needed while every native
-  module we use ships with Expo Go. The first time we add a module
-  that doesn't (likely candidates: push notifications, certain
-  auth/payment SDKs), we'll need to publish a one-time custom dev
-  build via `eas build --profile preview`. That's when the Apple
-  Developer account becomes load-bearing.
-- **Production releases.** No `eas build --profile production` /
-  `eas submit` workflow yet.
+- **Custom dev client.** Not needed while every native module we use
+  ships with Expo Go. The first time we add a module that doesn't
+  (likely candidates: push notifications, certain auth/payment SDKs),
+  we'll need to publish a one-time custom dev build via
+  `eas build --profile preview`.
+- **Android Play Store submission.** Same structure as iOS but
+  different signing model and console. Coming in a follow-up.
