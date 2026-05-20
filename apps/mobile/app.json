@@ -16,7 +16,6 @@
     },
     "ios": {
       "bundleIdentifier": "com.rosterloom.app",
-      "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
