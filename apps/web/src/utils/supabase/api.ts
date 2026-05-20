@@ -5,9 +5,12 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
  * clients (mobile, scripts) that authenticate via the standard
  * `Authorization: Bearer <jwt>` header instead of cookies.
  *
- * The JWT is forwarded on every PostgREST request so RLS policies see
- * `auth.uid()` set to the user. Sessions are not persisted on the
- * server — each request authenticates independently.
+ * Uses the `accessToken` option (v2.45+) so supabase-js forwards the
+ * provided JWT on every PostgREST and Realtime request. An earlier
+ * implementation set the token in `global.headers.Authorization`,
+ * which PostgREST silently overrode with the (empty) session token —
+ * queries ran as the anon role, RLS denied everything, and the route
+ * returned empty arrays with no visible error.
  */
 export function createApiClient(authHeader: string | null | undefined) {
   const token = authHeader?.startsWith('Bearer ')
@@ -18,9 +21,7 @@ export function createApiClient(authHeader: string | null | undefined) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
+      accessToken: token ? async () => token : undefined,
       auth: {
         persistSession: false,
         autoRefreshToken: false,
