@@ -164,15 +164,39 @@ step is done.
 
 ### Phase 2 — First TestFlight build (your laptop)
 
+**First**, register the app's runtime env vars on EAS for the
+`production` environment. EAS Build runs in the cloud and does NOT
+see your local `apps/mobile/.env.local`. Without these, Metro inlines
+`undefined` and `apps/mobile/lib/supabase.ts` throws on import →
+the installed app crashes on launch with no useful error.
+
 ```bash
 cd apps/mobile
+# Source the existing .env.local so we don't have to retype values.
+set -a && . ./.env.local && set +a
+npx eas-cli env:create --environment production --type string \
+  --visibility plaintext --non-interactive \
+  --name EXPO_PUBLIC_SUPABASE_URL --value "$EXPO_PUBLIC_SUPABASE_URL"
+npx eas-cli env:create --environment production --type string \
+  --visibility plaintext --non-interactive \
+  --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "$EXPO_PUBLIC_SUPABASE_ANON_KEY"
+npx eas-cli env:create --environment production --type string \
+  --visibility plaintext --non-interactive \
+  --name EXPO_PUBLIC_API_URL --value "$EXPO_PUBLIC_API_URL"
+# Verify:
+npx eas-cli env:list --environment production
+```
+
+These are `EXPO_PUBLIC_*` so they end up in the JS bundle visible to
+anyone who downloads the app — `plaintext` visibility is correct;
+they are not secrets.
+
+**Then** the actual build + submit:
+
+```bash
 npx eas-cli login            # if not already authenticated
-npx eas-cli credentials      # one-time: let EAS generate the iOS
-                             # distribution certificate + provisioning
-                             # profile. Select 'Build credentials',
-                             # 'production', 'iOS', and let EAS create
-                             # everything automatically. EAS stores
-                             # these on its servers.
+# One-time credentials setup: see "Manual iOS credentials" section
+# below if you don't want EAS to log into Apple on your behalf.
 npx eas-cli build --profile production --platform ios
                              # ~15-20 min. EAS uploads the build to
                              # App Store Connect automatically when done.
