@@ -53,6 +53,12 @@ jobs:
           # PR-preview mobile bundles always hit production web — they
           # don't try to pair with a sibling web PR preview.
           EXPO_PUBLIC_API_URL: https://www.rosterloom.com
+          # PR-preview bundles run in demo mode: the app sends an
+          # x-demo-mode header (honored by production /api/teams/refresh)
+          # and polls every 30s, so reviewers can exercise the live
+          # scoreboard with deterministic fake data regardless of season
+          # or connected leagues. See docs/DEMO_MODE.md.
+          EXPO_PUBLIC_DEMO_MODE: '1'
         with:
           working-directory: apps/mobile
           # NB: avoid `#` in the message string — YAML treats ` # ` (space-hash)
