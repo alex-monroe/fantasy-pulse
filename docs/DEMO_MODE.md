@@ -57,6 +57,16 @@ DEMO_MODE=1 npm run dev            # then open http://localhost:9002
 EXPO_PUBLIC_DEMO_MODE=1 npm run mobile
 ```
 
+## PR preview builds
+
+The `mobile-preview.yml` workflow publishes an `eas update` bundle for
+every PR that touches `apps/mobile/**` or `packages/core/**` and posts a
+QR code to the PR. Those bundles are built with `EXPO_PUBLIC_DEMO_MODE=1`
+and point at production web, so **every mobile PR preview runs in demo
+mode** — reviewers can scan the QR and see a live-looking scoreboard
+without an in-season Sunday or connected leagues. Production App Store /
+TestFlight builds are unaffected (they don't set the flag).
+
 ## Real headshots
 
 Demo players use reliable initials-avatar placeholders. To show real
