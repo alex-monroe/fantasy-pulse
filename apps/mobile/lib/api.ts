@@ -10,6 +10,15 @@ if (!rawBase) {
 }
 const API_BASE = rawBase.replace(/\/+$/, '');
 
+/**
+ * When set (any truthy value), the app opts into the web backend's demo
+ * mode by sending an `x-demo-mode` header, so it renders deterministic,
+ * self-updating fake data instead of real provider data. See
+ * docs/DEMO_MODE.md.
+ */
+export const DEMO_MODE =
+  /^(1|true|on|yes)$/i.test(process.env.EXPO_PUBLIC_DEMO_MODE ?? '');
+
 export type TeamsResponse = { teams: Team[] } | { error: string };
 
 /**
@@ -29,6 +38,7 @@ export async function fetchTeams(): Promise<TeamsResponse> {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      ...(DEMO_MODE ? { 'x-demo-mode': '1' } : {}),
     },
   });
 

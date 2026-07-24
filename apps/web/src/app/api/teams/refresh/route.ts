@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTeams } from '@/app/actions';
 import { createApiClient } from '@/utils/supabase/api';
 import { logDuration, startTimer } from '@/utils/performance-logger';
+import { DEMO_COOKIE, DEMO_HEADER, resolveDemoMode } from '@/lib/demo-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,8 +35,17 @@ export async function POST(request: Request) {
     bearerUserId = data.user.id;
   }
 
+  // Opt into demo data via the env switch, the browser's `rl_demo` cookie,
+  // or the `x-demo-mode` header the mobile app sends.
+  const demo = resolveDemoMode({
+    cookieValue: request.headers
+      .get('cookie')
+      ?.match(new RegExp(`(?:^|;\\s*)${DEMO_COOKIE}=([^;]*)`))?.[1],
+    headerValue: request.headers.get(DEMO_HEADER),
+  });
+
   try {
-    const result = await getTeams(bearerClient, bearerUserId);
+    const result = await getTeams(bearerClient, bearerUserId, { demo });
 
     if ('error' in result) {
       const status = result.error === 'You must be logged in.' ? 401 : 500;

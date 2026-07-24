@@ -1,7 +1,9 @@
+import { cookies } from 'next/headers';
 import { getTeams } from './actions';
 import HomePage from '@/components/home-page';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 import { createClient } from '@/utils/supabase/server';
+import { DEMO_COOKIE, resolveDemoMode } from '@/lib/demo-mode';
 
 /**
  * The home page of the application.
@@ -16,8 +18,13 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   logDuration('Home page: fetch user', userStart, { hasUser: Boolean(user) });
 
+  const cookieStore = await cookies();
+  const demo = resolveDemoMode({
+    cookieValue: cookieStore.get(DEMO_COOKIE)?.value,
+  });
+
   const teamsStart = startTimer();
-  const teamsResult = await getTeams();
+  const teamsResult = await getTeams(undefined, undefined, { demo });
   const teams =
     'teams' in teamsResult && Array.isArray(teamsResult.teams)
       ? teamsResult.teams
@@ -37,5 +44,5 @@ export default async function Home() {
     resultType,
   });
 
-  return <HomePage teams={teams} user={user} />;
+  return <HomePage teams={teams} user={user} demo={demo} />;
 }
