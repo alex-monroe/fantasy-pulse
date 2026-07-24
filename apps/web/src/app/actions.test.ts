@@ -3,7 +3,7 @@ const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCa
 import { mapSleeperPlayer } from '@roster-loom/core';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@roster-loom/core';
 import { createClient } from '@/utils/supabase/server';
-import { getLeagues } from '@/app/integrations/sleeper/actions';
+import { getCurrentSleeperLeagues } from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
   getYahooRoster,
@@ -21,7 +21,7 @@ jest.mock('@/utils/supabase/server', () => ({
 }));
 
 jest.mock('@/app/integrations/sleeper/actions', () => ({
-  getLeagues: jest.fn(),
+  getCurrentSleeperLeagues: jest.fn(),
 }));
 
 jest.mock('@/app/integrations/yahoo/actions', () => ({
@@ -106,7 +106,7 @@ describe('actions', () => {
     (fetch as jest.Mock).mockReset();
 
     (createClient as jest.Mock).mockReturnValue(mockSupabase);
-    (getLeagues as jest.Mock).mockClear();
+    (getCurrentSleeperLeagues as jest.Mock).mockClear();
     (getYahooUserTeams as jest.Mock).mockClear();
     (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
@@ -217,7 +217,7 @@ describe('actions', () => {
     ];
 
     it('returns empty array when getLeagues fails', async () => {
-      (getLeagues as jest.Mock).mockResolvedValue({ leagues: null, error: 'err' });
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({ leagues: null, error: 'err' });
       const result = await buildSleeperTeams(
         { id: 1, provider_user_id: 'sleeper-user-1' },
         1,
@@ -227,7 +227,7 @@ describe('actions', () => {
     });
 
     it('builds sleeper teams correctly', async () => {
-      (getLeagues as jest.Mock).mockResolvedValue({
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
         error: null,
       });
@@ -245,10 +245,13 @@ describe('actions', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Team A');
+      // Leagues must be resolved live by Sleeper user id so a new season's
+      // league_id is picked up, not read from the stale connect-time copy.
+      expect(getCurrentSleeperLeagues).toHaveBeenCalledWith('sleeper-user-1');
     });
 
     it('skips leagues when sleeper data is incomplete', async () => {
-      (getLeagues as jest.Mock).mockResolvedValue({
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
         error: null,
       });
@@ -268,7 +271,7 @@ describe('actions', () => {
     });
 
     it('omits players without Sleeper player data', async () => {
-      (getLeagues as jest.Mock).mockResolvedValue({
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
         error: null,
       });
@@ -618,7 +621,7 @@ describe('actions', () => {
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) }) // matchupsResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) }); // leagueUsersResponse
 
-      (getLeagues as jest.Mock).mockResolvedValue({
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ id: 'league-1', league_id: 'sleeper-league-1' }],
         error: null,
       });
@@ -694,7 +697,7 @@ describe('actions', () => {
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
 
-      (getLeagues as jest.Mock).mockResolvedValue({
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: null,
         error: 'Failed to fetch leagues',
       });
