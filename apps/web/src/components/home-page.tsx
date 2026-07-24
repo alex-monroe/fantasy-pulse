@@ -2,7 +2,16 @@
 
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { Team, Player, GroupedPlayer } from '@roster-loom/core';
+import {
+  Team,
+  Player,
+  GroupedPlayer,
+  MATCHUP_COLORS,
+  assignTeamColors,
+  createPlayerAggregationKey,
+  groupMatchupPlayers,
+  groupPlayersByPosition,
+} from '@roster-loom/core';
 import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -13,53 +22,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppNavigation } from '@/components/app-navigation';
 import { MatchupPrioritySelector } from '@/components/matchup-priority-selector';
-
-const MATCHUP_COLORS = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
-
-const createPlayerAggregationKey = (player: Player | GroupedPlayer): string | null => {
-  if (!player) {
-    return null;
-  }
-
-  const name = typeof player.name === 'string' ? player.name.trim().toLowerCase() : '';
-  const realTeam = typeof player.realTeam === 'string' ? player.realTeam.trim().toLowerCase() : '';
-
-  if (!name || !realTeam) {
-    return null;
-  }
-
-  return `${name}-${realTeam}`;
-};
-
-/**
- * Groups a list of players by their position.
- *
- * @param players - The list of players to group.
- * @returns An object where the keys are the positions and the values are the lists of players.
- */
-const groupPlayersByPosition = (players: GroupedPlayer[]): { [key: string]: GroupedPlayer[] } => {
-  const positions = ['QB', 'WR', 'RB', 'TE'];
-  const grouped: { [key: string]: GroupedPlayer[] } = {
-    'QB': [],
-    'WR': [],
-    'RB': [],
-    'TE': [],
-    'Other': [],
-  };
-
-  players.forEach(player => {
-    if (player && typeof player.position === 'string') {
-      const position = player.position.toUpperCase();
-      if (positions.includes(position)) {
-        grouped[position].push(player);
-      } else {
-        grouped['Other'].push(player);
-      }
-    }
-  });
-
-  return grouped;
-};
 
 /**
  * The main content of the application.
@@ -226,14 +188,6 @@ function AppContent({
     });
   }, [teams]);
 
-  const priorityLookup = useMemo(() => {
-    const lookup = new Map<number, number>();
-    matchupPriority.forEach((teamId, index) => {
-      lookup.set(teamId, index);
-    });
-    return lookup;
-  }, [matchupPriority]);
-
   const priorityOrderedTeams = useMemo(() => {
     const teamById = new Map<number, Team>();
     teams.forEach((team) => {
@@ -261,75 +215,12 @@ function AppContent({
     return ordered;
   }, [teams, matchupPriority]);
 
-  const teamColors = useMemo(() => {
-    const colorMap = new Map<number, string>();
-    teams.forEach((team, index) => {
-      colorMap.set(team.id, MATCHUP_COLORS[index % MATCHUP_COLORS.length]);
-    });
-    return colorMap;
-  }, [teams]);
+  const teamColors = useMemo(() => assignTeamColors(teams, MATCHUP_COLORS), [teams]);
 
-  const addMatchupColor = (
-    matchupColors: GroupedPlayer['matchupColors'],
-    color: string,
-    onBench: boolean
-  ) => {
-    const existingMatchup = matchupColors.find((matchup) => matchup.color === color);
-    if (existingMatchup) {
-      existingMatchup.onBench = existingMatchup.onBench && onBench;
-    } else {
-      matchupColors.push({ color, onBench });
-    }
-  };
-
-  const groupPlayers = (
-    players: Player[],
-    existingPlayers: Map<string, GroupedPlayer>,
-    priorityMap: Map<string, number>,
-    color: string,
-    teamPriority: number
-  ) => {
-    players.forEach((player) => {
-      const key = createPlayerAggregationKey(player);
-      if (key) {
-        const existingPlayer = existingPlayers.get(key);
-        const currentMatchupColors = existingPlayer ? [...existingPlayer.matchupColors] : [];
-        addMatchupColor(currentMatchupColors, color, player.onBench);
-
-        const newCount = (existingPlayer?.count ?? 0) + 1;
-        const existingPriority = priorityMap.get(key);
-        const shouldUsePlayerData =
-          existingPriority === undefined || teamPriority < existingPriority;
-        const candidate = shouldUsePlayerData ? player : existingPlayer!;
-
-        const mergedPlayer: GroupedPlayer = {
-          ...candidate,
-          count: newCount,
-          matchupColors: currentMatchupColors,
-        };
-
-        existingPlayers.set(key, mergedPlayer);
-        const nextPriority = shouldUsePlayerData ? teamPriority : existingPriority ?? teamPriority;
-        priorityMap.set(key, nextPriority);
-      }
-    });
-  };
-
-  const myPlayersMap = new Map<string, GroupedPlayer>();
-  const opponentPlayersMap = new Map<string, GroupedPlayer>();
-  const myPlayerPriorityMap = new Map<string, number>();
-  const opponentPlayerPriorityMap = new Map<string, number>();
-
-  teams.forEach((team) => {
-    const color = teamColors.get(team.id) ?? MATCHUP_COLORS[0];
-    const teamPriority = priorityLookup.get(team.id) ?? Number.MAX_SAFE_INTEGER;
-
-    groupPlayers(team.players, myPlayersMap, myPlayerPriorityMap, color, teamPriority);
-    groupPlayers(team.opponent.players, opponentPlayersMap, opponentPlayerPriorityMap, color, teamPriority);
-  });
-
-  const myPlayers = Array.from(myPlayersMap.values());
-  const opponentPlayers = Array.from(opponentPlayersMap.values());
+  const { myPlayers, opponentPlayers } = useMemo(
+    () => groupMatchupPlayers(teams, { priorityOrder: matchupPriority }),
+    [teams, matchupPriority]
+  );
 
   const myStarters = myPlayers.filter(p => !p.onBench);
   const myBench = myPlayers.filter(p => p.onBench);

@@ -1,7 +1,8 @@
+import { processMatchups } from "@roster-loom/core";
+
 import { getTeams } from "@/app/actions";
 import { AppNavigation } from "@/components/app-navigation";
 import { FantasyHeroes, PublicEnemies, DoubleAgents } from "./components";
-import { processMatchups } from "./utils";
 
 export default async function MatchupReport() {
   const { teams } = await getTeams();

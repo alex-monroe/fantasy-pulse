@@ -59,13 +59,19 @@ apps/mobile/
 ├── app/                     # Expo Router screens (file-based routing)
 │   ├── _layout.tsx          # Root stack; wraps everything in SessionProvider
 │   ├── login.tsx            # Sign-in screen
-│   └── (tabs)/              # Authenticated tabs
-│       ├── _layout.tsx      # Redirects to /login if no session
-│       └── index.tsx        # Leagues list (queries fp_leagues)
+│   └── (tabs)/              # Authenticated tabs (wrapped in TeamsProvider)
+│       ├── _layout.tsx      # Redirects to /login if no session; declares tabs
+│       ├── index.tsx        # Overview: weekly matchups + grouped My/Opponent players
+│       └── report.tsx       # Matchup Report: Fantasy Heroes / Public Enemies / Double Agents
 ├── lib/
 │   ├── supabase.ts          # Supabase client (AsyncStorage session storage)
-│   └── session.tsx          # SessionProvider + useSession() hook
-├── components/, hooks/, constants/   # Scaffolded UI primitives (Themed*, IconSymbol, etc.)
+│   ├── session.tsx          # SessionProvider + useSession() hook
+│   ├── teams.tsx            # TeamsProvider + useTeams() — shared team fetch across tabs
+│   └── api.ts               # fetchTeams() → web /api/teams/refresh (Bearer JWT)
+├── components/
+│   ├── player-row.tsx       # Shared aggregated-player row (avatar, dots, status, score)
+│   └── ...                  # Scaffolded UI primitives (Themed*, IconSymbol, etc.)
+├── hooks/, constants/       # Color scheme, theme tokens
 ├── __tests__/               # Jest tests (jest-expo preset)
 ├── app.json                 # Expo config (scheme, splash, plugins)
 └── jest.config.js
@@ -248,6 +254,13 @@ npx eas-cli submit --profile production --platform ios
 
 ## What's not here yet
 
+- **Integration management on mobile.** Connecting or removing Sleeper,
+  Yahoo, and Ottoneu accounts still happens on the web app; the mobile app
+  reads the resulting teams via `/api/teams/refresh`. The read-side views
+  (Overview scoreboard, Matchup Report) are at parity with web — the
+  connect flows are the remaining gap. See the Sleeper/Ottoneu server
+  actions under `apps/web/src/app/integrations/` for what a mobile port
+  would need to call.
 - **Yahoo OAuth on mobile.** The OAuth flow on web uses the
   `localhost:9002` redirect; mobile will need `expo-auth-session` with
   the `rosterloom://` scheme. Not wired up yet.
