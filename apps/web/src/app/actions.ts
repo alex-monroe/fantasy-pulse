@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { logDuration, startTimer } from '@/utils/performance-logger';
-import { getLeagues as getSleeperLeagues } from '@/app/integrations/sleeper/actions';
+import { getCurrentSleeperLeagues } from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
   getYahooRoster,
@@ -465,7 +465,12 @@ export async function buildSleeperTeams(
   const { playersData } =
     playerResources ?? (await getSleeperPlayersResources());
 
-  const { leagues, error: leaguesError } = await getSleeperLeagues(integration.id);
+  // Resolve leagues live from Sleeper each build: Sleeper issues a new
+  // league_id every season, so the copy saved to fp_leagues at connect time
+  // goes stale after a season rollover and would surface last year's rosters.
+  const { leagues, error: leaguesError } = await getCurrentSleeperLeagues(
+    integration.provider_user_id
+  );
   if (leaguesError || !leagues) {
     return [];
   }

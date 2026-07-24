@@ -131,6 +131,33 @@ export async function getSleeperIntegration() {
 }
 
 /**
+ * Fetches a user's Sleeper leagues for the current NFL season directly from
+ * the Sleeper API, without touching the database.
+ *
+ * Sleeper mints a brand-new `league_id` for every season (the prior season's
+ * league lives on as `previous_league_id`), so the scoreboard must resolve
+ * leagues live each season rather than trusting the copy saved at connect
+ * time. See {@link getSleeperLeagues} for the connect-time persist path.
+ * @param userId - The Sleeper user ID.
+ * @returns The current season's leagues or an error.
+ */
+export async function getCurrentSleeperLeagues(userId: string) {
+  try {
+    const year = new Date().getFullYear();
+    const { data: leagues, error } = await fetchJson<SleeperLeague[]>(
+      `https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`
+    );
+    if (error) {
+      return { error };
+    }
+
+    return { leagues: leagues ?? [] };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+/**
  * Gets the Sleeper leagues for a user and inserts them into the database.
  * @param userId - The Sleeper user ID.
  * @param integrationId - The ID of the integration.
@@ -139,10 +166,7 @@ export async function getSleeperIntegration() {
 export async function getSleeperLeagues(userId: string, integrationId: number) {
   const supabase = createClient();
   try {
-    const year = new Date().getFullYear();
-    const { data: leagues, error } = await fetchJson<SleeperLeague[]>(
-      `https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${year}`
-    );
+    const { leagues, error } = await getCurrentSleeperLeagues(userId);
     if (error) {
       return { error };
     }
