@@ -36,6 +36,21 @@ global.fetch = async (input, init) => {
     });
   }
 
+  // The scoreboard resolves a user's leagues live each season (Sleeper mints a
+  // new league_id every year), so mock the current-season leagues endpoint for
+  // any Sleeper user id. Both the user and their opponent map to league1.
+  if (/^https:\/\/api\.sleeper\.app\/v1\/user\/[^/]+\/leagues\/nfl\/\d+$/.test(url)) {
+    return jsonResponse([
+      {
+        league_id: 'league1',
+        name: 'Mock Sleeper League',
+        season: '2024',
+        total_rosters: 2,
+        status: 'in_season',
+      },
+    ]);
+  }
+
   if (url === 'https://api.sleeper.app/v1/league/league1/rosters') {
     return jsonResponse([
       { roster_id: 1, owner_id: 'sleeperUser', players: ['p1'], starters: ['p1'] },
