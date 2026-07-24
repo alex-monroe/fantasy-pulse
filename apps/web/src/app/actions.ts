@@ -16,7 +16,7 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
-import { mapSleeperPlayer } from '@roster-loom/core';
+import { mapSleeperPlayer, generateDemoTeams } from '@roster-loom/core';
 import {
   Team,
   Player,
@@ -26,6 +26,7 @@ import {
   SleeperUser,
   SleeperPlayer,
 } from '@roster-loom/core';
+import { isDemoModeEnv } from '@/lib/demo-mode';
 import { findBestMatch } from 'string-similarity';
 import { JSDOM } from 'jsdom';
 
@@ -1058,7 +1059,11 @@ export async function getTeamBuilders() {
  * Gets the user's teams from all integrated platforms.
  * @returns A list of teams.
  */
-export async function getTeams(client?: SupabaseClient, userId?: string) {
+export async function getTeams(
+  client?: SupabaseClient,
+  userId?: string,
+  options?: { demo?: boolean }
+) {
   const overallStart = startTimer();
   console.log('[performance] getTeams invoked');
 
@@ -1074,6 +1079,19 @@ export async function getTeams(client?: SupabaseClient, userId?: string) {
       return { error: 'You must be logged in.' };
     }
     resolvedUserId = user.id;
+  }
+
+  // Demo mode: return deterministic, self-updating fake data instead of
+  // hitting any provider. Placed after auth so the login gate still
+  // applies (log in as the test account); no integrations required.
+  const demo = options?.demo ?? isDemoModeEnv();
+  if (demo) {
+    const teams = generateDemoTeams(Date.now());
+    logDuration('getTeams total', overallStart, {
+      result: 'demo',
+      teamCount: teams.length,
+    });
+    return { teams };
   }
 
   const integrationsStart = startTimer();

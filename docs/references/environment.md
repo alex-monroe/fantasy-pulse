@@ -44,3 +44,12 @@ required for CI today — Yahoo flows are mocked at
 
 Neither provider requires API credentials. Sleeper is username-based,
 Ottoneu data is scraped from public pages.
+
+## Demo mode
+
+| Variable                 | Where used | Notes |
+| ------------------------ | ---------- | ----- |
+| `DEMO_MODE`              | Web server | `1` serves deterministic fake data instance-wide (no providers needed). Blank/`0` = normal. Per-session override: `?demo=1` / `?demo=0`. |
+| `EXPO_PUBLIC_DEMO_MODE`  | Mobile app | `1` makes the mobile app request demo data (sends `x-demo-mode`) and poll every 30s. |
+
+See [DEMO_MODE.md](../DEMO_MODE.md) for the full walkthrough.

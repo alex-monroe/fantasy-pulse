@@ -410,11 +410,12 @@ function AppContent({
  * @param user - The current user.
  * @returns The home page of the application.
  */
-export default function HomePage({ teams, user }: { teams: Team[], user: any }) {
+export default function HomePage({ teams, user, demo = false }: { teams: Team[], user: any, demo?: boolean }) {
   const router = useRouter();
   const [currentTeams, setCurrentTeams] = useState<Team[]>(teams);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const isRefreshingRef = useRef(false);
 
   useEffect(() => {
     if (!user) {
@@ -433,6 +434,10 @@ export default function HomePage({ teams, user }: { teams: Team[], user: any }) 
   };
 
   const handleRefresh = async () => {
+    if (isRefreshingRef.current) {
+      return;
+    }
+    isRefreshingRef.current = true;
     setIsRefreshing(true);
     setRefreshError(null);
 
@@ -459,9 +464,25 @@ export default function HomePage({ teams, user }: { teams: Team[], user: any }) 
       console.error('Failed to refresh teams', error);
       setRefreshError('An unexpected error occurred while refreshing scores.');
     } finally {
+      isRefreshingRef.current = false;
       setIsRefreshing(false);
     }
   };
+
+  // In demo mode, poll the same refresh path every 30s so scores and game
+  // clocks visibly advance — mirroring a live Sunday — and exercise the
+  // score-change animations.
+  const handleRefreshRef = useRef(handleRefresh);
+  handleRefreshRef.current = handleRefresh;
+  useEffect(() => {
+    if (!demo) {
+      return;
+    }
+    const intervalId = window.setInterval(() => {
+      void handleRefreshRef.current();
+    }, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [demo]);
 
   return (
     <AppContent

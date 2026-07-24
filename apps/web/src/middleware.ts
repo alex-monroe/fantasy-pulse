@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { DEMO_COOKIE, DEMO_QUERY_PARAM, parseDemoQueryToggle } from '@/lib/demo-mode'
 
 /**
  * The middleware function for the application.
@@ -60,6 +61,18 @@ export async function middleware(request: NextRequest) {
   )
 
   await supabase.auth.getUser()
+
+  // `?demo=1` opts this browser into demo mode (deterministic fake data);
+  // `?demo=0` clears it. Persisted in the `rl_demo` cookie so subsequent
+  // renders and the /api/teams/refresh polls stay in demo mode.
+  const demoToggle = parseDemoQueryToggle(
+    request.nextUrl.searchParams.get(DEMO_QUERY_PARAM)
+  )
+  if (demoToggle === true) {
+    response.cookies.set({ name: DEMO_COOKIE, value: '1', path: '/' })
+  } else if (demoToggle === false) {
+    response.cookies.set({ name: DEMO_COOKIE, value: '', path: '/', maxAge: 0 })
+  }
 
   return response
 }

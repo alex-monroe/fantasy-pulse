@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { fetchTeams } from '@/lib/api';
+import { DEMO_MODE, fetchTeams } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
 type TeamsState = {
@@ -57,6 +57,19 @@ export function TeamsProvider({ children }: { children: ReactNode }) {
       return;
     }
     void load();
+  }, [session, load]);
+
+  // In demo mode the backend serves self-updating fake scores; poll every
+  // 30s so the Overview and Report screens visibly refresh like a live
+  // Sunday. No-op (and no interval) outside demo mode.
+  useEffect(() => {
+    if (!DEMO_MODE || !session) {
+      return;
+    }
+    const intervalId = setInterval(() => {
+      void load();
+    }, 30000);
+    return () => clearInterval(intervalId);
   }, [session, load]);
 
   const refresh = useCallback(async () => {
