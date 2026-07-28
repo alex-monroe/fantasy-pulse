@@ -27,6 +27,7 @@ token reuse, caching) matters more than feature volume.
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 - **Demo mode:** [docs/DEMO_MODE.md](docs/DEMO_MODE.md)
 - **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
+- **MCP server:** [docs/MCP.md](docs/MCP.md)
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
 
@@ -62,6 +63,7 @@ docs/
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
 ├── DEMO_MODE.md                   # Fake-data mode for out-of-season testing
+├── MCP.md                         # Hosted MCP server: tools, tokens, transport
 ├── adding-integrations.md         # How to add a new fantasy provider
 ├── blueprint.md                   # Original product brief
 └── references/

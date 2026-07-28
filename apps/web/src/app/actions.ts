@@ -563,6 +563,13 @@ export async function buildSleeperTeams(
     teams.push({
       id: league.id,
       name: userName,
+      league: {
+        provider: 'sleeper',
+        providerLeagueId: league.league_id,
+        name: league.name || `Sleeper league ${league.league_id}`,
+        season: league.season ?? null,
+        totalRosters: league.total_rosters ?? null,
+      },
       totalScore: userMatchup.points,
       players: userPlayers,
       opponent: {
@@ -581,6 +588,59 @@ type BuildYahooTeamsOptions = {
   accessToken?: string;
   prefetchedTeams?: any[];
 };
+
+type YahooLeagueRow = {
+  league_id: string;
+  name: string | null;
+  season: string | null;
+  total_rosters: number | null;
+};
+
+/**
+ * Loads the persisted league rows for a Yahoo integration, keyed by
+ * league key, so teams can be labelled with their league's name.
+ *
+ * Failures are non-fatal: callers fall back to the bare league key.
+ *
+ * @param integrationId - The Yahoo integration's id.
+ * @returns A map from Yahoo league key to the stored league row.
+ */
+async function loadYahooLeagueLookup(
+  integrationId: number
+): Promise<Map<string, YahooLeagueRow>> {
+  const lookupStart = startTimer();
+
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('fp_leagues')
+      .select('league_id, name, season, total_rosters')
+      .eq('user_integration_id', integrationId);
+
+    logDuration('buildYahooTeams: load league names', lookupStart, {
+      integrationId,
+      leagueCount: data?.length ?? 0,
+      success: !error,
+    });
+
+    if (error || !data) {
+      return new Map();
+    }
+
+    return new Map(
+      data
+        .filter((row): row is YahooLeagueRow => Boolean(row?.league_id))
+        .map((row) => [row.league_id, row])
+    );
+  } catch (error) {
+    logDuration('buildYahooTeams: load league names', lookupStart, {
+      integrationId,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return new Map();
+  }
+}
 
 /**
  * Builds teams for a Yahoo integration.
@@ -669,6 +729,11 @@ export async function buildYahooTeams(
 
   const teams: Team[] = [];
   const resolveSleeperId = createSleeperIdResolver(playerNameMap);
+
+  // Yahoo's team payload carries only a league_key, not the league's
+  // name. Names were persisted to fp_leagues at connect time, so resolve
+  // them in one indexed query rather than per team.
+  const leagueLookup = await loadYahooLeagueLookup(integration.id);
 
   const mapYahooPlayer = (
     player: any,
@@ -808,9 +873,18 @@ export async function buildYahooTeams(
       mapYahooPlayer(p, opponentScoresMap)
     );
 
+    const leagueRow = team.league_id ? leagueLookup.get(team.league_id) : undefined;
+
     return {
       id: team.id,
       name: userTeam.name,
+      league: {
+        provider: 'yahoo',
+        providerLeagueId: team.league_id ?? '',
+        name: leagueRow?.name || `Yahoo league ${team.league_id ?? 'unknown'}`,
+        season: leagueRow?.season ?? null,
+        totalRosters: leagueRow?.total_rosters ?? null,
+      },
       totalScore: parseFloat(userTeam.totalPoints) || 0,
       players: mappedUserPlayers,
       opponent: {
@@ -1034,6 +1108,13 @@ export async function buildOttoneuTeams(
     {
       id: Number.isNaN(teamId) ? 0 : teamId,
       name: info.teamName,
+      league: {
+        provider: 'ottoneu',
+        providerLeagueId: String(league.league_id),
+        name: league.name || `Ottoneu league ${league.league_id}`,
+        season: league.season ?? null,
+        totalRosters: league.total_rosters ?? null,
+      },
       totalScore: info.matchup?.teamScore ?? 0,
       players: userPlayers,
       opponent: {

@@ -488,6 +488,13 @@ export function generateDemoTeams(
     teams.push({
       id: t + 1,
       name: TEAM_NAMES[t % TEAM_NAMES.length],
+      league: {
+        provider: 'demo',
+        providerLeagueId: `demo-league-${t + 1}`,
+        name: `${TEAM_NAMES[t % TEAM_NAMES.length]} League`,
+        season: String(new Date(nowMs).getFullYear()),
+        totalRosters: 12,
+      },
       totalScore: sumStarters(userPlayers),
       players: userPlayers,
       opponent: {

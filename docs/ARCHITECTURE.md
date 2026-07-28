@@ -68,6 +68,10 @@ Every provider follows the same shape: an `actions.ts` (server), a `page.tsx`
 (integration management UI), a per-provider `README.md`, and an
 `*.example.json` snapshot for the most useful API response.
 
+`getTeams()` is the single seam every consumer sits behind: the web
+render, the mobile app (via `/api/teams/refresh`), demo mode, and the
+[MCP server](MCP.md) (via `/api/mcp`) all read the same `Team[]`.
+
 ## Provider integration pattern
 
 Each integration under `apps/web/src/app/integrations/<provider>/`:
@@ -95,6 +99,8 @@ repo's tables on the shared OttoneuDB project):
 - `fp_leagues` — league rows imported from each provider
 - `fp_teams` — teams pulled from each league
 - `fp_notes` — free-form user notes
+- `fp_mcp_tokens` — hashed personal access tokens for the [MCP
+  server](MCP.md); the only table here with RLS enabled
 
 Server-side Supabase access goes through `apps/web/src/utils/supabase/server.ts`;
 client-side through `apps/web/src/utils/supabase/client.ts`. `middleware.ts`
