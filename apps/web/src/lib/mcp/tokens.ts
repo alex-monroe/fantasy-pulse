@@ -7,7 +7,7 @@
  * `fp_mcp_token_owner` SECURITY DEFINER function, which also stamps
  * `last_used_at`.
  */
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Prefix every token carries, so leaked strings are recognisable. */
@@ -69,26 +69,6 @@ export function parseBearerToken(header: string | null | undefined): string | nu
   const token = match?.[1]?.trim();
 
   return token ? token : null;
-}
-
-/**
- * Constant-time comparison of two tokens, used where a caller needs to
- * compare a presented token against a known one without leaking length
- * information through early exit.
- *
- * @param a - First token.
- * @param b - Second token.
- * @returns Whether the tokens are identical.
- */
-export function tokensMatch(a: string, b: string): boolean {
-  const bufferA = Buffer.from(a, 'utf8');
-  const bufferB = Buffer.from(b, 'utf8');
-
-  if (bufferA.length !== bufferB.length) {
-    return false;
-  }
-
-  return timingSafeEqual(bufferA, bufferB);
 }
 
 /**

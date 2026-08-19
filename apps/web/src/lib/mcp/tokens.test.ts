@@ -4,7 +4,6 @@ import {
   mintMcpToken,
   parseBearerToken,
   resolveMcpTokenUser,
-  tokensMatch,
 } from './tokens';
 
 describe('mintMcpToken', () => {
@@ -40,17 +39,6 @@ describe('parseBearerToken', () => {
       expect(parseBearerToken(header as string | null)).toBeNull();
     },
   );
-});
-
-describe('tokensMatch', () => {
-  it('compares equal tokens', () => {
-    expect(tokensMatch('abc', 'abc')).toBe(true);
-  });
-
-  it('rejects different tokens and lengths', () => {
-    expect(tokensMatch('abc', 'abd')).toBe(false);
-    expect(tokensMatch('abc', 'abcd')).toBe(false);
-  });
 });
 
 describe('resolveMcpTokenUser', () => {
