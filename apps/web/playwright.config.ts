@@ -6,10 +6,14 @@ export default defineConfig({
   testDir: './e2e',
   reporter: 'html',
   outputDir: 'test-results/',
+  // The suite drives a live Supabase project, so a single slow render can
+  // time out a spec that is otherwise fine. Retry in CI so one flake does
+  // not fail the whole job; keep local runs at zero so flakes stay visible.
+  retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: 'http://localhost:9002',
     video: 'on',
-    trace: 'on-fail',
+    trace: 'retain-on-failure',
   },
   webServer: {
     command: 'npm run dev',
