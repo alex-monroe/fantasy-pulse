@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
   { href: '/matchup-report', label: 'Matchup Report' },
   { href: '/integrations', label: 'Integrations' },
+  { href: '/mcp', label: 'MCP Server' },
 ];
 
 /**

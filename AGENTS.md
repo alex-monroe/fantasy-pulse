@@ -24,6 +24,7 @@ matchup data with cross-team player-share indicators.
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — branch + PR rules
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 - **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
+- **MCP server:** [docs/MCP.md](docs/MCP.md) — hosted AI-assistant access
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
 
@@ -44,6 +45,7 @@ docs/
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
 ├── MOBILE.md                      # Mobile app quickstart (Expo Go, env, layout)
+├── MCP.md                         # Hosted MCP server: tools, tokens, transport
 ├── adding-integrations.md         # How to add a new fantasy provider
 ├── blueprint.md                   # Original product brief (style + features)
 └── references/

@@ -49,9 +49,10 @@ Currently shared: shared types (`types.ts`), Sleeper helpers
 | `globals.css`                 | Tailwind base layer + CSS variables                    |
 | `actions.ts`                  | Cross-provider server actions (team building, scoring) |
 | `actions.test.ts`             | Jest tests for `actions.ts`                            |
-| `(dashboard)/`                | Authenticated route group (matchup report, etc.)      |
+| `(dashboard)/`                | Authenticated route group (matchup report, MCP tokens) |
 | `api/auth/<provider>/route.ts`| OAuth callbacks                                        |
 | `api/teams/`                  | Team-related route handlers                            |
+| `api/mcp/route.ts`            | Hosted MCP server endpoint (see [MCP.md](MCP.md))      |
 | `integrations/<provider>/`    | One folder per fantasy provider (see below)            |
 | `login/`, `register/`         | Auth pages                                             |
 
@@ -87,6 +88,10 @@ Component tests are colocated as `<name>.test.tsx` next to the implementation.
 - `doc-map.test.ts`     enforces that AGENTS.md / CLAUDE.md links resolve
 - `fetch-json.test.ts`  tests for `fetchJson` (the implementation lives
                         in `packages/core/`)
+- `mcp/`                the MCP server: `protocol.ts` (JSON-RPC / transport),
+                        `tools.ts` (definitions + handlers), `views.ts`
+                        (pure `Team[]` transforms), `tokens.ts` (access
+                        tokens). See [MCP.md](MCP.md).
 
 Shared logic — `types.ts`, `sleeper.ts`, `fetch-json.ts`, `mock-data.ts` —
 now lives in `packages/core/src/` and is imported as `@roster-loom/core`.

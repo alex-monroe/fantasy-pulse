@@ -45,7 +45,29 @@ CREATE TABLE public.fp_user_integrations (
   provider_user_id text,
   CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
 );
+
+CREATE TABLE public.fp_mcp_tokens (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  name text NOT NULL DEFAULT 'MCP token',
+  token_prefix text NOT NULL,
+  token_hash text NOT NULL UNIQUE,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_used_at timestamp with time zone,
+  revoked_at timestamp with time zone,
+  CONSTRAINT fp_mcp_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT fp_mcp_tokens_user_id_fkey
+    FOREIGN KEY (user_id)
+    REFERENCES auth.users(id) ON DELETE CASCADE
+);
 ```
+
+`fp_mcp_tokens` is the only table here with **row level security
+enabled** — it stores credential material for the [MCP
+server](../MCP.md), so a user may only read and manage their own rows.
+Token verification does not read the table directly; it goes through the
+`fp_mcp_token_owner(text)` SECURITY DEFINER function, which resolves a
+SHA-256 hash to a user id and stamps `last_used_at`.
 
 A `fp_teams` table also exists (originally created as `teams` by
 `supabase/migrations/20250907113000_add_teams_table.sql` and constrained

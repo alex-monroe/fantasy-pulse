@@ -84,6 +84,27 @@ export type GroupedPlayer = Player & {
   matchupColors: PlayerMatchupColor[];
 };
 
+/** The fantasy platforms a league can come from. */
+export type FantasyProvider = 'sleeper' | 'yahoo' | 'ottoneu' | 'demo';
+
+/**
+ * Identifies the league a team plays in. Attached to {@link Team} so
+ * consumers that aggregate across providers (the MCP server, reports)
+ * can tell two teams apart by more than a display name.
+ */
+export type LeagueRef = {
+  /** The platform hosting the league. */
+  provider: FantasyProvider;
+  /** The league's identifier in the provider's own namespace. */
+  providerLeagueId: string;
+  /** The league's display name. */
+  name: string;
+  /** The season the league is being played in, when known. */
+  season?: string | null;
+  /** How many teams the league has, when known. */
+  totalRosters?: number | null;
+};
+
 /**
  * Represents a fantasy football team.
  */
@@ -92,6 +113,8 @@ export type Team = {
   id: number;
   /** The name of the team. */
   name: string;
+  /** The league this team plays in, when the provider supplied it. */
+  league?: LeagueRef;
   /** The total score of the team. */
   totalScore: number;
   /** The list of players on the team. */
