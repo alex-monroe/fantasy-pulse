@@ -252,6 +252,12 @@ npx eas-cli submit --profile production --platform ios
 # version," select the new build, and submit for review.
 ```
 
+Or trigger the **Mobile Release (TestFlight)** GitHub Action
+(`.github/workflows/mobile-release.yml`, `workflow_dispatch` only) from
+the Actions tab — it runs the same build + submit steps in CI using the
+`EXPO_TOKEN` secret and the credentials already stored on EAS's servers.
+Still bump the version in `app.json` and push that first.
+
 ## What's not here yet
 
 - **Integration management on mobile.** Connecting or removing Sleeper,
