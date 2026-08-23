@@ -1,9 +1,9 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { AppNavigation } from '@/components/app-navigation';
 import { MCP_TOOLS } from '@/lib/mcp/tools';
+import { resolveOrigin } from '@/lib/mcp/server-url';
 import { createClient } from '@/utils/supabase/server';
 
 import { listMcpTokens } from './actions';
@@ -17,19 +17,8 @@ export const dynamic = 'force-dynamic';
  * preview and production alike.
  */
 async function resolveServerUrl(): Promise<string> {
-  const headerList = await headers();
-  const host = headerList.get('host');
-
-  if (!host) {
-    return '/api/mcp';
-  }
-
-  const forwardedProto = headerList.get('x-forwarded-proto');
-  const protocol =
-    forwardedProto?.split(',')[0]?.trim() ||
-    (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
-
-  return `${protocol}://${host}/api/mcp`;
+  const origin = await resolveOrigin();
+  return origin ? `${origin}/api/mcp` : '/api/mcp';
 }
 
 /**
