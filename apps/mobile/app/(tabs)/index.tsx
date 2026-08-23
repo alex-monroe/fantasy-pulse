@@ -1,15 +1,14 @@
-import type { GroupedPlayer, Player, Team } from '@roster-loom/core';
+import type { GroupedPlayer, Team } from '@roster-loom/core';
 import {
   assignTeamColors,
   groupMatchupPlayers,
   groupPlayersByPosition,
   PLAYER_POSITIONS,
 } from '@roster-loom/core';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Button,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -23,30 +22,15 @@ import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useTeams } from '@/lib/teams';
 
-const asGrouped = (player: Player): GroupedPlayer => ({
-  ...player,
-  count: 1,
-  matchupColors: [],
-});
-
 export default function OverviewScreen() {
   const { session } = useSession();
   const { teams, error, refreshing, refresh } = useTeams();
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const teamColors = useMemo(() => assignTeamColors(teams ?? []), [teams]);
   const { myPlayers, opponentPlayers } = useMemo(
     () => groupMatchupPlayers(teams ?? []),
     [teams],
   );
-
-  const toggle = (teamId: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(teamId)) next.delete(teamId);
-      else next.add(teamId);
-      return next;
-    });
 
   return (
     <ThemedView style={styles.container}>
@@ -70,25 +54,30 @@ export default function OverviewScreen() {
       )}
 
       {teams && teams.length > 0 && (
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
-        >
-          <Section title="Weekly Matchups">
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.scoreboard}
+            contentContainerStyle={styles.scoreboardContent}
+          >
             {teams.map((team) => (
-              <MatchupSummary
+              <MatchupScore
                 key={team.id}
                 team={team}
                 color={teamColors.get(team.id) ?? '#888'}
-                expanded={expanded.has(team.id)}
-                onToggle={() => toggle(team.id)}
               />
             ))}
-          </Section>
+          </ScrollView>
 
-          <RosterColumn title="My Players" players={myPlayers} />
-          <RosterColumn title="Opponent Players" players={opponentPlayers} />
-        </ScrollView>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          >
+            <RosterColumn title="My Players" players={myPlayers} />
+            <RosterColumn title="Opponent Players" players={opponentPlayers} />
+          </ScrollView>
+        </>
       )}
 
       <View style={styles.signOut}>
@@ -109,55 +98,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function MatchupSummary({
-  team,
-  color,
-  expanded,
-  onToggle,
-}: {
-  team: Team;
-  color: string;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
+function MatchupScore({ team, color }: { team: Team; color: string }) {
   const winning = team.totalScore >= team.opponent.totalScore;
   return (
     <View style={styles.matchupCard}>
-      <Pressable onPress={onToggle} accessibilityRole="button">
-        <View style={styles.matchupTop}>
-          <View style={styles.matchupNames}>
-            <View style={[styles.dot, { backgroundColor: color }]} />
-            <View style={styles.flexShrink}>
-              <ThemedText type="defaultSemiBold" numberOfLines={1}>
-                {team.name}
-              </ThemedText>
-              <ThemedText style={styles.subtle} numberOfLines={1}>
-                vs {team.opponent.name}
-              </ThemedText>
-            </View>
-          </View>
-          <View style={styles.matchupScores}>
-            <ThemedText type="defaultSemiBold" style={winning ? styles.winning : undefined}>
-              {team.totalScore.toFixed(1)}
-            </ThemedText>
-            <ThemedText style={styles.subtle}>{team.opponent.totalScore.toFixed(1)}</ThemedText>
-          </View>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <View style={styles.matchupNames}>
+        <View style={styles.matchupRow}>
+          <ThemedText style={styles.matchupName} numberOfLines={1}>
+            {team.name}
+          </ThemedText>
+          <ThemedText
+            type="defaultSemiBold"
+            style={[styles.matchupScore, winning ? styles.winning : undefined]}
+          >
+            {team.totalScore.toFixed(1)}
+          </ThemedText>
         </View>
-        <ThemedText style={styles.expandHint}>
-          {expanded ? 'Tap to collapse' : 'Tap for players'}
-        </ThemedText>
-      </Pressable>
-      {expanded && (
-        <View style={styles.rosterList}>
-          {team.players.length === 0 ? (
-            <ThemedText style={styles.subtle}>No players.</ThemedText>
-          ) : (
-            [...team.players]
-              .sort((a, b) => b.score - a.score)
-              .map((player) => <GroupedPlayerRow key={player.id} player={asGrouped(player)} />)
-          )}
+        <View style={styles.matchupRow}>
+          <ThemedText style={[styles.matchupName, styles.subtle]} numberOfLines={1}>
+            {team.opponent.name}
+          </ThemedText>
+          <ThemedText type="defaultSemiBold" style={[styles.matchupScore, styles.subtle]}>
+            {team.opponent.totalScore.toFixed(1)}
+          </ThemedText>
         </View>
-      )}
+      </View>
     </View>
   );
 }
@@ -199,30 +165,34 @@ function RosterColumn({ title, players }: { title: string; players: GroupedPlaye
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 8 },
-  header: { paddingHorizontal: 16, paddingVertical: 8 },
+  header: { paddingHorizontal: 16, paddingVertical: 6 },
   subtle: { opacity: 0.6, fontSize: 13 },
   error: { color: '#c0392b', paddingHorizontal: 16, marginTop: 12 },
   loading: { marginTop: 24 },
   empty: { marginTop: 24, marginHorizontal: 16, opacity: 0.7 },
-  scroll: { paddingHorizontal: 12, paddingBottom: 24 },
-  section: { marginTop: 16 },
-  sectionTitle: { marginBottom: 8, marginHorizontal: 4 },
+  scoreboard: { flexGrow: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#8886' },
+  scoreboardContent: { paddingHorizontal: 10, paddingVertical: 8, gap: 8 },
+  scroll: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 24 },
+  section: { marginTop: 10 },
+  sectionTitle: { marginBottom: 4, marginHorizontal: 4 },
   matchupCard: {
-    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 170,
+    borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#8886',
-    padding: 12,
-    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
-  matchupTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  matchupNames: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
-  flexShrink: { flexShrink: 1, minWidth: 0 },
-  matchupScores: { alignItems: 'flex-end' },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  matchupNames: { flex: 1, minWidth: 0, gap: 1 },
+  matchupRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 },
+  matchupName: { flexShrink: 1, fontSize: 12 },
+  matchupScore: { fontSize: 15 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   winning: { color: '#0a7d2f' },
-  expandHint: { marginTop: 6, fontSize: 11, opacity: 0.5 },
-  rosterList: { marginTop: 10, gap: 6 },
-  positionGroup: { marginBottom: 10, gap: 6 },
-  positionLabel: { fontSize: 13, fontWeight: '700', opacity: 0.7, marginHorizontal: 4 },
+  positionGroup: { marginBottom: 6, gap: 4 },
+  positionLabel: { fontSize: 11, fontWeight: '700', opacity: 0.7, marginHorizontal: 4 },
   signOut: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 4 },
 });
