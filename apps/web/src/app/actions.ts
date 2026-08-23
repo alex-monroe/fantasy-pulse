@@ -1002,9 +1002,10 @@ async function fetchOttoneuRosterPlayers(
 export async function buildOttoneuTeams(
   integration: any,
   playerNameMap: { [key: string]: string },
-  playersData: Record<string, SleeperPlayer>
+  playersData: Record<string, SleeperPlayer>,
+  client?: SupabaseClient
 ): Promise<Team[]> {
-  const { leagues, error } = await getOttoneuLeagues(integration.id);
+  const { leagues, error } = await getOttoneuLeagues(integration.id, client);
   if (error || !leagues || leagues.length === 0) {
     return [];
   }
@@ -1373,7 +1374,8 @@ export async function getTeams(
       builderPromise = teamBuilders.buildOttoneuTeams(
         integration,
         playerNameMap,
-        playersData
+        playersData,
+        supabase
       );
     }
 

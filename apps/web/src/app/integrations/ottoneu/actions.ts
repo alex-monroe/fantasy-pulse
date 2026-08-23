@@ -1,5 +1,6 @@
 'use server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { JSDOM } from 'jsdom';
 
@@ -384,9 +385,17 @@ export async function getOttoneuIntegration() {
 /**
  * Gets leagues linked to an integration.
  * @param integrationId - The integration ID.
+ * @param client - Supabase client to query with. Defaults to the
+ * cookie-based server client; callers authenticated via a bearer token
+ * (e.g. the mobile app's `/api/teams/refresh` requests, which carry no
+ * cookies) must pass their own client so this RLS-scoped read resolves
+ * to the right user instead of silently returning zero rows.
  */
-export async function getLeagues(integrationId: number) {
-  const supabase = createClient();
+export async function getLeagues(
+  integrationId: number,
+  client?: SupabaseClient
+) {
+  const supabase = client ?? createClient();
   const { data, error } = await supabase
     .from('fp_leagues')
     .select('*')

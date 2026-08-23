@@ -1015,6 +1015,43 @@ describe('actions', () => {
       expect(result.teams[0].opponent.totalScore).toBe(20);
     });
 
+    it('reads Ottoneu leagues with the caller-supplied client (mobile bearer-token requests carry no cookies)', async () => {
+      // Mirrors /api/teams/refresh: the mobile app authenticates via
+      // `Authorization: Bearer <jwt>` and getTeams() is called with an
+      // explicit client + userId instead of relying on the cookie-based
+      // default. getOttoneuLeagues must be called with that same client,
+      // not a fresh cookie-based one, or the RLS-scoped read silently
+      // returns zero rows and the Ottoneu team disappears on mobile.
+      const bearerClient: any = {
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: [{ id: 1, provider: 'ottoneu', provider_user_id: '2514' }],
+          error: null,
+        }),
+      };
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve({}) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+      });
+
+      await getTeams(bearerClient, 'user-1');
+
+      expect(getOttoneuLeagues).toHaveBeenCalledWith(1, bearerClient);
+      // The cookie-based default client must never be created for this call.
+      expect(createClient).not.toHaveBeenCalled();
+    });
+
     it('uses team-scores header when team appears on the away side', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
       mockSupabase.eq.mockResolvedValue({
