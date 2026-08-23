@@ -43,6 +43,11 @@ CREATE TABLE public.fp_user_integrations (
   user_id uuid DEFAULT auth.uid(),
   provider character varying,
   provider_user_id text,
+  access_token text,
+  refresh_token text,
+  token_type text,
+  espn_s2 text,
+  swid text,
   CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
 );
 
@@ -77,6 +82,12 @@ to those migrations for the authoritative definition.
 OAuth token columns were added to `fp_user_integrations` (then named
 `user_integrations`) by
 `20250906220000_add_oauth_tokens_to_user_integrations.sql`.
+
+`espn_s2` and `swid` were added to `fp_user_integrations` by
+`20260823130000_add_espn_credentials_to_user_integrations.sql` — ESPN has
+no OAuth flow, so these store the two cookies copied from a logged-in
+ESPN browser session (see
+[../../apps/web/src/app/integrations/espn/README.md](../../apps/web/src/app/integrations/espn/README.md)).
 
 Note: constraint and index names (e.g. `leagues_pkey`,
 `leagues_user_integrations_id_fkey`) kept their original unprefixed
