@@ -260,6 +260,20 @@ It auto-increments the minor version in `app.json` (e.g. 0.2.0 → 0.3.0)
 and commits that bump back to the branch before building, so there's
 nothing to bump by hand first.
 
+**One-time setup for the version-bump commit.** `main` is protected by
+a ruleset that blocks direct pushes, and the default `GITHUB_TOKEN`
+can't be added to its bypass list (that only works for org-owned
+repos). So the workflow pushes using a `RELEASE_PUSH_TOKEN` secret
+instead:
+1. Add a `RepositoryRole: Admin` bypass actor to the `main` ruleset
+   (**Settings → Rules → Rulesets → main → Bypass list**), so an admin
+   push can skip the PR requirement.
+2. Create a fine-grained PAT from an admin account, scoped to this
+   repo only, with **Contents: Read and write** permission.
+3. Add it as a repo secret named `RELEASE_PUSH_TOKEN`
+   (**Settings → Secrets and variables → Actions → New repository
+   secret**).
+
 ## What's not here yet
 
 - **Integration management on mobile.** Connecting or removing Sleeper,
