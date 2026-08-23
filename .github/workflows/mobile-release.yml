@@ -30,6 +30,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # The default GITHUB_TOKEN (github-actions[bot]) can't push to
+          # main — it isn't on the ruleset's bypass list, and that list
+          # can't include the GitHub Actions app itself on a personal
+          # (non-org) repo. RELEASE_PUSH_TOKEN is a fine-grained PAT from
+          # an admin account with Contents: read/write on this repo, so
+          # the "Commit version bump" push below qualifies for the
+          # ruleset's admin bypass instead.
+          token: ${{ secrets.RELEASE_PUSH_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
