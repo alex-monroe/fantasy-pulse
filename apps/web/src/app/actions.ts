@@ -908,6 +908,93 @@ export async function buildYahooTeams(
 }
 
 /**
+ * Fetches a team's full roster from its Ottoneu team page. Unlike the
+ * matchup/game page, this table exists year-round (preseason, offseason,
+ * bye weeks), so it's used whenever there's no active matchup to scrape.
+ */
+async function fetchOttoneuRosterPlayers(
+  teamUrl: string,
+  resolveSleeperId: SleeperIdResolver,
+  playersData: Record<string, SleeperPlayer>
+): Promise<Player[]> {
+  const res = await fetch(teamUrl);
+  if (!res.ok) {
+    return [];
+  }
+
+  const html = await res.text();
+  const dom = new JSDOM(html);
+  const document = dom.window.document;
+
+  const rosterTable = Array.from(document.querySelectorAll('table')).find(
+    (table) => {
+      const headerTexts = Array.from(table.querySelectorAll('thead th'))
+        .map((th) => th.textContent?.trim().toLowerCase())
+        .filter(Boolean) as string[];
+      return headerTexts.includes('player') && headerTexts.includes('pos');
+    }
+  );
+
+  if (!rosterTable) {
+    return [];
+  }
+
+  const rows = Array.from(rosterTable.querySelectorAll('tbody tr'));
+
+  return rows
+    .map((row): Player | null => {
+      const playerCell = row.querySelector('td');
+      const anchor = playerCell?.querySelector('a[href*="/player_card/"]');
+      const name = anchor?.textContent?.trim() || '';
+      if (!name) {
+        return null;
+      }
+
+      const idMatch = (anchor?.getAttribute('href') || '').match(
+        /\/player_card\/nfl\/(\d+)/
+      );
+      const id = idMatch ? idMatch[1] : name;
+
+      const meta =
+        playerCell?.querySelector('.smaller')?.textContent?.trim() || '';
+      const metaParts = meta.split(' ').filter(Boolean);
+      const realTeam = metaParts[0] || '';
+      const metaPosition = metaParts.slice(1).join(' ');
+
+      const posCell = row.querySelectorAll('td')[1];
+      const posDisplay = posCell?.textContent?.trim() || '';
+
+      const sleeperId = resolveSleeperId(name);
+      const sleeperPosition = sleeperId
+        ? playersData[sleeperId]?.position
+        : undefined;
+      const position =
+        (sleeperPosition || '').toString().toUpperCase() ||
+        (metaPosition ? metaPosition.toUpperCase() : '') ||
+        posDisplay.toUpperCase() ||
+        '';
+
+      return {
+        id,
+        name,
+        position,
+        realTeam,
+        score: 0,
+        gameStatus: 'pregame',
+        gameStartTime: null,
+        gameQuarter: null,
+        gameClock: null,
+        onUserTeams: 0,
+        onOpponentTeams: 0,
+        gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+        imageUrl: getSleeperHeadshotUrl(sleeperId),
+        onBench: false,
+      } satisfies Player;
+    })
+    .filter((player): player is Player => player !== null);
+}
+
+/**
  * Builds teams for an Ottoneu integration.
  * @param integration The Ottoneu integration record.
  * @returns A list of teams from Ottoneu.
@@ -1101,6 +1188,16 @@ export async function buildOttoneuTeams(
       }
     } catch (e) {
       console.error('Failed to fetch Ottoneu matchup page', e);
+    }
+  } else {
+    try {
+      userPlayers = await fetchOttoneuRosterPlayers(
+        `https://ottoneu.fangraphs.com/football/${league.league_id}/team/${integration.provider_user_id}`,
+        resolveSleeperId,
+        playersData
+      );
+    } catch (e) {
+      console.error('Failed to fetch Ottoneu roster page', e);
     }
   }
 
