@@ -266,64 +266,61 @@ function AppContent({
           </div>
         )}
       />
-      <main className="flex-1 overflow-y-auto p-2 sm:p-6 md:p-8 space-y-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Matchup Overview</h1>
+      <div className="sticky top-14 z-40 border-b bg-background/95 backdrop-blur">
+        <div className="flex gap-2 overflow-x-auto px-2 py-2 sm:px-4 md:px-6">
+          {teams.map((team, index) => {
+            const color = teamColors.get(team.id) ?? MATCHUP_COLORS[index % MATCHUP_COLORS.length];
+            const teamScoreKey = `team-${team.id}-total`;
+            const opponentScoreKey = `team-${team.id}-opponent`;
+            return (
+              <div
+                key={team.id}
+                className="flex min-w-[200px] flex-shrink-0 items-center gap-2 rounded-md border bg-card px-2.5 py-1.5"
+              >
+                <div className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-xs font-medium leading-tight">{team.name}</p>
+                    <p className="text-base font-bold leading-tight text-primary">
+                      <span className={cn('inline-block', changedTeamScoreKeys.has(teamScoreKey) && 'score-celebrate')}>
+                        {(team.totalScore ?? 0).toFixed(1)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-xs text-muted-foreground leading-tight">{team.opponent?.name ?? 'Opponent'}</p>
+                    <p className="text-base font-bold leading-tight text-muted-foreground">
+                      <span className={cn('inline-block', changedTeamScoreKeys.has(opponentScoreKey) && 'score-celebrate')}>
+                        {(team.opponent?.totalScore ?? 0).toFixed(1)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 space-y-2">
           {refreshError && (
             <Alert variant="destructive">
               <AlertTitle>Refresh failed</AlertTitle>
               <AlertDescription>{refreshError}</AlertDescription>
             </Alert>
           )}
-          <Card>
-                <CardHeader>
-                    <CardTitle>Weekly Matchups</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                    {teams.map((team, index) => {
-                      const color = teamColors.get(team.id) ?? MATCHUP_COLORS[index % MATCHUP_COLORS.length];
-                      const teamScoreKey = `team-${team.id}-total`;
-                      const opponentScoreKey = `team-${team.id}-opponent`;
-                      return (
-                        <Card key={team.id} className="p-4">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                                    <div>
-                                        <p className="font-semibold">{team.name}</p>
-                                        <p className="text-sm text-muted-foreground">vs {team.opponent?.name ?? 'Opponent'}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-lg text-primary">
-                                      <span className={cn('inline-block', changedTeamScoreKeys.has(teamScoreKey) && 'score-celebrate')}>
-                                        {(team.totalScore ?? 0).toFixed(1)}
-                                      </span>
-                                    </p>
-                                    <p className="font-bold text-lg text-muted-foreground">
-                                      <span className={cn('inline-block', changedTeamScoreKeys.has(opponentScoreKey) && 'score-celebrate')}>
-                                        {(team.opponent?.totalScore ?? 0).toFixed(1)}
-                                      </span>
-                                    </p>
-                                </div>
-                            </div>
-                        </Card>
-                      );
-                    })}
-                </CardContent>
-             </Card>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-4 items-start">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 items-start">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>My Players</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3">
+                        <CardTitle className="text-sm font-semibold sm:text-base">My Players</CardTitle>
                         <Badge variant="secondary" className="ml-2">{myPlayers.length}</Badge>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-2.5 p-2 pt-0 sm:p-3 sm:pt-0">
                         {positions.map(position => (
                           myPlayersByPosition[position].length > 0 && (
                             <div key={position}>
-                              <h3 className="text-lg font-semibold tracking-tight mb-2">{position}</h3>
-                              <div className="space-y-2">
+                              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{position}</h3>
+                              <div className="space-y-1">
                                 {myPlayersByPosition[position]
                                   .sort((a, b) => b.score - a.score)
                                   .map(player => (
@@ -339,8 +336,8 @@ function AppContent({
                         ))}
                         {myBench.length > 0 && (
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-2">Bench</h3>
-                                <div className="space-y-2">
+                                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Bench</h3>
+                                <div className="space-y-1">
                                     {myBench
                                         .sort((a, b) => b.score - a.score)
                                         .map(player => (
@@ -356,16 +353,16 @@ function AppContent({
                     </CardContent>
                 </Card>
                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Opponent Players</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3">
+                        <CardTitle className="text-sm font-semibold sm:text-base">Opponent Players</CardTitle>
                         <Badge variant="secondary" className="ml-2">{opponentPlayers.length}</Badge>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-2.5 p-2 pt-0 sm:p-3 sm:pt-0">
                         {positions.map(position => (
                           opponentPlayersByPosition[position].length > 0 && (
                             <div key={position}>
-                              <h3 className="text-lg font-semibold tracking-tight mb-2">{position}</h3>
-                              <div className="space-y-2">
+                              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{position}</h3>
+                              <div className="space-y-1">
                                 {opponentPlayersByPosition[position]
                                   .sort((a, b) => b.score - a.score)
                                   .map(player => (
@@ -381,8 +378,8 @@ function AppContent({
                         ))}
                         {opponentBench.length > 0 && (
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-2">Bench</h3>
-                                <div className="space-y-2">
+                                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Bench</h3>
+                                <div className="space-y-1">
                                     {opponentBench
                                         .sort((a, b) => b.score - a.score)
                                         .map(player => (

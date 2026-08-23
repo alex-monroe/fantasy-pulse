@@ -105,7 +105,6 @@ test.describe('Main Page', () => {
     // Wait briefly so test videos capture the rendered teams before assertions
     await page.waitForTimeout(3000);
 
-    await expect(page.getByText('Weekly Matchups')).toBeVisible();
     await expect(page.getByText('Sleeper Squad')).toBeVisible();
     await expect(page.getByText('Yahoo Warriors')).toBeVisible();
     await expect(page.getByText('The Witchcraft')).toBeVisible();
