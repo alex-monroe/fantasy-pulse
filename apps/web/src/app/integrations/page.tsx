@@ -50,6 +50,16 @@ export default function IntegrationsPage() {
                 </CardHeader>
               </Card>
             </Link>
+            <Link href="/integrations/espn">
+              <Card className="hover:bg-muted">
+                <CardHeader>
+                  <CardTitle>ESPN</CardTitle>
+                  <CardDescription>
+                    Connect a private league using your espn_s2 and SWID cookies.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
           </CardContent>
         </Card>
       </main>

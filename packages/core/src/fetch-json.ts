@@ -7,7 +7,7 @@ type FetchJsonInit = RequestInit & {
 export async function fetchJson<T>(
   input: RequestInfo | URL,
   init: FetchJsonInit = {},
-): Promise<{ data?: T; error?: string }> {
+): Promise<{ data?: T; error?: string; status?: number }> {
   try {
     const { disableCache, ...rest } = init;
     const fetchInit = { ...rest } as RequestInit & { next?: { revalidate?: number } };
@@ -37,10 +37,10 @@ export async function fetchJson<T>(
 
     if (!res.ok) {
       const message = json?.error_description || json?.message || json?.error || res.statusText || 'Failed to fetch';
-      return { error: message };
+      return { error: message, status: res.status };
     }
 
-    return { data: json as T };
+    return { data: json as T, status: res.status };
   } catch (err: any) {
     return { error: err.message || 'Failed to fetch' };
   }
