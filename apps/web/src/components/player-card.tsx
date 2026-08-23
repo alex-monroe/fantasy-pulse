@@ -42,7 +42,7 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
         <TooltipProvider>
             <Card
                 className={cn(
-                    "relative overflow-hidden p-1 sm:p-2 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm",
+                    "relative overflow-hidden p-1 shadow-sm hover:shadow-primary/10 transition-shadow duration-300 text-sm",
                     { "opacity-50": player.onBench }
                 )}
             >
@@ -55,33 +55,38 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
                     />
                 )}
                 <div className="relative z-10 flex items-center">
-                    <Image src={player.imageUrl} alt={player.name} width={40} height={40} data-ai-hint="player portrait" className="rounded-full border hidden sm:block" />
+                    <Image src={player.imageUrl} alt={player.name} width={28} height={28} data-ai-hint="player portrait" className="hidden shrink-0 rounded-full border sm:block" />
                     <div className="flex-1 mx-2 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <p className="text-xs sm:text-sm font-semibold leading-tight">{player.name}</p>
-                            {player.onBench && <Badge variant="secondary">BN</Badge>}
-                            <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                            <p className="truncate text-xs font-semibold leading-tight">{player.name}</p>
+                            {player.onBench && <Badge variant="secondary" className="px-1 py-0 text-[10px] leading-tight">BN</Badge>}
+                            <div className="flex items-center gap-1 shrink-0">
                                 {matchupColors.map((matchup, index) => (
                                     <div
                                         key={`${matchup.color}-${index}`}
-                                        className="w-2 h-2 rounded-full"
+                                        className="w-1.5 h-1.5 rounded-full"
                                         style={{ backgroundColor: matchup.color }}
                                     />
                                 ))}
                             </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">{player.position} - {player.realTeam}</p>
-                        {statusLabel && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{statusLabel}</p>
-                        )}
+                        <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                            {player.position} - {player.realTeam}
+                            {statusLabel && (
+                                <>
+                                    {' '}
+                                    <span className="before:mr-1 before:content-['·']">{statusLabel}</span>
+                                </>
+                            )}
+                        </p>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground mr-2">
+                    <div className="flex items-center gap-1.5 text-muted-foreground mr-1.5">
                         {player.onUserTeams > 0 && (
                             <Tooltip>
                                 <TooltipTrigger>
-                                    <div className="flex items-center gap-1">
-                                        <User className="w-3.5 h-3.5" />
-                                        <span className="text-xs">{player.onUserTeams}</span>
+                                    <div className="flex items-center gap-0.5">
+                                        <User className="w-3 h-3" />
+                                        <span className="text-[10px]">{player.onUserTeams}</span>
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -92,9 +97,9 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
                         {player.onOpponentTeams > 0 && (
                             <Tooltip>
                                 <TooltipTrigger>
-                                    <div className="flex items-center gap-1">
-                                        <Users className="w-3.5 h-3.5" />
-                                        <span className="text-xs">{player.onOpponentTeams}</span>
+                                    <div className="flex items-center gap-0.5">
+                                        <Users className="w-3 h-3" />
+                                        <span className="text-[10px]">{player.onOpponentTeams}</span>
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -104,7 +109,7 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
                         )}
                     </div>
                     <div className="text-right">
-                        <p className="text-sm sm:text-base lg:text-xl font-bold text-foreground">
+                        <p className="text-sm sm:text-base font-bold text-foreground">
                             <span className={cn('inline-block', isScoreChanged && 'score-celebrate')}>
                                 {player.score.toFixed(1)}
                             </span>

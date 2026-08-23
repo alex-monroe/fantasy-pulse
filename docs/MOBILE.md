@@ -227,7 +227,8 @@ In ASC → your app → **App Store** tab:
 - **Screenshots**: minimum 3 for **6.5"** and **6.7"** display sizes.
   Take them from your phone via TestFlight (Screenshots in the
   Photos app, or use Xcode → Devices and Simulators). Login screen,
-  scoreboard collapsed, scoreboard expanded with players.
+  Overview with the scoreboard strip pinned above the player lists,
+  a scrolled view of the player lists.
 - **Build**: Select the TestFlight build from Phase 2.
 - **App Review Information**:
   - Sign-in credentials: provide a test account (e.g.
