@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -15,9 +15,17 @@ import { AppNavigation } from '@/components/app-navigation';
  */
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Lets /mcp/authorize send an unauthenticated visitor here and land
+  // back on the consent screen after they sign in, instead of losing
+  // the in-progress OAuth request. Only ever a same-origin relative
+  // path — never followed if it isn't one.
+  const next = searchParams.get('next');
+  const redirectTo = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -27,7 +35,7 @@ export default function LoginPage() {
     if (error) {
       setError(error.message);
     } else {
-      router.replace('/');
+      router.replace(redirectTo);
     }
   };
 

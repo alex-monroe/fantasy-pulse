@@ -7,47 +7,38 @@
  * and holds nothing between requests — which is what lets it run on
  * serverless hosting alongside the rest of the app.
  *
- * Auth is a personal access token minted at /mcp and presented as
- * `Authorization: Bearer rl_mcp_...`; see docs/MCP.md.
+ * Auth is either a personal access token minted at /mcp, or an OAuth
+ * access token obtained through the Dynamic Client Registration flow at
+ * /mcp/authorize — both presented as `Authorization: Bearer ...`; see
+ * docs/MCP.md.
  */
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 import { getCurrentNflWeek, getTeams } from '@/app/actions';
 import { DEMO_HEADER, resolveDemoMode } from '@/lib/demo-mode';
 import { dispatchMcpPayload, SUPPORTED_PROTOCOL_VERSIONS } from '@/lib/mcp/protocol';
+import { resolveOAuthAccessTokenUser } from '@/lib/mcp/oauth';
+import { resolveOrigin } from '@/lib/mcp/server-url';
+import { createMcpSupabaseClient } from '@/lib/mcp/supabase';
 import type { McpToolContext } from '@/lib/mcp/tools';
 import { parseBearerToken, resolveMcpTokenUser } from '@/lib/mcp/tokens';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 
 export const dynamic = 'force-dynamic';
 
-/** Advertised so clients know which auth scheme to use on a 401. */
-const AUTH_CHALLENGE = 'Bearer realm="Roster Loom MCP", error="invalid_token"';
-
 /**
- * Supabase client for MCP requests.
- *
- * Prefers the service role key when configured, since MCP callers
- * authenticate with their own token rather than a Supabase session and
- * so carry no `auth.uid()`. Falls back to the anon key, which matches
- * how the existing bearer-authenticated `/api/teams/refresh` path
- * queries. Either way every query is explicitly scoped by user id.
+ * Advertised so clients know which auth scheme to use on a 401, and
+ * (per RFC 9728) where to discover the OAuth metadata that lets a
+ * client register and authorize itself instead of requiring a
+ * hand-pasted token.
  */
-function createMcpSupabaseClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+async function authChallenge(): Promise<string> {
+  const origin = await resolveOrigin();
+  const resourceMetadataUrl = origin
+    ? `${origin}/.well-known/oauth-protected-resource/api/mcp`
+    : '/.well-known/oauth-protected-resource/api/mcp';
 
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    },
-  );
+  return `Bearer realm="Roster Loom MCP", error="invalid_token", resource_metadata="${resourceMetadataUrl}"`;
 }
 
 function jsonResponse(body: unknown, status: number, protocolVersion: string) {
@@ -76,20 +67,20 @@ export async function POST(request: Request) {
   if (!token) {
     return NextResponse.json(
       { error: 'Missing bearer token. Create one at /mcp.' },
-      { status: 401, headers: { 'WWW-Authenticate': AUTH_CHALLENGE } },
+      { status: 401, headers: { 'WWW-Authenticate': await authChallenge() } },
     );
   }
 
   const supabase = createMcpSupabaseClient();
 
   const authStart = startTimer();
-  const userId = await resolveMcpTokenUser(supabase, token);
+  const userId = (await resolveMcpTokenUser(supabase, token)) ?? (await resolveOAuthAccessTokenUser(supabase, token));
   logDuration('mcp: authenticate token', authStart, { authenticated: Boolean(userId) });
 
   if (!userId) {
     return NextResponse.json(
-      { error: 'Invalid or revoked token.' },
-      { status: 401, headers: { 'WWW-Authenticate': AUTH_CHALLENGE } },
+      { error: 'Invalid, expired, or revoked token.' },
+      { status: 401, headers: { 'WWW-Authenticate': await authChallenge() } },
     );
   }
 

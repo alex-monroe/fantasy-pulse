@@ -13,8 +13,9 @@ POST https://<your-deployment>/api/mcp
 
 ## Setup
 
-The server needs the `fp_mcp_tokens` table and its lookup function, so
-apply the migrations to the linked project once before first use:
+The server needs the `fp_mcp_tokens` and `fp_mcp_oauth_*` tables and
+their lookup functions, so apply the migrations to the linked project
+once before first use:
 
 ```bash
 npx supabase db push
@@ -32,18 +33,21 @@ scoped by user id.
 
 ## Connecting a client
 
+Two ways to authenticate, depending on what the client supports:
+
+### Personal access token
+
+For clients that let you paste a static bearer token into their config
+(Claude Code, `claude_desktop_config.json`):
+
 1. Sign in and open **/mcp**.
 2. Create an access token and copy it — it is shown once.
 3. Point your client at the endpoint with the token as a bearer header.
-
-Claude Code:
 
 ```bash
 claude mcp add --transport http roster-loom https://<your-deployment>/api/mcp \
   --header "Authorization: Bearer rl_mcp_..."
 ```
-
-`claude_desktop_config.json`:
 
 ```json
 {
@@ -57,8 +61,25 @@ claude mcp add --transport http roster-loom https://<your-deployment>/api/mcp \
 }
 ```
 
-Locally, the dev server on port 9002 serves the same endpoint at
-`http://localhost:9002/api/mcp`.
+### OAuth (Dynamic Client Registration)
+
+For connector UIs that only take a server URL and don't offer a place
+to paste a token (e.g. Claude.ai's remote MCP connector), point the
+client at `https://<your-deployment>/api/mcp` with no header. It
+discovers everything else itself:
+
+1. `GET /.well-known/oauth-protected-resource/api/mcp` — resolved from
+   the `resource_metadata` param on the endpoint's `401`.
+2. `GET /.well-known/oauth-authorization-server` — the authorization,
+   token and registration endpoints.
+3. `POST /api/mcp/register` — self-registers as a client (RFC 7591).
+4. Redirects the user's browser to `/mcp/authorize` (PKCE, `S256`
+   required); the user signs in if needed and approves the client.
+5. `POST /api/mcp/token` — exchanges the resulting code for an access
+   token, and later refreshes it.
+
+Locally, the dev server on port 9002 serves the same endpoints at
+`http://localhost:9002`.
 
 ## Tools
 
@@ -78,26 +99,47 @@ from an earlier answer is a likely mistake.
 
 ## Authentication
 
-MCP clients store a static string in their config, so Supabase's
-hour-long access tokens are unusable here. Instead `/mcp` mints
-long-lived personal access tokens:
+Two token flows feed the same `Authorization: Bearer <token>` check in
+`/api/mcp`.
+
+**Personal access tokens** — for clients that store a static string in
+their config, where Supabase's hour-long access tokens are unusable:
 
 - The token is `rl_mcp_` + 32 random bytes.
 - Only its SHA-256 is stored, in `fp_mcp_tokens`. The plaintext is shown
   once and is unrecoverable.
-- Requests present it as `Authorization: Bearer <token>`.
 - Verification goes through the `fp_mcp_token_owner` SECURITY DEFINER
   function, which resolves the hash to a user id and stamps
   `last_used_at`.
 - Revoking sets `revoked_at`, which takes effect on the next request.
+- Non-expiring until revoked.
 
-`fp_mcp_tokens` is the one table in this schema with RLS enabled — a user
-can only ever see and manage their own tokens. Unlike the other `fp_`
-tables it holds credential material, so it does not inherit their
-open-by-default posture.
+**OAuth (DCR)** — for connector UIs that run an authorization-code +
+PKCE flow instead (see [Connecting a client](#connecting-a-client)):
 
-A token grants read access to everything the owning account can see.
-Treat it like a password, and revoke it at `/mcp` if it leaks.
+- `fp_mcp_oauth_clients` holds dynamically registered clients
+  (`rl_mcp_client_...`), all public — no client secret, since PKCE
+  (`S256`) is mandatory instead.
+- `fp_mcp_oauth_codes` holds single-use authorization codes
+  (`rl_mcp_code_...`), 5-minute lifetime, bound to the approving user,
+  the client, the redirect URI and the PKCE challenge.
+- `fp_mcp_oauth_tokens` holds access (`rl_mcp_at_...`) and refresh
+  (`rl_mcp_rt_...`) token pairs. Access tokens expire after 1 hour;
+  refreshing rotates both hashes on the same row in place, so a stale
+  refresh token — rotated-away or replayed — stops working immediately.
+- Implementation: `apps/web/src/lib/mcp/oauth.ts`.
+
+`fp_mcp_tokens` and the `fp_mcp_oauth_*` tables are the only tables in
+this schema with RLS enabled — unlike the other `fp_` tables, they hold
+credential material, so they don't inherit the open-by-default posture.
+Everything reachable by an unauthenticated caller (token/code
+verification, client registration) goes through a SECURITY DEFINER
+function rather than a table policy.
+
+Any of these tokens grants read access to everything the owning account
+can see. Treat them like a password, and revoke a leaked one at `/mcp`
+(personal access tokens) — an OAuth-issued token expires within the
+hour on its own if not refreshed.
 
 ## Transport
 
@@ -127,11 +169,19 @@ apps/web/src/lib/mcp/
 ├── protocol.ts     # JSON-RPC dispatch + Streamable HTTP semantics
 ├── tools.ts        # Tool definitions and handlers
 ├── views.ts        # Pure Team[] -> tool payload transforms
-└── tokens.ts       # Token minting, hashing, verification
+├── tokens.ts       # Personal access token minting, hashing, verification
+├── oauth.ts         # DCR client registration + auth code/PKCE + token issuance
+├── server-url.ts     # Origin resolution for metadata + redirect URLs
+└── supabase.ts       # Service-role client shared by the unauthenticated endpoints
 
-apps/web/src/app/api/mcp/route.ts        # HTTP layer: auth, data loading
-apps/web/src/app/(dashboard)/mcp/        # Token management UI
+apps/web/src/app/api/mcp/route.ts          # HTTP layer: auth, data loading
+apps/web/src/app/api/mcp/register/route.ts # DCR client registration
+apps/web/src/app/api/mcp/token/route.ts    # OAuth token exchange + refresh
+apps/web/src/app/mcp/authorize/            # OAuth consent screen
+apps/web/src/app/.well-known/              # OAuth AS + protected-resource metadata
+apps/web/src/app/(dashboard)/mcp/          # Token management UI
 supabase/migrations/*_add_fp_mcp_tokens.sql
+supabase/migrations/*_add_fp_mcp_oauth.sql
 ```
 
 Tools are pure functions of the `Team[]` that `getTeams()` already
