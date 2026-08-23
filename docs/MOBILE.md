@@ -256,7 +256,9 @@ Or trigger the **Mobile Release (TestFlight)** GitHub Action
 (`.github/workflows/mobile-release.yml`, `workflow_dispatch` only) from
 the Actions tab — it runs the same build + submit steps in CI using the
 `EXPO_TOKEN` secret and the credentials already stored on EAS's servers.
-Still bump the version in `app.json` and push that first.
+It auto-increments the minor version in `app.json` (e.g. 0.2.0 → 0.3.0)
+and commits that bump back to the branch before building, so there's
+nothing to bump by hand first.
 
 ## What's not here yet
 
