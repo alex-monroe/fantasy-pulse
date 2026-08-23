@@ -1,0 +1,59 @@
+name: Mobile Release (TestFlight)
+
+# Manual only — this builds a production iOS binary and submits it to
+# App Store Connect / TestFlight. Not something we want firing on every
+# push. Bump the version in apps/mobile/app.json before running this;
+# eas.json's autoIncrement handles the build number.
+on:
+  workflow_dispatch:
+    inputs:
+      what_to_test:
+        description: 'TestFlight "What to Test" notes for this build'
+        required: false
+        default: ''
+
+concurrency:
+  group: mobile-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    runs-on: ubuntu-latest
+    # Configure this environment in repo Settings → Environments and add
+    # required reviewers if you want a manual approval gate before the
+    # build ships to Apple.
+    environment: ios-release
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Set up EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build iOS (production profile)
+        working-directory: apps/mobile
+        # Runs on EAS's servers, not the runner — env vars come from the
+        # "production" environment configured in the EAS dashboard, and
+        # iOS signing credentials come from the EAS credentials service.
+        run: eas build --platform ios --profile production --non-interactive --wait
+
+      - name: Submit to App Store Connect (TestFlight)
+        working-directory: apps/mobile
+        run: |
+          eas submit --platform ios --profile production --non-interactive --latest \
+            ${{ github.event.inputs.what_to_test != '' && format('--what-to-test "{0}"', github.event.inputs.what_to_test) || '' }}
