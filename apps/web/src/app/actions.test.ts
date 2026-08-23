@@ -1091,6 +1091,65 @@ describe('actions', () => {
         score: 7.5,
       });
     });
+
+    it('falls back to the team roster table when there is no active matchup', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      mockSupabase.eq.mockResolvedValue({
+        data: [
+          { id: 1, provider: 'ottoneu', provider_user_id: '2514' },
+        ],
+        error: null,
+      });
+
+      const rosterHtml = `
+        <table class="sortable">
+          <thead><tr><th>Player</th><th>POS</th><th>Salary</th><th>Bye</th><th>2025 Pts</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><a href="https://ottoneu.fangraphs.com/football/309/player_card/nfl/7">Roster Guy</a> <span class="smaller">SF WR</span></td>
+              <td>WR</td>
+              <td>$10</td>
+              <td>9</td>
+              <td>50.00</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      const sleeperPlayersData = {
+        '7': { full_name: 'Roster Guy', first_name: 'Roster', last_name: 'Guy', position: 'WR' },
+      } as Record<string, SleeperPlayer>;
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(sleeperPlayersData) })
+        .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(rosterHtml) });
+
+      (getOttoneuLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '309' }],
+        error: null,
+      });
+
+      (getOttoneuTeamInfo as jest.Mock).mockResolvedValue({
+        teamName: 'My Team',
+        teamId: '2514',
+      });
+
+      const result = await getTeams();
+
+      expect(result.teams).toHaveLength(1);
+      expect(result.teams[0].players).toHaveLength(1);
+      expect(result.teams[0].players[0]).toMatchObject({
+        id: '7',
+        name: 'Roster Guy',
+        position: 'WR',
+        realTeam: 'SF',
+        score: 0,
+        onBench: false,
+      });
+      expect(result.teams[0].opponent.players).toHaveLength(0);
+    });
   });
 
   describe('getTeams execution', () => {
