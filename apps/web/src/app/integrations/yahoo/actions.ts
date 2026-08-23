@@ -1,5 +1,6 @@
 'use server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { getCurrentNflWeek } from '@/app/actions';
@@ -38,23 +39,39 @@ function logYahooApiDuration(
 /**
  * Gets the Yahoo access token for an integration.
  * @param integrationId - The ID of the integration.
+ * @param client - Supabase client to query with. Defaults to the
+ * cookie-based server client; callers authenticated via a bearer token
+ * (e.g. the mobile app's `/api/teams/refresh` requests, which carry no
+ * cookies) must pass their own client, since `supabase.auth.getUser()`
+ * with no argument can't resolve a session from a bearer-only client.
+ * @param userId - The authenticated user's id. When provided, skips the
+ * `supabase.auth.getUser()` cookie-session lookup (which bearer-token
+ * clients can't satisfy) and scopes the query directly.
  * @returns The access token or an error.
  */
-export async function getYahooAccessToken(integrationId: number): Promise<{ access_token?: string; error?: string }> {
-  const supabase = createClient();
+export async function getYahooAccessToken(
+  integrationId: number,
+  client?: SupabaseClient,
+  userId?: string
+): Promise<{ access_token?: string; error?: string }> {
+  const supabase = client ?? createClient();
   logger.info(`Fetching access token for integrationId: ${integrationId}`);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    logger.error('Authentication error: No user found.');
-    return { error: 'User not authenticated.' };
+  let resolvedUserId = userId;
+  if (!resolvedUserId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      logger.error('Authentication error: No user found.');
+      return { error: 'User not authenticated.' };
+    }
+    resolvedUserId = user.id;
   }
 
   const { data: integration, error: integrationError } = await supabase
     .from('fp_user_integrations')
     .select('access_token, refresh_token, expires_at')
     .eq('id', integrationId)
-    .eq('user_id', user.id)
+    .eq('user_id', resolvedUserId)
     .single();
 
   if (integrationError) {
@@ -63,7 +80,7 @@ export async function getYahooAccessToken(integrationId: number): Promise<{ acce
   }
 
   if (!integration) {
-    logger.error(`Integration not found for id: ${integrationId} and user_id: ${user.id}`);
+    logger.error(`Integration not found for id: ${integrationId} and user_id: ${resolvedUserId}`);
     return { error: 'Yahoo integration not found.' };
   }
 
@@ -252,10 +269,18 @@ export async function getTeams(integrationId: number) {
  *   }
  * }
  * @param integrationId - The ID of the integration.
+ * @param client - Supabase client to query/upsert with. See
+ * {@link getYahooAccessToken} for why bearer-token callers must pass one.
+ * @param userId - The authenticated user's id, forwarded to
+ * {@link getYahooAccessToken}.
  * @returns A list of teams or an error.
  */
-export async function getYahooUserTeams(integrationId: number) {
-  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId);
+export async function getYahooUserTeams(
+  integrationId: number,
+  client?: SupabaseClient,
+  userId?: string
+) {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId, client, userId);
   if (tokenError || !access_token) {
     return { error: tokenError || 'Failed to get Yahoo access token.' };
   }
@@ -303,7 +328,7 @@ export async function getYahooUserTeams(integrationId: number) {
     });
 
     if (teamsToInsert.length > 0) {
-      const supabase = createClient();
+      const supabase = client ?? createClient();
       const { data: upsertedTeams, error: upsertError } = await supabase
         .from('fp_teams')
         .upsert(teamsToInsert, { onConflict: 'team_key,user_integration_id' })
