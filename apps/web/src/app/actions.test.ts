@@ -685,6 +685,42 @@ describe('actions', () => {
       expect(result.teams[0].players[0].gameClock).toBe('5:10');
     });
 
+    it('reads Yahoo tokens/teams with the caller-supplied client and user id (mobile bearer-token requests carry no cookies)', async () => {
+      // Mirrors /api/teams/refresh: the mobile app authenticates via
+      // `Authorization: Bearer <jwt>` and getTeams() is called with an
+      // explicit client + userId instead of relying on the cookie-based
+      // default. getYahooUserTeams/buildYahooTeams must be called with
+      // that same client and the integration's user id, not fall back to
+      // a fresh cookie-based client and `supabase.auth.getUser()` (which
+      // can't resolve a session for a bearer-only client) - or the Yahoo
+      // team silently disappears on mobile the same way Ottoneu did.
+      const bearerClient: any = {
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: [{ id: 'int-2', provider: 'yahoo', user_id: 'user-1' }],
+          error: null,
+        }),
+      };
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+
+      (getYahooUserTeams as jest.Mock).mockResolvedValue({
+        teams: [],
+        error: null,
+        accessToken: 'token',
+      });
+
+      await getTeams(bearerClient, 'user-1');
+
+      expect(getYahooUserTeams).toHaveBeenCalledWith('int-2', bearerClient, 'user-1');
+      // The cookie-based default client must never be created for this call.
+      expect(createClient).not.toHaveBeenCalled();
+    });
+
     it('should continue if getLeagues returns an error', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
       mockSupabase.eq.mockResolvedValue({

@@ -606,12 +606,13 @@ type YahooLeagueRow = {
  * @returns A map from Yahoo league key to the stored league row.
  */
 async function loadYahooLeagueLookup(
-  integrationId: number
+  integrationId: number,
+  client?: SupabaseClient
 ): Promise<Map<string, YahooLeagueRow>> {
   const lookupStart = startTimer();
 
   try {
-    const supabase = createClient();
+    const supabase = client ?? createClient();
     const { data, error } = await supabase
       .from('fp_leagues')
       .select('league_id, name, season, total_rosters')
@@ -657,7 +658,8 @@ export async function buildYahooTeams(
     | BuildYahooTeamsOptions
     | any[],
   accessTokenOrPrefetchedTeams?: string | any[],
-  prefetchedTeamsArg?: any[]
+  prefetchedTeamsArg?: any[],
+  client?: SupabaseClient
 ): Promise<Team[]> {
   let yahooApiTeams: any[] | undefined;
   let resolvedAccessToken: string | undefined;
@@ -700,7 +702,7 @@ export async function buildYahooTeams(
       teams: fetchedTeams,
       error: teamsError,
       accessToken: teamsAccessToken,
-    } = await getYahooUserTeams(integration.id);
+    } = await getYahooUserTeams(integration.id, client, integration.user_id);
 
     if (teamsError || !fetchedTeams) {
       return [];
@@ -714,7 +716,7 @@ export async function buildYahooTeams(
 
   if (!resolvedAccessToken) {
     const { access_token: freshToken, error: accessTokenError } =
-      await getYahooAccessToken(integration.id);
+      await getYahooAccessToken(integration.id, client, integration.user_id);
 
     if (accessTokenError || !freshToken) {
       console.error(
@@ -733,7 +735,7 @@ export async function buildYahooTeams(
   // Yahoo's team payload carries only a league_key, not the league's
   // name. Names were persisted to fp_leagues at connect time, so resolve
   // them in one indexed query rather than per team.
-  const leagueLookup = await loadYahooLeagueLookup(integration.id);
+  const leagueLookup = await loadYahooLeagueLookup(integration.id, client);
 
   const mapYahooPlayer = (
     player: any,
@@ -1356,7 +1358,7 @@ export async function getTeams(
           teams: yahooTeams,
           error: yahooTeamsError,
           accessToken,
-        } = await getYahooUserTeams(integration.id);
+        } = await getYahooUserTeams(integration.id, supabase, integration.user_id);
 
         if (yahooTeamsError || !yahooTeams) {
           return [] as Team[];
@@ -1367,7 +1369,8 @@ export async function getTeams(
           playerNameMap,
           week,
           accessToken,
-          yahooTeams
+          yahooTeams,
+          supabase
         );
       })();
     } else if (integration.provider === 'ottoneu') {
