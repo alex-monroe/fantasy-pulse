@@ -478,7 +478,16 @@ export async function buildSleeperTeams(
 
   const teams: Team[] = [];
 
-  for (const league of leagues as SleeperLeague[]) {
+  // Sleeper can list the same league_id more than once (e.g. when the user
+  // manages two rosters in it), which would otherwise produce duplicate
+  // scoreboards and double-count that league's players in aggregated views.
+  const uniqueLeagues = Array.from(
+    new Map(
+      (leagues as SleeperLeague[]).map((league) => [league.league_id, league])
+    ).values()
+  );
+
+  for (const league of uniqueLeagues) {
     const [rosters, matchups, leagueUsers] = await Promise.all([
       fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
         (response) => response.json() as Promise<SleeperRoster[]>
