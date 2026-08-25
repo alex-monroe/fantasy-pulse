@@ -250,6 +250,29 @@ describe('actions', () => {
       expect(getCurrentSleeperLeagues).toHaveBeenCalledWith('sleeper-user-1');
     });
 
+    it('dedupes leagues that Sleeper lists more than once', async () => {
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
+        leagues: [
+          { id: 1, league_id: 'sleeper-league-1' },
+          { id: 1, league_id: 'sleeper-league-1' },
+        ],
+        error: null,
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+
+      expect(result).toHaveLength(1);
+    });
+
     it('skips leagues when sleeper data is incomplete', async () => {
       (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
