@@ -5,7 +5,10 @@ import logger from '@/utils/logger';
 import { fetchJson } from '@roster-loom/core';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 
-const ESPN_BASE_URL = 'https://fantasy.espn.com/apis/v3/games/ffl/seasons';
+// fantasy.espn.com/apis/v3/... now 302-redirects to an HTML login page
+// instead of returning JSON errors, regardless of credential validity —
+// use the read API's actual host so 401/403 responses come back as JSON.
+const ESPN_BASE_URL = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons';
 
 function normalizeSwid(swid: string) {
   const trimmed = swid.trim();
@@ -151,7 +154,7 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
         : (data.teams ?? []).length || undefined,
       status: data.status?.currentMatchupPeriod ? 'in_season' : undefined,
     },
-    { onConflict: 'league_id' }
+    { onConflict: 'league_id,user_integration_id' }
   );
 
   if (leagueError) {
@@ -167,7 +170,7 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
       logo_url: ownedTeam.logo,
       league_id: trimmedLeagueId,
     },
-    { onConflict: 'team_key' }
+    { onConflict: 'team_key,user_integration_id' }
   );
 
   if (teamError) {
