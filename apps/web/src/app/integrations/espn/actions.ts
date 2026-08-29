@@ -170,7 +170,7 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
       logo_url: ownedTeam.logo,
       league_id: trimmedLeagueId,
     },
-    { onConflict: 'team_key' }
+    { onConflict: 'team_key,user_integration_id' }
   );
 
   if (teamError) {

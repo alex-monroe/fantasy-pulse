@@ -100,7 +100,7 @@ describe('espn actions', () => {
       );
       expect(teamsUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ team_key: 'espn.999.1', team_id: '1' }),
-        { onConflict: 'team_key' }
+        { onConflict: 'team_key,user_integration_id' }
       );
     });
 
