@@ -71,6 +71,91 @@ function espnTeamName(team: any) {
   return combined || `Team ${team?.id}`;
 }
 
+// ESPN's fantasy API is undocumented and identifies positions/pro teams by
+// numeric codes rather than names. These tables are reverse-engineered and
+// stable across the wider ESPN fantasy tooling ecosystem (e.g. the
+// `espn-api` Python package), but ESPN could change them without notice.
+const ESPN_POSITION_ABBREVIATIONS: Record<number, string> = {
+  0: 'QB',
+  1: 'TQB',
+  2: 'RB',
+  3: 'RB/WR',
+  4: 'WR',
+  5: 'WR/TE',
+  6: 'TE',
+  7: 'OP',
+  16: 'D/ST',
+  17: 'K',
+  23: 'FLEX',
+};
+
+const ESPN_PRO_TEAM_ABBREVIATIONS: Record<number, string> = {
+  0: 'FA',
+  1: 'ATL',
+  2: 'BUF',
+  3: 'CHI',
+  4: 'CIN',
+  5: 'CLE',
+  6: 'DAL',
+  7: 'DEN',
+  8: 'DET',
+  9: 'GB',
+  10: 'TEN',
+  11: 'IND',
+  12: 'KC',
+  13: 'LV',
+  14: 'LAR',
+  15: 'MIA',
+  16: 'MIN',
+  17: 'NE',
+  18: 'NO',
+  19: 'NYG',
+  20: 'NYJ',
+  21: 'PHI',
+  22: 'ARI',
+  23: 'PIT',
+  24: 'LAC',
+  25: 'SF',
+  26: 'SEA',
+  27: 'TB',
+  28: 'WSH',
+  29: 'CAR',
+  30: 'JAX',
+  33: 'BAL',
+  34: 'HOU',
+};
+
+// Roster slot IDs for the bench (20) and injured reserve (21) — anything
+// else is an active lineup slot.
+const ESPN_BENCH_LINEUP_SLOT_IDS = new Set([20, 21]);
+
+export type EspnRosterPlayer = {
+  id: string;
+  name: string;
+  position: string;
+  realTeam: string;
+  points: number;
+  onBench: boolean;
+};
+
+function mapEspnRosterEntry(entry: any): EspnRosterPlayer {
+  const player = entry?.playerPoolEntry?.player ?? {};
+  const id = player.id != null ? String(player.id) : entry?.playerId != null ? String(entry.playerId) : '';
+  const name =
+    player.fullName ||
+    `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim() ||
+    'Unknown Player';
+
+  return {
+    id,
+    name,
+    position: ESPN_POSITION_ABBREVIATIONS[player.defaultPositionId] ?? '',
+    realTeam: ESPN_PRO_TEAM_ABBREVIATIONS[player.proTeamId] ?? '',
+    points: Number(entry?.playerPoolEntry?.appliedStatTotal ?? entry?.appliedStatTotal ?? 0) || 0,
+    onBench: ESPN_BENCH_LINEUP_SLOT_IDS.has(entry?.lineupSlotId),
+  };
+}
+
 /**
  * Validates ESPN cookie credentials against a league and, if valid, connects
  * the league to the user's account.
@@ -125,6 +210,24 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
   const ownedTeam = findOwnedTeam(data, swid);
   if (!ownedTeam) {
     return { error: "Could not find a team owned by this ESPN account in that league." };
+  }
+
+  // Reconnecting (e.g. after refreshing stale cookies) should replace any
+  // existing ESPN integration for this user, not accumulate a new
+  // fp_user_integrations row alongside it — otherwise every retry leaves
+  // its own duplicate integration/league/team rows behind, which shows up
+  // as repeated matchups on the dashboard.
+  const { data: existingIntegrations } = await supabase
+    .from('fp_user_integrations')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('provider', 'espn');
+
+  if (existingIntegrations?.length) {
+    const existingIds = existingIntegrations.map((row: { id: number }) => row.id);
+    await supabase.from('fp_teams').delete().in('user_integration_id', existingIds);
+    await supabase.from('fp_leagues').delete().in('user_integration_id', existingIds);
+    await supabase.from('fp_user_integrations').delete().in('id', existingIds);
   }
 
   const { data: integration, error: insertError } = await supabase
@@ -228,14 +331,20 @@ export async function getEspnIntegration() {
     return { error: 'You must be logged in.' };
   }
 
+  // Ordered + limited to one rather than `.single()`: a user could have
+  // more than one stored row from before connectEspn started cleaning up
+  // duplicates on reconnect, and `.single()` hard-errors on more than one
+  // match rather than just giving us the most recent.
   const { data, error } = await supabase
     .from('fp_user_integrations')
     .select('id, created_at, user_id, provider, provider_user_id')
     .eq('user_id', user.id)
     .eq('provider', 'espn')
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     return { error: error.message };
   }
 
@@ -305,7 +414,7 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
     leagueId,
     integration.espn_s2,
     integration.swid,
-    ['mMatchupScore', 'mTeam']
+    ['mMatchupScore', 'mTeam', 'mRoster']
   );
   logEspnApiDuration('fetch matchup', fetchStart, { integrationId, leagueId, teamId, success: !error });
 
@@ -347,12 +456,18 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
         name: userTeam ? espnTeamName(userTeam) : undefined,
         logo_url: userTeam?.logo,
         totalPoints: userSide?.totalPoints ?? 0,
+        players: (
+          userSide?.rosterForCurrentScoringPeriod?.entries ?? userTeam?.roster?.entries ?? []
+        ).map(mapEspnRosterEntry),
       },
       opponentTeam: {
         teamId: String(opponentSide?.teamId),
         name: opponentTeam ? espnTeamName(opponentTeam) : undefined,
         logo_url: opponentTeam?.logo,
         totalPoints: opponentSide?.totalPoints ?? 0,
+        players: (
+          opponentSide?.rosterForCurrentScoringPeriod?.entries ?? opponentTeam?.roster?.entries ?? []
+        ).map(mapEspnRosterEntry),
       },
     },
   };

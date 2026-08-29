@@ -16,6 +16,12 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
+import {
+  getLeagues as getEspnLeagues,
+  getTeams as getEspnTeamRows,
+  getEspnMatchup,
+  type EspnRosterPlayer,
+} from '@/app/integrations/espn/actions';
 import { mapSleeperPlayer, generateDemoTeams } from '@roster-loom/core';
 import {
   Team,
@@ -1235,10 +1241,94 @@ export async function buildOttoneuTeams(
   ];
 }
 
+/**
+ * Builds teams for an ESPN integration.
+ * @param integration The ESPN integration record.
+ * @param playerNameMap Sleeper name lookup, used to resolve headshots.
+ * @returns A list of teams from ESPN.
+ */
+export async function buildEspnTeams(
+  integration: any,
+  playerNameMap: { [key: string]: string }
+): Promise<Team[]> {
+  const [{ teams: espnTeamRows, error: teamsError }, { leagues: espnLeagueRows }] =
+    await Promise.all([
+      getEspnTeamRows(integration.id),
+      getEspnLeagues(integration.id),
+    ]);
+
+  if (teamsError || !espnTeamRows?.length) {
+    return [];
+  }
+
+  const leagueLookup = new Map(
+    (espnLeagueRows ?? []).map((league: any) => [league.league_id, league])
+  );
+  const resolveSleeperId = createSleeperIdResolver(playerNameMap);
+
+  const mapEspnPlayer = (p: EspnRosterPlayer): Player => {
+    const sleeperId = resolveSleeperId(p.name);
+    return {
+      id: p.id || p.name,
+      name: p.name,
+      position: p.position,
+      realTeam: p.realTeam,
+      score: p.points,
+      gameStatus: 'pregame',
+      gameStartTime: null,
+      gameQuarter: null,
+      gameClock: null,
+      onUserTeams: 0,
+      onOpponentTeams: 0,
+      gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+      imageUrl: getSleeperHeadshotUrl(sleeperId),
+      onBench: p.onBench,
+    };
+  };
+
+  const builtTeams = await Promise.all(
+    espnTeamRows.map(async (row: any): Promise<Team | null> => {
+      const { matchup, error } = await getEspnMatchup(
+        integration.id,
+        row.league_id,
+        row.team_id
+      );
+
+      if (error || !matchup) {
+        return null;
+      }
+
+      const leagueRow = leagueLookup.get(row.league_id);
+
+      return {
+        id: row.id,
+        name: matchup.userTeam.name || row.name,
+        league: {
+          provider: 'espn',
+          providerLeagueId: row.league_id,
+          name: leagueRow?.name || `ESPN League ${row.league_id}`,
+          season: leagueRow?.season ?? null,
+          totalRosters: leagueRow?.total_rosters ?? null,
+        },
+        totalScore: matchup.userTeam.totalPoints ?? 0,
+        players: (matchup.userTeam.players ?? []).map(mapEspnPlayer),
+        opponent: {
+          name: matchup.opponentTeam.name || 'Opponent',
+          totalScore: matchup.opponentTeam.totalPoints ?? 0,
+          players: (matchup.opponentTeam.players ?? []).map(mapEspnPlayer),
+        },
+      };
+    })
+  );
+
+  return builtTeams.filter((team): team is Team => Boolean(team));
+}
+
 const teamBuilders = {
   buildSleeperTeams,
   buildYahooTeams,
   buildOttoneuTeams,
+  buildEspnTeams,
 };
 
 export async function getTeamBuilders() {
@@ -1389,6 +1479,8 @@ export async function getTeams(
         playersData,
         supabase
       );
+    } else if (integration.provider === 'espn') {
+      builderPromise = teamBuilders.buildEspnTeams(integration, playerNameMap);
     }
 
     if (!builderPromise) {

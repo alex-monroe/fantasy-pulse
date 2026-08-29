@@ -15,6 +15,11 @@ import {
   getLeagues as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
+import {
+  getLeagues as getEspnLeagues,
+  getTeams as getEspnTeamRows,
+  getEspnMatchup,
+} from '@/app/integrations/espn/actions';
 
 jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
@@ -35,6 +40,12 @@ jest.mock('@/app/integrations/yahoo/actions', () => ({
 jest.mock('@/app/integrations/ottoneu/actions', () => ({
   getLeagues: jest.fn(),
   getOttoneuTeamInfo: jest.fn(),
+}));
+
+jest.mock('@/app/integrations/espn/actions', () => ({
+  getLeagues: jest.fn(),
+  getTeams: jest.fn(),
+  getEspnMatchup: jest.fn(),
 }));
 
 
@@ -1248,6 +1259,93 @@ describe('actions', () => {
     });
   });
 
+  describe('buildEspnTeams', () => {
+    it('builds a team with player rosters from the ESPN matchup', async () => {
+      (getEspnTeamRows as jest.Mock).mockResolvedValue({
+        teams: [{ id: 9, name: 'My ESPN Team', league_id: '999', team_id: '1' }],
+        error: null,
+      });
+      (getEspnLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ league_id: '999', name: 'ESPN Test League', season: '2026', total_rosters: 10 }],
+      });
+      (getEspnMatchup as jest.Mock).mockResolvedValue({
+        matchup: {
+          week: 3,
+          userTeam: {
+            teamId: '1',
+            name: 'My ESPN Team',
+            totalPoints: 101.5,
+            players: [
+              { id: '111', name: 'Star Quarterback', position: 'QB', realTeam: 'KC', points: 24.5, onBench: false },
+            ],
+          },
+          opponentTeam: {
+            teamId: '2',
+            name: 'Rival Team',
+            totalPoints: 88.25,
+            players: [
+              { id: '222', name: 'Bench Guy', position: 'WR', realTeam: 'SF', points: 0, onBench: true },
+            ],
+          },
+        },
+      });
+
+      const result = await actions.buildEspnTeams({ id: 42 }, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 9,
+        name: 'My ESPN Team',
+        league: {
+          provider: 'espn',
+          providerLeagueId: '999',
+          name: 'ESPN Test League',
+          season: '2026',
+          totalRosters: 10,
+        },
+        totalScore: 101.5,
+      });
+      expect(result[0].players[0]).toMatchObject({
+        id: '111',
+        name: 'Star Quarterback',
+        position: 'QB',
+        realTeam: 'KC',
+        score: 24.5,
+        onBench: false,
+      });
+      expect(result[0].opponent).toMatchObject({
+        name: 'Rival Team',
+        totalScore: 88.25,
+      });
+      expect(result[0].opponent.players[0]).toMatchObject({
+        id: '222',
+        name: 'Bench Guy',
+        onBench: true,
+      });
+    });
+
+    it('returns no teams when there are no stored ESPN teams', async () => {
+      (getEspnTeamRows as jest.Mock).mockResolvedValue({ teams: [], error: null });
+
+      const result = await actions.buildEspnTeams({ id: 42 }, {});
+
+      expect(result).toEqual([]);
+    });
+
+    it('skips a team when the matchup fetch errors', async () => {
+      (getEspnTeamRows as jest.Mock).mockResolvedValue({
+        teams: [{ id: 9, name: 'My ESPN Team', league_id: '999', team_id: '1' }],
+        error: null,
+      });
+      (getEspnLeagues as jest.Mock).mockResolvedValue({ leagues: [] });
+      (getEspnMatchup as jest.Mock).mockResolvedValue({ error: 'Failed to fetch matchup from ESPN: unknown error' });
+
+      const result = await actions.buildEspnTeams({ id: 42 }, {});
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('getTeams execution', () => {
     it('fetches all providers in parallel', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
@@ -1256,6 +1354,7 @@ describe('actions', () => {
           { id: 1, provider: 'sleeper', provider_user_id: 's1' },
           { id: 2, provider: 'yahoo', provider_user_id: 'y1' },
           { id: 3, provider: 'ottoneu', provider_user_id: 'o1' },
+          { id: 4, provider: 'espn', provider_user_id: 'e1' },
         ],
         error: null,
       });
@@ -1282,6 +1381,11 @@ describe('actions', () => {
         .mockImplementation(
           () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
         );
+      const espnSpy = jest
+        .spyOn(builders, 'buildEspnTeams')
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 50))
+        );
 
       const start = Date.now();
       await getTeams();
@@ -1290,11 +1394,13 @@ describe('actions', () => {
       expect(sleeperSpy).toHaveBeenCalled();
       expect(yahooSpy).toHaveBeenCalled();
       expect(ottoneuSpy).toHaveBeenCalled();
+      expect(espnSpy).toHaveBeenCalled();
       expect(elapsed).toBeLessThan(120);
 
       sleeperSpy.mockRestore();
       yahooSpy.mockRestore();
       ottoneuSpy.mockRestore();
+      espnSpy.mockRestore();
     });
 
     it('continues when a provider throws an error', async () => {

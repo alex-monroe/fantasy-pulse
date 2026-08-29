@@ -53,11 +53,20 @@ generic failure, so the UI can prompt the user to repeat the steps above.
 3. **Data storage**: the resolved league and team are upserted into
    `fp_leagues` / `fp_teams`, same as the other providers.
 
-## Scope of this first pass
+## Player rosters
 
-`getEspnMatchup` currently returns **team-level totals only** (via the
-`mMatchupScore` view), not a full per-player box score. ESPN's roster
-payload (`mRoster`/`mBoxscore` views) is deeply nested and keyed by
-numeric stat codes and position/lineup-slot IDs that need their own
-lookup tables to decode — a reasonable follow-up, but out of scope for
-getting ESPN connected at all.
+`getEspnMatchup` requests the `mRoster` view alongside `mMatchupScore`/
+`mTeam`, so each side of the current matchup includes a `players` array
+(current-scoring-period roster entries). ESPN identifies each player's
+position and pro team by numeric code rather than name; `actions.ts`
+decodes these via `ESPN_POSITION_ABBREVIATIONS` and
+`ESPN_PRO_TEAM_ABBREVIATIONS`. Those tables are reverse-engineered (not
+from an official ESPN spec) and are stable across the wider ESPN
+fantasy tooling ecosystem, but ESPN could change the codes without
+notice — if a player's position or team ever shows up blank, that's
+the first place to check.
+
+`buildEspnTeams` in `apps/web/src/app/actions.ts` maps this roster
+data into the app's shared `Player`/`Team` types (resolving headshots
+via a name match against Sleeper's player list, same as the Yahoo and
+Ottoneu integrations) so ESPN teams show up on the dashboard.
