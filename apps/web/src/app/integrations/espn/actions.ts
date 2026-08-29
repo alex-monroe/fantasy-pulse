@@ -154,7 +154,7 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
         : (data.teams ?? []).length || undefined,
       status: data.status?.currentMatchupPeriod ? 'in_season' : undefined,
     },
-    { onConflict: 'league_id' }
+    { onConflict: 'league_id,user_integration_id' }
   );
 
   if (leagueError) {

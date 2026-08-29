@@ -96,7 +96,7 @@ describe('espn actions', () => {
       expect(mockSupabase.from).toHaveBeenCalledWith('fp_user_integrations');
       expect(leaguesUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ league_id: '999', user_integration_id: 42 }),
-        { onConflict: 'league_id' }
+        { onConflict: 'league_id,user_integration_id' }
       );
       expect(teamsUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ team_key: 'espn.999.1', team_id: '1' }),
