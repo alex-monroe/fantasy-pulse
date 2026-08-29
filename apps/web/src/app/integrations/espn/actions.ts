@@ -212,6 +212,24 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
     return { error: "Could not find a team owned by this ESPN account in that league." };
   }
 
+  // Reconnecting (e.g. after refreshing stale cookies) should replace any
+  // existing ESPN integration for this user, not accumulate a new
+  // fp_user_integrations row alongside it — otherwise every retry leaves
+  // its own duplicate integration/league/team rows behind, which shows up
+  // as repeated matchups on the dashboard.
+  const { data: existingIntegrations } = await supabase
+    .from('fp_user_integrations')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('provider', 'espn');
+
+  if (existingIntegrations?.length) {
+    const existingIds = existingIntegrations.map((row: { id: number }) => row.id);
+    await supabase.from('fp_teams').delete().in('user_integration_id', existingIds);
+    await supabase.from('fp_leagues').delete().in('user_integration_id', existingIds);
+    await supabase.from('fp_user_integrations').delete().in('id', existingIds);
+  }
+
   const { data: integration, error: insertError } = await supabase
     .from('fp_user_integrations')
     .insert({
@@ -313,14 +331,20 @@ export async function getEspnIntegration() {
     return { error: 'You must be logged in.' };
   }
 
+  // Ordered + limited to one rather than `.single()`: a user could have
+  // more than one stored row from before connectEspn started cleaning up
+  // duplicates on reconnect, and `.single()` hard-errors on more than one
+  // match rather than just giving us the most recent.
   const { data, error } = await supabase
     .from('fp_user_integrations')
     .select('id, created_at, user_id, provider, provider_user_id')
     .eq('user_id', user.id)
     .eq('provider', 'espn')
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     return { error: error.message };
   }
 
@@ -432,14 +456,18 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
         name: userTeam ? espnTeamName(userTeam) : undefined,
         logo_url: userTeam?.logo,
         totalPoints: userSide?.totalPoints ?? 0,
-        players: (userSide?.rosterForCurrentScoringPeriod?.entries ?? []).map(mapEspnRosterEntry),
+        players: (
+          userSide?.rosterForCurrentScoringPeriod?.entries ?? userTeam?.roster?.entries ?? []
+        ).map(mapEspnRosterEntry),
       },
       opponentTeam: {
         teamId: String(opponentSide?.teamId),
         name: opponentTeam ? espnTeamName(opponentTeam) : undefined,
         logo_url: opponentTeam?.logo,
         totalPoints: opponentSide?.totalPoints ?? 0,
-        players: (opponentSide?.rosterForCurrentScoringPeriod?.entries ?? []).map(mapEspnRosterEntry),
+        players: (
+          opponentSide?.rosterForCurrentScoringPeriod?.entries ?? opponentTeam?.roster?.entries ?? []
+        ).map(mapEspnRosterEntry),
       },
     },
   };
