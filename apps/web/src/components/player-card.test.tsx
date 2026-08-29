@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { PlayerCard, getGameStatusLabel, getGamePercentRemaining } from '@/components/player-card'
+import { PlayerCard, getGameStatusLabel, getGamePercentRemaining, getLiveProjectedPoints } from '@/components/player-card'
 import type { GroupedPlayer } from '@roster-loom/core'
 
 describe('PlayerCard', () => {
@@ -81,6 +81,44 @@ describe('PlayerCard', () => {
     expect(overlay).toHaveStyle(`height: ${expectedHeight}%`)
   })
 
+  it('shows the pregame projection unmodified before kickoff', () => {
+    const pregamePlayer = {
+      ...player,
+      gameStatus: 'pregame',
+      projectedPoints: 16.4,
+    }
+
+    render(<PlayerCard player={pregamePlayer} />)
+    expect(screen.getByText('Proj 16.4')).toBeInTheDocument()
+  })
+
+  it('blends actual score with remaining projection for a live game', () => {
+    const livePlayer = {
+      ...player,
+      score: 8,
+      gameStatus: 'in_progress',
+      gameQuarter: 'Q3',
+      gameClock: '0:00',
+      projectedPoints: 20,
+    }
+
+    // Q3 0:00 -> exactly one quarter (25%) remains.
+    render(<PlayerCard player={livePlayer} />)
+    expect(getLiveProjectedPoints(livePlayer)).toBeCloseTo(8 + 20 * 0.25, 5)
+    expect(screen.getByText(`Proj ${(8 + 20 * 0.25).toFixed(1)}`)).toBeInTheDocument()
+  })
+
+  it('hides the projection once the game is final', () => {
+    const finalPlayer = {
+      ...player,
+      gameStatus: 'final',
+      projectedPoints: 20,
+    }
+
+    render(<PlayerCard player={finalPlayer} />)
+    expect(screen.queryByText(/^Proj /)).not.toBeInTheDocument()
+  })
+
   it.each([
     {
       description: 'more than 25% remaining',
@@ -152,5 +190,52 @@ describe('getGamePercentRemaining', () => {
   it('returns null when the quarter is missing', () => {
     const result = getGamePercentRemaining({ ...basePlayer, gameQuarter: null })
     expect(result).toBeNull()
+  })
+})
+
+describe('getLiveProjectedPoints', () => {
+  const basePlayer: GroupedPlayer = {
+    id: '1',
+    name: 'Test Player',
+    position: 'QB',
+    realTeam: 'TB',
+    score: 8,
+    gameStatus: 'in_progress',
+    gameStartTime: null,
+    gameQuarter: 'Q3',
+    gameClock: '0:00',
+    onUserTeams: 0,
+    onOpponentTeams: 0,
+    gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
+    imageUrl: '',
+    onBench: false,
+    matchupColors: [],
+    count: 1,
+    projectedPoints: 20,
+  }
+
+  it('returns null when there is no projection at all', () => {
+    const { projectedPoints, ...rest } = basePlayer
+    expect(getLiveProjectedPoints(rest as GroupedPlayer)).toBeNull()
+  })
+
+  it('returns the full pregame projection before kickoff', () => {
+    const pregame = { ...basePlayer, gameStatus: 'pregame', score: 0 }
+    expect(getLiveProjectedPoints(pregame)).toBe(20)
+  })
+
+  it('blends actual score with the share of the game remaining while live', () => {
+    // Q3 0:00 -> exactly one quarter (25%) remains.
+    expect(getLiveProjectedPoints(basePlayer)).toBeCloseTo(8 + 20 * 0.25, 5)
+  })
+
+  it('falls back to the full pregame projection when the live clock is unparseable', () => {
+    const garbledClock = { ...basePlayer, gameQuarter: null }
+    expect(getLiveProjectedPoints(garbledClock)).toBe(20)
+  })
+
+  it('returns null once the game is final, even with a nonzero score', () => {
+    const final = { ...basePlayer, gameStatus: 'final', score: 24 }
+    expect(getLiveProjectedPoints(final)).toBeNull()
   })
 })

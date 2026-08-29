@@ -1,5 +1,5 @@
 import type { GroupedPlayer } from '@roster-loom/core';
-import { getGameStatusLabel } from '@roster-loom/core';
+import { getGameStatusLabel, getLiveProjectedPoints } from '@roster-loom/core';
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
  */
 export function GroupedPlayerRow({ player }: { player: GroupedPlayer }) {
   const statusLabel = getGameStatusLabel(player);
+  const liveProjectedPoints = getLiveProjectedPoints(player);
   const dots = player.onBench
     ? player.matchupColors
     : player.matchupColors.filter((matchup) => !matchup.onBench);
@@ -51,8 +52,8 @@ export function GroupedPlayerRow({ player }: { player: GroupedPlayer }) {
         <ThemedText type="defaultSemiBold" style={styles.score}>
           {player.score.toFixed(1)}
         </ThemedText>
-        {typeof player.projectedPoints === 'number' && (
-          <ThemedText style={styles.projected}>Proj {player.projectedPoints.toFixed(1)}</ThemedText>
+        {typeof liveProjectedPoints === 'number' && (
+          <ThemedText style={styles.projected}>Proj {liveProjectedPoints.toFixed(1)}</ThemedText>
         )}
       </View>
     </View>
