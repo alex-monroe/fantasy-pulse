@@ -107,3 +107,42 @@ export function getGamePercentRemaining(player: PlayerLike): number | null {
 
   return Math.max(0, Math.min(100, percentageRemaining));
 }
+
+type ProjectableGamePlayer = PlayerLike &
+  Pick<Player | GroupedPlayer, 'score' | 'projectedPoints'>;
+
+/**
+ * Estimates a player's remaining fantasy points live, by assuming their
+ * pregame projection is earned evenly across the game clock: multiply the
+ * full projection by the share of the game still left, then add what
+ * they've already scored. A player projected for 20 with 30% of the game
+ * remaining and 8 points already in the bank reads as `20 * 0.3 + 8 = 14`.
+ *
+ * Before kickoff (or when the live clock can't be parsed) this is just
+ * the pregame projection. Once the game is final there is nothing left
+ * to project, so this returns `null` and callers should fall back to the
+ * actual score.
+ *
+ * @param player - The player to estimate.
+ * @returns The live-adjusted projection, or `null` when there is no
+ *   projection to show (none was computed, or the game is over).
+ */
+export function getLiveProjectedPoints(player: ProjectableGamePlayer): number | null {
+  if (typeof player.projectedPoints !== 'number') {
+    return null;
+  }
+
+  const status = player.gameStatus?.toLowerCase?.() ?? '';
+  if (status === 'final' || status === 'post') {
+    return null;
+  }
+
+  const percentRemaining = getGamePercentRemaining(player);
+  if (percentRemaining === null) {
+    // Pregame, or a live game whose clock we couldn't parse — the
+    // pregame projection is the best estimate available either way.
+    return player.projectedPoints;
+  }
+
+  return player.score + player.projectedPoints * (percentRemaining / 100);
+}

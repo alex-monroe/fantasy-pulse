@@ -1,7 +1,7 @@
 'use client';
 
 import type { GroupedPlayer } from "@roster-loom/core";
-import { getGameStatusLabel, getGamePercentRemaining } from "@roster-loom/core";
+import { getGameStatusLabel, getGamePercentRemaining, getLiveProjectedPoints } from "@roster-loom/core";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import { User, Users } from "lucide-react";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 // Re-exported for callers (and tests) that import these helpers from the
 // player-card module; the implementations live in @roster-loom/core so the
 // mobile app can share them.
-export { getGameStatusLabel, getGamePercentRemaining };
+export { getGameStatusLabel, getGamePercentRemaining, getLiveProjectedPoints };
 
 /**
  * A card that displays information about a player.
@@ -26,6 +26,7 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
         : player.matchupColors.filter((matchup) => !matchup.onBench);
     const statusLabel = getGameStatusLabel(player);
     const gamePercentRemaining = getGamePercentRemaining(player);
+    const liveProjectedPoints = getLiveProjectedPoints(player);
     const progressOverlayClassName =
         typeof gamePercentRemaining === 'number'
             ? cn(
@@ -114,9 +115,9 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
                                 {player.score.toFixed(1)}
                             </span>
                         </p>
-                        {typeof player.projectedPoints === 'number' && (
+                        {typeof liveProjectedPoints === 'number' && (
                             <p className="text-[10px] leading-tight text-muted-foreground">
-                                Proj {player.projectedPoints.toFixed(1)}
+                                Proj {liveProjectedPoints.toFixed(1)}
                             </p>
                         )}
                     </div>
