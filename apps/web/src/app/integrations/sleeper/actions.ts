@@ -11,6 +11,7 @@ import {
   SleeperPlayer,
   SleeperEnrichedMatchup,
   SleeperProjection,
+  SleeperNflState,
 } from '@roster-loom/core';
 
 // api.sleeper.app hosts Sleeper's documented, stable endpoints (leagues,
@@ -260,6 +261,29 @@ export async function getUsersInLeague(leagueId: string) {
       return { error };
     }
     return { users };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+/**
+ * Gets Sleeper's current NFL season/week state. `week` is scoped to
+ * `season_type` (e.g. it counts preseason weeks during the preseason) —
+ * gate on `season_type === 'regular'` before trusting it for regular-season
+ * data.
+ * @returns The current NFL state or an error.
+ */
+export async function getNflState() {
+  try {
+    // Unlike /projections and /stats, /v1/state/nfl is on the documented,
+    // stable host (matches getCurrentNflWeek's existing fetch in actions.ts).
+    const { data: state, error } = await fetchJson<SleeperNflState>(
+      `https://api.sleeper.app/v1/state/nfl`
+    );
+    if (error) {
+      return { error };
+    }
+    return { state };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
   }

@@ -36,6 +36,35 @@ export function scoreStatLine(
   return total;
 }
 
+/**
+ * A stock Sleeper scoring profile, used only as an approximation for
+ * providers whose actual league scoring settings this app cannot read
+ * (Yahoo, Ottoneu, ESPN). Sleeper leagues score against their own real
+ * `scoring_settings` via {@link scoreStatLine} instead.
+ */
+export type SleeperStockScoringMode = 'ppr' | 'half_ppr' | 'std';
+
+const STOCK_SCORING_STAT_KEY: Record<SleeperStockScoringMode, string> = {
+  ppr: 'pts_ppr',
+  half_ppr: 'pts_half_ppr',
+  std: 'pts_std',
+};
+
+/**
+ * Reads one of Sleeper's own precomputed point totals off a projection's
+ * stat line. This is Sleeper's scoring, not any particular league's, so
+ * it silently diverges from custom rules (kicker distance bands are the
+ * usual mismatch) — it exists as a configurable fallback for providers
+ * whose real scoring settings aren't available to this app.
+ */
+export function scoreStockProjection(
+  projection: SleeperProjection | undefined,
+  mode: SleeperStockScoringMode
+): number | null {
+  const value = projection?.stats?.[STOCK_SCORING_STAT_KEY[mode]];
+  return typeof value === 'number' ? value : null;
+}
+
 export type MapSleeperPlayerParams = {
   playerId: string;
   playersData: Record<string, SleeperPlayer>;

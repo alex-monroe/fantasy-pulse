@@ -3,6 +3,7 @@ import {
   getCurrentSleeperLeagues,
   getLeagueScoringSettings,
   getWeeklyProjections,
+  getNflState,
 } from './actions';
 import { fetchJson } from '@roster-loom/core';
 
@@ -66,6 +67,22 @@ describe('sleeper actions', () => {
     (fetchJson as jest.Mock).mockResolvedValue({ error: 'fail' });
     const result = await getMatchups('league', '1');
     expect(result).toEqual({ error: 'fail' });
+  });
+
+  describe('getNflState', () => {
+    it('returns the current NFL state', async () => {
+      const state = { week: 3, season: '2025', season_type: 'regular' };
+      (fetchJson as jest.Mock).mockResolvedValue({ data: state });
+      const result = await getNflState();
+      expect(fetchJson).toHaveBeenCalledWith('https://api.sleeper.app/v1/state/nfl');
+      expect(result).toEqual({ state });
+    });
+
+    it('returns error on failure', async () => {
+      (fetchJson as jest.Mock).mockResolvedValue({ error: 'fail' });
+      const result = await getNflState();
+      expect(result).toEqual({ error: 'fail' });
+    });
   });
 
   describe('getLeagueScoringSettings', () => {
