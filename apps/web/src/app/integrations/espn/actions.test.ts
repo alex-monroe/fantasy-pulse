@@ -149,14 +149,82 @@ describe('espn actions', () => {
 
       expect(result.matchup).toEqual({
         week: 3,
-        userTeam: { teamId: '1', name: 'My Team', logo_url: 'logo1.png', totalPoints: 101.5 },
+        userTeam: {
+          teamId: '1',
+          name: 'My Team',
+          logo_url: 'logo1.png',
+          totalPoints: 101.5,
+          players: [],
+        },
         opponentTeam: {
           teamId: '2',
           name: 'Rival Team',
           logo_url: 'logo2.png',
           totalPoints: 88.25,
+          players: [],
         },
       });
+    });
+
+    it('maps roster entries into player-level detail', async () => {
+      const { mockSupabase, integrationSelectSingle } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelectSingle.mockResolvedValue({
+        data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' },
+        error: null,
+      });
+      fetchJson.mockResolvedValue({
+        data: {
+          ...matchupPayload,
+          schedule: [
+            {
+              matchupPeriodId: 3,
+              home: {
+                teamId: 1,
+                totalPoints: 101.5,
+                rosterForCurrentScoringPeriod: {
+                  entries: [
+                    {
+                      lineupSlotId: 0,
+                      playerPoolEntry: {
+                        appliedStatTotal: 24.5,
+                        player: {
+                          id: 111,
+                          fullName: 'Star Quarterback',
+                          defaultPositionId: 0,
+                          proTeamId: 12,
+                        },
+                      },
+                    },
+                    {
+                      lineupSlotId: 20,
+                      playerPoolEntry: {
+                        appliedStatTotal: 0,
+                        player: {
+                          id: 222,
+                          fullName: 'Bench Guy',
+                          defaultPositionId: 4,
+                          proTeamId: 25,
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+              away: { teamId: 2, totalPoints: 88.25 },
+            },
+          ],
+        },
+        status: 200,
+      });
+
+      const result = await actions.getEspnMatchup(42, '999', '1');
+
+      expect(result.matchup?.userTeam.players).toEqual([
+        { id: '111', name: 'Star Quarterback', position: 'QB', realTeam: 'KC', points: 24.5, onBench: false },
+        { id: '222', name: 'Bench Guy', position: 'WR', realTeam: 'SF', points: 0, onBench: true },
+      ]);
+      expect(result.matchup?.opponentTeam.players).toEqual([]);
     });
 
     it('returns a reconnect error when the stored cookies are rejected', async () => {

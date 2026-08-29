@@ -85,7 +85,7 @@ export type GroupedPlayer = Player & {
 };
 
 /** The fantasy platforms a league can come from. */
-export type FantasyProvider = 'sleeper' | 'yahoo' | 'ottoneu' | 'demo';
+export type FantasyProvider = 'sleeper' | 'yahoo' | 'ottoneu' | 'espn' | 'demo';
 
 /**
  * Identifies the league a team plays in. Attached to {@link Team} so
