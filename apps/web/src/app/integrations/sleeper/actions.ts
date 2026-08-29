@@ -10,7 +10,20 @@ import {
   SleeperUser,
   SleeperPlayer,
   SleeperEnrichedMatchup,
+  SleeperProjection,
 } from '@roster-loom/core';
+
+// api.sleeper.app hosts Sleeper's documented, stable endpoints (leagues,
+// rosters, users, players). api.sleeper.com hosts /projections and /stats,
+// which are open and unauthenticated but not in Sleeper's published
+// endpoint list — permission to use them is clear, but the shape is not
+// guaranteed to stay stable, hence the validation in getWeeklyProjections.
+const SLEEPER_STATS_BASE = 'https://api.sleeper.com';
+
+/** Positions the scoreboard cares about; excludes Sleeper's IDP stats. */
+const FANTASY_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+
+const PROJECTION_SENTINEL_KEYS = ['pass_yd', 'rush_yd', 'rec_yd', 'rec'];
 
 /**
  * Connects a Sleeper account to the user's account.
@@ -249,6 +262,104 @@ export async function getUsersInLeague(leagueId: string) {
     return { users };
   } catch (error) {
     return { error: 'An unexpected error occurred' };
+  }
+}
+
+/**
+ * Gets a league's scoring settings, used to score projections the same way
+ * this league scores actual stats. Sleeper already applies this for live
+ * `players_points`; projections have no such precomputed per-league value.
+ * @param leagueId - The ID of the league.
+ * @returns The league's scoring settings (a flat stat-key -> point-value
+ * map) or an error.
+ */
+export async function getLeagueScoringSettings(leagueId: string) {
+  try {
+    const { data: league, error } = await fetchJson<SleeperLeague>(
+      `https://api.sleeper.app/v1/league/${leagueId}`
+    );
+    if (error) {
+      return { error };
+    }
+    return { scoringSettings: league?.scoring_settings ?? {} };
+  } catch (error) {
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+/**
+ * Validates a `/projections` or `/stats` payload before it is trusted.
+ * Because these endpoints are undocumented, the dangerous failure mode is
+ * not a crash but a silently renamed stat key, which would score every
+ * player at 0.0 and render those zeroes as real numbers.
+ *
+ * An empty `/stats` response is normal — every unplayed week looks like
+ * that. An empty `/projections` response is not: Sleeper always projects
+ * an upcoming week, so an empty array there means the shape broke.
+ */
+function validateProjectionRows(
+  rows: unknown,
+  kind: 'projections' | 'stats'
+): SleeperProjection[] {
+  if (kind === 'stats' && Array.isArray(rows) && rows.length === 0) {
+    return [];
+  }
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error(`Sleeper ${kind} returned no rows — refusing to use it`);
+  }
+
+  const withStats = rows.filter(
+    (row): row is SleeperProjection =>
+      Boolean(row) && typeof row === 'object' && row.stats && typeof row.stats === 'object'
+  );
+  if (withStats.length === 0) {
+    throw new Error(`Sleeper ${kind}: no row has a stats object — response shape changed`);
+  }
+
+  const seenKeys = new Set(withStats.flatMap((row) => Object.keys(row.stats ?? {})));
+  if (!PROJECTION_SENTINEL_KEYS.some((key) => seenKeys.has(key))) {
+    throw new Error(
+      `Sleeper ${kind}: no expected stat keys found. Saw: ${[...seenKeys].slice(0, 20).join(', ')}`
+    );
+  }
+
+  return rows as SleeperProjection[];
+}
+
+/**
+ * Gets weekly player projections from Sleeper's undocumented (but open,
+ * unauthenticated) `/projections` endpoint. The response is a flat array
+ * covering Sleeper's whole player universe, most of whom are not actually
+ * projected — filter to rows with a stat line to get just the players who
+ * are playing.
+ * @param season - The season year, e.g. "2025".
+ * @param week - The week number.
+ * @param positions - Positions to request; defaults to the standard
+ * fantasy skill positions.
+ * @returns A list of projection rows or an error.
+ */
+export async function getWeeklyProjections(
+  season: string,
+  week: number,
+  positions: string[] = FANTASY_POSITIONS
+) {
+  try {
+    const qs = new URLSearchParams({ season_type: 'regular' });
+    for (const position of positions) {
+      qs.append('position[]', position);
+    }
+    const url = `${SLEEPER_STATS_BASE}/projections/nfl/${season}/${week}?${qs}`;
+
+    const { data: rows, error } = await fetchJson<unknown>(url);
+    if (error) {
+      return { error };
+    }
+
+    const projections = validateProjectionRows(rows, 'projections');
+    return { projections };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'An unexpected error occurred' };
   }
 }
 

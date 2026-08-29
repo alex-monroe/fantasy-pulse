@@ -114,6 +114,11 @@ export function PlayerCard({ player, isScoreChanged = false }: { player: Grouped
                                 {player.score.toFixed(1)}
                             </span>
                         </p>
+                        {typeof player.projectedPoints === 'number' && (
+                            <p className="text-[10px] leading-tight text-muted-foreground">
+                                Proj {player.projectedPoints.toFixed(1)}
+                            </p>
+                        )}
                     </div>
                 </div>
             </Card>

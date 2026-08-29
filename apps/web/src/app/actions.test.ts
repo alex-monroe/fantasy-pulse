@@ -3,7 +3,11 @@ const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCa
 import { mapSleeperPlayer } from '@roster-loom/core';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@roster-loom/core';
 import { createClient } from '@/utils/supabase/server';
-import { getCurrentSleeperLeagues } from '@/app/integrations/sleeper/actions';
+import {
+  getCurrentSleeperLeagues,
+  getLeagueScoringSettings,
+  getWeeklyProjections,
+} from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
   getYahooRoster,
@@ -27,6 +31,8 @@ jest.mock('@/utils/supabase/server', () => ({
 
 jest.mock('@/app/integrations/sleeper/actions', () => ({
   getCurrentSleeperLeagues: jest.fn(),
+  getLeagueScoringSettings: jest.fn(),
+  getWeeklyProjections: jest.fn(),
 }));
 
 jest.mock('@/app/integrations/yahoo/actions', () => ({
@@ -118,6 +124,8 @@ describe('actions', () => {
 
     (createClient as jest.Mock).mockReturnValue(mockSupabase);
     (getCurrentSleeperLeagues as jest.Mock).mockClear();
+    (getLeagueScoringSettings as jest.Mock).mockReset().mockResolvedValue({ scoringSettings: {} });
+    (getWeeklyProjections as jest.Mock).mockReset().mockResolvedValue({ projections: [] });
     (getYahooUserTeams as jest.Mock).mockClear();
     (getYahooRoster as jest.Mock).mockClear();
     (getYahooMatchups as jest.Mock).mockClear();
@@ -194,6 +202,36 @@ describe('actions', () => {
       });
 
       expect(result).toBeNull();
+    });
+
+    it('scores the projection against the league scoring settings, not pts_half_ppr', () => {
+      const result = mapSleeperPlayer({
+        playerId: '1',
+        playersData,
+        matchup,
+        roster,
+        projection: {
+          player_id: '1',
+          week: 1,
+          season: '2025',
+          stats: { pass_yd: 250, pass_td: 2, pts_half_ppr: 999 },
+        },
+        scoringSettings: { pass_yd: 0.04, pass_td: 4 },
+      });
+
+      expect(result?.projectedPoints).toBe(250 * 0.04 + 2 * 4);
+    });
+
+    it('omits projectedPoints when there is no projection for the player', () => {
+      const result = mapSleeperPlayer({
+        playerId: '1',
+        playersData,
+        matchup,
+        roster,
+        scoringSettings: { pass_yd: 0.04 },
+      });
+
+      expect(result?.projectedPoints).toBeUndefined();
     });
   });
 
@@ -351,6 +389,37 @@ describe('actions', () => {
       expect(result[0].players).toHaveLength(1);
       expect(result[0].players[0].id).toBe('1');
       expect(result[0].opponent.players).toEqual([]);
+    });
+
+    it('attaches projected points scored against the league scoring settings', async () => {
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1', season: '2025' }],
+        error: null,
+      });
+      (getLeagueScoringSettings as jest.Mock).mockResolvedValue({
+        scoringSettings: { rec: 0.5, rec_yd: 0.1 },
+      });
+      (getWeeklyProjections as jest.Mock).mockResolvedValue({
+        projections: [
+          { player_id: '1', week: 1, season: '2025', stats: { rec: 4, rec_yd: 60 } },
+        ],
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+
+      expect(getWeeklyProjections).toHaveBeenCalledWith('2025', 1);
+      expect(result[0].players[0].projectedPoints).toBe(4 * 0.5 + 60 * 0.1);
+      // No projection row for player 2 -> no projectedPoints field.
+      expect(result[0].opponent.players[0].projectedPoints).toBeUndefined();
     });
   });
 

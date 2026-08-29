@@ -4,7 +4,11 @@ import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { logDuration, startTimer } from '@/utils/performance-logger';
-import { getCurrentSleeperLeagues } from '@/app/integrations/sleeper/actions';
+import {
+  getCurrentSleeperLeagues,
+  getLeagueScoringSettings,
+  getWeeklyProjections,
+} from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
   getYahooRoster,
@@ -31,6 +35,7 @@ import {
   SleeperMatchup,
   SleeperUser,
   SleeperPlayer,
+  SleeperProjection,
 } from '@roster-loom/core';
 import { isDemoModeEnv } from '@/lib/demo-mode';
 import { findBestMatch } from 'string-similarity';
@@ -494,17 +499,22 @@ export async function buildSleeperTeams(
   );
 
   for (const league of uniqueLeagues) {
-    const [rosters, matchups, leagueUsers] = await Promise.all([
-      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
-        (response) => response.json() as Promise<SleeperRoster[]>
-      ),
-      fetch(
-        `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
-      ).then((response) => response.json() as Promise<SleeperMatchup[]>),
-      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
-        (response) => response.json() as Promise<SleeperUser[]>
-      ),
-    ]);
+    const [rosters, matchups, leagueUsers, scoringSettingsRes, projectionsRes] =
+      await Promise.all([
+        fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
+          (response) => response.json() as Promise<SleeperRoster[]>
+        ),
+        fetch(
+          `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
+        ).then((response) => response.json() as Promise<SleeperMatchup[]>),
+        fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
+          (response) => response.json() as Promise<SleeperUser[]>
+        ),
+        getLeagueScoringSettings(league.league_id),
+        league.season
+          ? getWeeklyProjections(league.season, week)
+          : Promise.resolve({ projections: [] as SleeperProjection[] }),
+      ]);
 
     if (
       !Array.isArray(rosters) ||
@@ -513,6 +523,17 @@ export async function buildSleeperTeams(
     ) {
       continue;
     }
+
+    // Projections are a nice-to-have layered on top of live scoring, so a
+    // failure here (a Sleeper schema change, a transient error) should
+    // degrade to "no projected points" rather than dropping the league.
+    const scoringSettings = scoringSettingsRes.scoringSettings;
+    const projectionsByPlayerId = new Map(
+      (projectionsRes.projections ?? []).map((projection) => [
+        projection.player_id,
+        projection,
+      ])
+    );
 
     const userRoster = rosters.find(
       (roster) => roster.owner_id === integration.provider_user_id
@@ -557,6 +578,8 @@ export async function buildSleeperTeams(
           playersData,
           matchup: userMatchup,
           roster: userRoster,
+          projection: projectionsByPlayerId.get(playerId),
+          scoringSettings,
         })
       )
       .filter((player): player is Player => player !== null);
@@ -570,6 +593,8 @@ export async function buildSleeperTeams(
                 playersData,
                 matchup: opponentMatchup,
                 roster: opponentRoster,
+                projection: projectionsByPlayerId.get(playerId),
+                scoringSettings,
               })
             )
             .filter((player): player is Player => player !== null)
