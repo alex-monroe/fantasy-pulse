@@ -65,8 +65,15 @@ apps/mobile/android/
 apps/mobile/credentials/
 apps/mobile/credentials.json
 
+# stray Expo prebuild output when a command is run from the repo root
+# instead of apps/mobile/ (the real app.json/tsconfig.json/ios/ live there)
+/app.json
+/tsconfig.json
+/ios/
+
 # Claude Code — user-local; team-shared skills live in .claude/commands/
 .claude/settings.local.json
+.claude/worktrees/
 # mcp (contains secrets)
 .mcp.json
 
