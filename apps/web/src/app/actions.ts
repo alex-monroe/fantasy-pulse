@@ -4,7 +4,12 @@ import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { logDuration, startTimer } from '@/utils/performance-logger';
-import { getCurrentSleeperLeagues } from '@/app/integrations/sleeper/actions';
+import {
+  getCurrentSleeperLeagues,
+  getLeagueScoringSettings,
+  getWeeklyProjections,
+  getNflState,
+} from '@/app/integrations/sleeper/actions';
 import {
   getYahooUserTeams,
   getYahooRoster,
@@ -22,7 +27,11 @@ import {
   getEspnMatchup,
   type EspnRosterPlayer,
 } from '@/app/integrations/espn/actions';
-import { mapSleeperPlayer, generateDemoTeams } from '@roster-loom/core';
+import {
+  mapSleeperPlayer,
+  generateDemoTeams,
+  scoreStockProjection,
+} from '@roster-loom/core';
 import {
   Team,
   Player,
@@ -31,6 +40,8 @@ import {
   SleeperMatchup,
   SleeperUser,
   SleeperPlayer,
+  SleeperProjection,
+  SleeperStockScoringMode,
 } from '@roster-loom/core';
 import { isDemoModeEnv } from '@/lib/demo-mode';
 import { findBestMatch } from 'string-similarity';
@@ -53,6 +64,16 @@ const TEAM_ABBREVIATION_ALIASES: Record<string, string[]> = {
 };
 
 const SLEEPER_PLAYERS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Scoring profile used to turn a Sleeper projection into a point total for
+ * Yahoo/Ottoneu/ESPN players, whose leagues' real scoring settings this app
+ * can't read. Sleeper leagues score against their own actual settings
+ * instead (see `buildSleeperTeams`). Swap this (or thread a per-league
+ * override through the builders below) once per-league scoring selection
+ * exists.
+ */
+const DEFAULT_NON_SLEEPER_PROJECTION_SCORING: SleeperStockScoringMode = 'half_ppr';
 
 type SleeperPlayersResources = {
   playersData: Record<string, SleeperPlayer>;
@@ -494,17 +515,22 @@ export async function buildSleeperTeams(
   );
 
   for (const league of uniqueLeagues) {
-    const [rosters, matchups, leagueUsers] = await Promise.all([
-      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
-        (response) => response.json() as Promise<SleeperRoster[]>
-      ),
-      fetch(
-        `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
-      ).then((response) => response.json() as Promise<SleeperMatchup[]>),
-      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
-        (response) => response.json() as Promise<SleeperUser[]>
-      ),
-    ]);
+    const [rosters, matchups, leagueUsers, scoringSettingsRes, projectionsRes] =
+      await Promise.all([
+        fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
+          (response) => response.json() as Promise<SleeperRoster[]>
+        ),
+        fetch(
+          `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
+        ).then((response) => response.json() as Promise<SleeperMatchup[]>),
+        fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
+          (response) => response.json() as Promise<SleeperUser[]>
+        ),
+        getLeagueScoringSettings(league.league_id),
+        league.season
+          ? getWeeklyProjections(league.season, week)
+          : Promise.resolve({ projections: [] as SleeperProjection[] }),
+      ]);
 
     if (
       !Array.isArray(rosters) ||
@@ -513,6 +539,17 @@ export async function buildSleeperTeams(
     ) {
       continue;
     }
+
+    // Projections are a nice-to-have layered on top of live scoring, so a
+    // failure here (a Sleeper schema change, a transient error) should
+    // degrade to "no projected points" rather than dropping the league.
+    const scoringSettings = scoringSettingsRes.scoringSettings;
+    const projectionsByPlayerId = new Map(
+      (projectionsRes.projections ?? []).map((projection) => [
+        projection.player_id,
+        projection,
+      ])
+    );
 
     const userRoster = rosters.find(
       (roster) => roster.owner_id === integration.provider_user_id
@@ -557,6 +594,8 @@ export async function buildSleeperTeams(
           playersData,
           matchup: userMatchup,
           roster: userRoster,
+          projection: projectionsByPlayerId.get(playerId),
+          scoringSettings,
         })
       )
       .filter((player): player is Player => player !== null);
@@ -570,6 +609,8 @@ export async function buildSleeperTeams(
                 playersData,
                 matchup: opponentMatchup,
                 roster: opponentRoster,
+                projection: projectionsByPlayerId.get(playerId),
+                scoringSettings,
               })
             )
             .filter((player): player is Player => player !== null)
@@ -674,7 +715,9 @@ export async function buildYahooTeams(
     | any[],
   accessTokenOrPrefetchedTeams?: string | any[],
   prefetchedTeamsArg?: any[],
-  client?: SupabaseClient
+  client?: SupabaseClient,
+  sleeperProjectionsByPlayerId?: Map<string, SleeperProjection>,
+  projectionScoringMode: SleeperStockScoringMode = DEFAULT_NON_SLEEPER_PROJECTION_SCORING
 ): Promise<Team[]> {
   let yahooApiTeams: any[] | undefined;
   let resolvedAccessToken: string | undefined;
@@ -758,6 +801,10 @@ export async function buildYahooTeams(
   ): Player => {
     const sleeperId = resolveSleeperId(player.name);
     const imageUrl = getSleeperHeadshotUrl(sleeperId);
+    const projection = sleeperId
+      ? sleeperProjectionsByPlayerId?.get(sleeperId)
+      : undefined;
+    const projectedPoints = scoreStockProjection(projection, projectionScoringMode);
 
     return {
       id: player.player_key,
@@ -774,6 +821,7 @@ export async function buildYahooTeams(
       gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
       imageUrl: imageUrl,
       onBench: player.onBench,
+      ...(projectedPoints !== null ? { projectedPoints } : {}),
     };
   };
 
@@ -932,7 +980,9 @@ export async function buildYahooTeams(
 async function fetchOttoneuRosterPlayers(
   teamUrl: string,
   resolveSleeperId: SleeperIdResolver,
-  playersData: Record<string, SleeperPlayer>
+  playersData: Record<string, SleeperPlayer>,
+  sleeperProjectionsByPlayerId?: Map<string, SleeperProjection>,
+  projectionScoringMode: SleeperStockScoringMode = DEFAULT_NON_SLEEPER_PROJECTION_SCORING
 ): Promise<Player[]> {
   const res = await fetch(teamUrl);
   if (!res.ok) {
@@ -990,6 +1040,10 @@ async function fetchOttoneuRosterPlayers(
         (metaPosition ? metaPosition.toUpperCase() : '') ||
         posDisplay.toUpperCase() ||
         '';
+      const projection = sleeperId
+        ? sleeperProjectionsByPlayerId?.get(sleeperId)
+        : undefined;
+      const projectedPoints = scoreStockProjection(projection, projectionScoringMode);
 
       return {
         id,
@@ -1006,6 +1060,7 @@ async function fetchOttoneuRosterPlayers(
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
         imageUrl: getSleeperHeadshotUrl(sleeperId),
         onBench: false,
+        ...(projectedPoints !== null ? { projectedPoints } : {}),
       } satisfies Player;
     })
     .filter((player): player is Player => player !== null);
@@ -1020,7 +1075,9 @@ export async function buildOttoneuTeams(
   integration: any,
   playerNameMap: { [key: string]: string },
   playersData: Record<string, SleeperPlayer>,
-  client?: SupabaseClient
+  client?: SupabaseClient,
+  sleeperProjectionsByPlayerId?: Map<string, SleeperProjection>,
+  projectionScoringMode: SleeperStockScoringMode = DEFAULT_NON_SLEEPER_PROJECTION_SCORING
 ): Promise<Team[]> {
   const { leagues, error } = await getOttoneuLeagues(integration.id, client);
   if (error || !leagues || leagues.length === 0) {
@@ -1131,6 +1188,10 @@ export async function buildOttoneuTeams(
           const sleeperPosition = sleeperId
             ? playersData[sleeperId]?.position
             : undefined;
+          const projection = sleeperId
+            ? sleeperProjectionsByPlayerId?.get(sleeperId)
+            : undefined;
+          const projectedPoints = scoreStockProjection(projection, projectionScoringMode);
           const sanitizedRosterSpot = rosterSpot
             .toUpperCase()
             .replace(/\s+/g, '');
@@ -1167,6 +1228,7 @@ export async function buildOttoneuTeams(
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
             imageUrl: getSleeperHeadshotUrl(sleeperId),
             onBench: onBench,
+            ...(projectedPoints !== null ? { projectedPoints } : {}),
           };
         };
 
@@ -1212,7 +1274,9 @@ export async function buildOttoneuTeams(
       userPlayers = await fetchOttoneuRosterPlayers(
         `https://ottoneu.fangraphs.com/football/${league.league_id}/team/${integration.provider_user_id}`,
         resolveSleeperId,
-        playersData
+        playersData,
+        sleeperProjectionsByPlayerId,
+        projectionScoringMode
       );
     } catch (e) {
       console.error('Failed to fetch Ottoneu roster page', e);
@@ -1249,7 +1313,9 @@ export async function buildOttoneuTeams(
  */
 export async function buildEspnTeams(
   integration: any,
-  playerNameMap: { [key: string]: string }
+  playerNameMap: { [key: string]: string },
+  sleeperProjectionsByPlayerId?: Map<string, SleeperProjection>,
+  projectionScoringMode: SleeperStockScoringMode = DEFAULT_NON_SLEEPER_PROJECTION_SCORING
 ): Promise<Team[]> {
   const [{ teams: espnTeamRows, error: teamsError }, { leagues: espnLeagueRows }] =
     await Promise.all([
@@ -1268,6 +1334,10 @@ export async function buildEspnTeams(
 
   const mapEspnPlayer = (p: EspnRosterPlayer): Player => {
     const sleeperId = resolveSleeperId(p.name);
+    const projection = sleeperId
+      ? sleeperProjectionsByPlayerId?.get(sleeperId)
+      : undefined;
+    const projectedPoints = scoreStockProjection(projection, projectionScoringMode);
     return {
       id: p.id || p.name,
       name: p.name,
@@ -1283,6 +1353,7 @@ export async function buildEspnTeams(
       gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
       imageUrl: getSleeperHeadshotUrl(sleeperId),
       onBench: p.onBench,
+      ...(projectedPoints !== null ? { projectedPoints } : {}),
     };
   };
 
@@ -1438,6 +1509,31 @@ export async function getTeams(
   const sleeperPlayerResources = await getSleeperPlayersResources();
   const { playersData, playerNameMap } = sleeperPlayerResources;
 
+  // Fetched once and shared across every non-Sleeper integration: unlike
+  // Sleeper leagues (scored against their own real scoring_settings in
+  // buildSleeperTeams), Yahoo/Ottoneu/ESPN players are matched to this by
+  // name and scored with a stock Sleeper profile — see
+  // DEFAULT_NON_SLEEPER_PROJECTION_SCORING.
+  const sleeperProjectionsByPlayerId = new Map<string, SleeperProjection>();
+  const projectionsStart = startTimer();
+  try {
+    const { state: nflState } = await getNflState();
+    if (nflState?.season) {
+      const { projections } = await getWeeklyProjections(nflState.season, week);
+      for (const projection of projections ?? []) {
+        sleeperProjectionsByPlayerId.set(projection.player_id, projection);
+      }
+    }
+    logDuration('getTeams: load shared Sleeper projections', projectionsStart, {
+      projectionCount: sleeperProjectionsByPlayerId.size,
+    });
+  } catch (error) {
+    logDuration('getTeams: load shared Sleeper projections', projectionsStart, {
+      success: false,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const integrationPromises = integrations.map((integration) => {
     const integrationStart = startTimer();
     const provider = integration?.provider ?? 'unknown';
@@ -1469,7 +1565,8 @@ export async function getTeams(
           week,
           accessToken,
           yahooTeams,
-          supabase
+          supabase,
+          sleeperProjectionsByPlayerId
         );
       })();
     } else if (integration.provider === 'ottoneu') {
@@ -1477,10 +1574,15 @@ export async function getTeams(
         integration,
         playerNameMap,
         playersData,
-        supabase
+        supabase,
+        sleeperProjectionsByPlayerId
       );
     } else if (integration.provider === 'espn') {
-      builderPromise = teamBuilders.buildEspnTeams(integration, playerNameMap);
+      builderPromise = teamBuilders.buildEspnTeams(
+        integration,
+        playerNameMap,
+        sleeperProjectionsByPlayerId
+      );
     }
 
     if (!builderPromise) {

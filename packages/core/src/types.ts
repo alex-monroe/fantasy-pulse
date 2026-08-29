@@ -65,6 +65,12 @@ export type Player = {
   imageUrl: string;
   /** Whether the player is on the bench. */
   onBench: boolean;
+  /**
+   * This week's projected fantasy points, scored against the player's own
+   * league's scoring settings. Absent when no projection or scoring
+   * settings were available to compute it.
+   */
+  projectedPoints?: number;
 };
 
 /**
@@ -146,6 +152,12 @@ export interface SleeperLeague {
   total_rosters?: number;
   /** Current status of the league. */
   status?: string;
+  /**
+   * Flat map of Sleeper stat key -> point value (e.g. `{ pass_yd: 0.04,
+   * rec: 0.5, fgm_40_49: 4 }`). Only present when fetched from the
+   * single-league endpoint; the leagues-list endpoint does not include it.
+   */
+  scoring_settings?: Record<string, number>;
 }
 
 /**
@@ -223,4 +235,55 @@ export interface SleeperEnrichedMatchup extends SleeperMatchup {
   };
   players: SleeperMatchupPlayer[];
   total_points: number;
+}
+
+/**
+ * Represents the `/v1/state/nfl` response. `week` is scoped to
+ * `season_type` — during the preseason it counts preseason weeks, not
+ * regular-season weeks, so callers must gate on `season_type` before
+ * trusting `week` for regular-season data.
+ */
+export interface SleeperNflState {
+  week: number;
+  season_type: 'pre' | 'regular' | 'post' | string;
+  season: string;
+  display_week?: number;
+  season_start_date?: string;
+}
+
+/**
+ * The stat line inside a Sleeper projection or stats row. Sleeper does
+ * not document this shape; treat unfamiliar keys as fine (they are simply
+ * unused) but validate that at least some expected key is present before
+ * trusting a whole payload — see the ingest's own validation.
+ */
+export type SleeperStatLine = Record<string, number>;
+
+/**
+ * One row of `/projections/nfl/{season}/{week}` or
+ * `/stats/nfl/{season}/{week}`. Undocumented but publicly reachable —
+ * projections are licensed from Rotowire (`company: "rotowire"`).
+ */
+export interface SleeperProjection {
+  player_id: string;
+  team?: string;
+  opponent?: string;
+  week: number;
+  /** String, not a number, on the wire. */
+  season: string;
+  date?: string;
+  game_id?: string;
+  company?: string;
+  category?: string;
+  last_modified?: number;
+  stats?: SleeperStatLine;
+  player?: {
+    first_name?: string;
+    last_name?: string;
+    position?: string;
+    team?: string;
+    injury_status?: string | null;
+    injury_body_part?: string | null;
+    years_exp?: number;
+  };
 }

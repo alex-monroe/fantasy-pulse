@@ -47,9 +47,14 @@ export function GroupedPlayerRow({ player }: { player: GroupedPlayer }) {
           </ThemedText>
         )}
       </View>
-      <ThemedText type="defaultSemiBold" style={styles.score}>
-        {player.score.toFixed(1)}
-      </ThemedText>
+      <View style={styles.scoreColumn}>
+        <ThemedText type="defaultSemiBold" style={styles.score}>
+          {player.score.toFixed(1)}
+        </ThemedText>
+        {typeof player.projectedPoints === 'number' && (
+          <ThemedText style={styles.projected}>Proj {player.projectedPoints.toFixed(1)}</ThemedText>
+        )}
+      </View>
     </View>
   );
 }
@@ -83,5 +88,7 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3 },
   meta: { fontSize: 11, opacity: 0.6 },
   status: { fontSize: 10, opacity: 0.5 },
-  score: { fontSize: 15, minWidth: 44, textAlign: 'right' },
+  scoreColumn: { minWidth: 44, alignItems: 'flex-end' },
+  score: { fontSize: 15, textAlign: 'right' },
+  projected: { fontSize: 9, opacity: 0.5, textAlign: 'right' },
 });

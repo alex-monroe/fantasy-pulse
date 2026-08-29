@@ -2,14 +2,78 @@ import {
   Player,
   SleeperMatchup,
   SleeperPlayer,
+  SleeperProjection,
   SleeperRoster,
+  SleeperStatLine,
 } from './types';
+
+/**
+ * Scores a Sleeper stat line against a league's own scoring settings,
+ * rather than trusting Sleeper's precomputed `pts_*` fields (which are
+ * Sleeper's own PPR/half-PPR/standard rules and silently diverge from any
+ * custom scoring — kicker distance bands are the usual culprit).
+ *
+ * Sums `stat[key] * weight` over every key both objects share. Returns
+ * `null` when there is no stat line to score (e.g. no projection for this
+ * player), and `0` when there is a stat line but none of its keys carry
+ * weight in this league's settings.
+ */
+export function scoreStatLine(
+  stats: SleeperStatLine | undefined,
+  scoringSettings: Record<string, number> | undefined
+): number | null {
+  if (!stats || !scoringSettings) {
+    return null;
+  }
+
+  let total = 0;
+  for (const [key, weight] of Object.entries(scoringSettings)) {
+    const value = stats[key];
+    if (typeof weight === 'number' && typeof value === 'number') {
+      total += value * weight;
+    }
+  }
+  return total;
+}
+
+/**
+ * A stock Sleeper scoring profile, used only as an approximation for
+ * providers whose actual league scoring settings this app cannot read
+ * (Yahoo, Ottoneu, ESPN). Sleeper leagues score against their own real
+ * `scoring_settings` via {@link scoreStatLine} instead.
+ */
+export type SleeperStockScoringMode = 'ppr' | 'half_ppr' | 'std';
+
+const STOCK_SCORING_STAT_KEY: Record<SleeperStockScoringMode, string> = {
+  ppr: 'pts_ppr',
+  half_ppr: 'pts_half_ppr',
+  std: 'pts_std',
+};
+
+/**
+ * Reads one of Sleeper's own precomputed point totals off a projection's
+ * stat line. This is Sleeper's scoring, not any particular league's, so
+ * it silently diverges from custom rules (kicker distance bands are the
+ * usual mismatch) — it exists as a configurable fallback for providers
+ * whose real scoring settings aren't available to this app.
+ */
+export function scoreStockProjection(
+  projection: SleeperProjection | undefined,
+  mode: SleeperStockScoringMode
+): number | null {
+  const value = projection?.stats?.[STOCK_SCORING_STAT_KEY[mode]];
+  return typeof value === 'number' ? value : null;
+}
 
 export type MapSleeperPlayerParams = {
   playerId: string;
   playersData: Record<string, SleeperPlayer>;
   matchup: SleeperMatchup;
   roster: SleeperRoster | null;
+  /** This week's Sleeper projection for the player, if one exists. */
+  projection?: SleeperProjection;
+  /** The player's league's scoring settings, used to score `projection`. */
+  scoringSettings?: Record<string, number>;
 };
 
 /**
@@ -21,6 +85,8 @@ export function mapSleeperPlayer({
   playersData,
   matchup,
   roster,
+  projection,
+  scoringSettings,
 }: MapSleeperPlayerParams): Player | null {
   const player = playersData[playerId];
   if (!player) {
@@ -32,6 +98,7 @@ export function mapSleeperPlayer({
     player.full_name ||
     [player.first_name, player.last_name].filter(Boolean).join(' ');
   const name = computedName?.trim() ? computedName.trim() : 'Unknown Player';
+  const projectedPoints = scoreStatLine(projection?.stats, scoringSettings);
 
   return {
     id: playerId,
@@ -48,5 +115,6 @@ export function mapSleeperPlayer({
     gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
     imageUrl: `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`,
     onBench: !starters.includes(playerId),
+    ...(projectedPoints !== null ? { projectedPoints } : {}),
   };
 }
