@@ -1,7 +1,11 @@
 # Environment Variables
 
-Copy `.env.example` to `.env.local` and fill in. The dev server,
-Playwright, and `setup.sh` all read from `.env.local`.
+Copy `apps/web/.env.example` to `apps/web/.env.local` and fill in. The
+dev server and Playwright both read from it.
+
+None of this is needed to *run* the app: `DEMO_MODE=1 npm run dev`
+serves fake data with no database and no credentials. See
+[DEMO_MODE.md](../DEMO_MODE.md).
 
 ## Supabase
 
@@ -13,13 +17,18 @@ infrastructure under one project; Roster Loom's tables all carry an
 `fp_notes`) so they're visually distinct from OttoneuDB's unrelated
 tables in the `public` schema.
 
-Pull project credentials from the
+Prefer the **local stack** for development — `npm run db:start` boots
+Postgres with every migration applied and prints the URL and anon key to
+paste into `.env.local`. It keeps your experiments off the project
+shared with the sibling repo.
+
+For the hosted project, pull credentials from the
 [OttoneuDB API settings](https://supabase.com/dashboard/project/rbinbcwinchphipvcfqk/settings/api-keys).
 
 | Variable                         | Where used                              | Notes |
 | -------------------------------- | --------------------------------------- | ----- |
 | `NEXT_PUBLIC_SUPABASE_URL`       | Browser + server Supabase clients       | Public — fine to expose. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Browser + server Supabase clients       | Public — RLS-protected. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Browser + server Supabase clients       | Ships in the browser bundle. RLS protects the four MCP tables; the four app tables have no policies in any migration — see [database-schema.md](database-schema.md#row-level-security). |
 | `SUPABASE_SERVICE_ROLE_KEY`      | Server-only privileged operations       | **Never expose to the browser.** Bypasses RLS. |
 
 ## Yahoo OAuth
@@ -40,10 +49,14 @@ from repo secrets with matching names. Yahoo credentials are not
 required for CI today — Yahoo flows are mocked at
 `e2e/mocks/external-apis.js`.
 
-## Sleeper / Ottoneu
+## Sleeper / Ottoneu / ESPN
 
-Neither provider requires API credentials. Sleeper is username-based,
-Ottoneu data is scraped from public pages.
+None of these require environment variables. Sleeper is username-based,
+Ottoneu is scraped from public pages, and ESPN authenticates with two
+cookies (`espn_s2`, `SWID`) that the user pastes into the integration UI
+and which are stored per-user in `fp_user_integrations` — not in the
+environment. See
+[the ESPN README](../../apps/web/src/app/integrations/espn/README.md).
 
 ## Demo mode
 

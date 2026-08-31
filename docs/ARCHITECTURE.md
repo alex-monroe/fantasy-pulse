@@ -99,16 +99,24 @@ Supabase Postgres. Schema is owned by SQL migrations in
 `supabase/migrations/` and reproduced for reference in
 [references/database-schema.md](references/database-schema.md).
 
-Core tables (all prefixed `fp_` to distinguish them from the sibling
-repo's tables on the shared OttoneuDB project):
+Eight tables, all prefixed `fp_` to distinguish them from the sibling
+repo's tables on the shared OttoneuDB project:
 
 - `fp_user_integrations` — per-user provider connections (Sleeper ID,
-  Yahoo OAuth tokens, etc.)
+  Yahoo OAuth tokens, ESPN cookies)
 - `fp_leagues` — league rows imported from each provider
 - `fp_teams` — teams pulled from each league
 - `fp_notes` — free-form user notes
-- `fp_mcp_tokens` — hashed personal access tokens for the [MCP
-  server](MCP.md); the only table here with RLS enabled
+- `fp_mcp_tokens` — hashed personal access tokens for the
+  [MCP server](MCP.md)
+- `fp_mcp_oauth_clients`, `fp_mcp_oauth_codes`, `fp_mcp_oauth_tokens` —
+  the OAuth 2 + PKCE flow for MCP connector UIs
+
+The four MCP tables enable row level security and reach their
+unauthenticated paths through eight `SECURITY DEFINER` functions. The
+four app tables have no policies in any migration — see the
+[schema reference](references/database-schema.md#row-level-security),
+which flags that as unresolved.
 
 Server-side Supabase access goes through `apps/web/src/utils/supabase/server.ts`;
 client-side through `apps/web/src/utils/supabase/client.ts`. `middleware.ts`
