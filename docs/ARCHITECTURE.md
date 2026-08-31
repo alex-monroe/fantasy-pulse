@@ -20,6 +20,7 @@ two cookies copied from a logged-in browser session.
 | E2E tests        | Playwright 1.55 (CI-only; see [TESTING.md](TESTING.md))        |
 | Lint             | ESLint via `next lint` (`next/core-web-vitals`)                |
 | Hosting          | Vercel (per-PR previews)                                       |
+| PWA              | `next-pwa` wraps the config; service worker at `public/sw.js` (disabled in dev) |
 | Observability    | Vercel Speed Insights, `pino` logs, `performance-logger` utility |
 
 ## Top-level layout
@@ -39,7 +40,6 @@ apps/web/                     # Next.js app (Vercel deploys this)
 │   ├── hooks/                # React hooks (`use-mobile`, `use-toast`)
 │   ├── lib/                  # Web-only: env, `cn`, doc-map test
 │   ├── utils/                # logger, performance-logger, supabase clients
-│   ├── ai/                   # Generative AI helpers (currently `dev.ts`)
 │   └── middleware.ts         # Supabase session refresh middleware
 └── e2e/                      # Playwright specs (do not run locally — see TESTING.md)
 

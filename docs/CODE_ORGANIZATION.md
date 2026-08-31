@@ -89,7 +89,9 @@ it codifies this exact pattern.
   rail, and `player-board.tsx` lays every player out in position bands
   built from `PlayerCard`s.
 - `components/ui/`: shadcn/Radix primitives — treat as generated/library
-  code; only edit if you'd accept the change upstream.
+  code; only edit if you'd accept the change upstream. Only the
+  primitives actually in use are kept here; `npx shadcn@latest add
+  <name>` brings back any other one when it's needed.
 
 Component tests are colocated as `<name>.test.tsx` next to the implementation.
 
@@ -122,11 +124,6 @@ enforcing (see `git log --grep performance`).
 ## `apps/web/src/hooks/`
 
 Standard React hooks (`use-mobile`, `use-toast`). Hook tests colocated.
-
-## `apps/web/src/ai/`
-
-Generative AI experiments. Currently just `dev.ts`. Not on the
-production code path.
 
 ## `apps/web/src/middleware.ts`
 
