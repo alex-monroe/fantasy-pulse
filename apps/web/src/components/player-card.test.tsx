@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { PlayerCard, getGameStatusLabel, getGamePercentRemaining, getLiveProjectedPoints } from '@/components/player-card'
+import { getGamePhase } from '@roster-loom/core'
 import type { GroupedPlayer } from '@roster-loom/core'
 
 describe('PlayerCard', () => {
@@ -29,7 +30,7 @@ describe('PlayerCard', () => {
   it('renders player information', () => {
     render(<PlayerCard player={player} />)
     expect(screen.getByText('Test Player')).toBeInTheDocument()
-    expect(screen.getByText('QB - TB')).toBeInTheDocument()
+    expect(screen.getByText('QB · TB')).toBeInTheDocument()
     expect(screen.getByText('10.5')).toBeInTheDocument()
   })
 
@@ -124,19 +125,19 @@ describe('PlayerCard', () => {
       description: 'more than 25% remaining',
       gameQuarter: 'Q3' as const,
       gameClock: '10:00',
-      expectedClass: 'bg-emerald-500/20',
+      expectedClass: 'bg-emerald-500',
     },
     {
       description: '25% or less remaining',
       gameQuarter: 'Q4' as const,
       gameClock: '15:00',
-      expectedClass: 'bg-yellow-400/20',
+      expectedClass: 'bg-yellow-400',
     },
     {
       description: '10% or less remaining',
       gameQuarter: 'Q4' as const,
       gameClock: '6:00',
-      expectedClass: 'bg-red-500/20',
+      expectedClass: 'bg-red-500',
     },
   ])('uses $description overlay color', ({ gameQuarter, gameClock, expectedClass }) => {
     const livePlayer = {
@@ -237,5 +238,27 @@ describe('getLiveProjectedPoints', () => {
   it('returns null once the game is final, even with a nonzero score', () => {
     const final = { ...basePlayer, gameStatus: 'final', score: 24 }
     expect(getLiveProjectedPoints(final)).toBeNull()
+  })
+})
+
+describe('getGamePhase', () => {
+  it.each([
+    ['pregame', 'pregame'],
+    ['pre', 'pregame'],
+    ['scheduled', 'pregame'],
+    ['in_progress', 'live'],
+    ['in-progress', 'live'],
+    ['possession', 'live'],
+    ['halftime', 'live'],
+    ['final', 'final'],
+    ['post', 'final'],
+    ['FINAL', 'final'],
+  ])('maps %s to %s', (gameStatus, expected) => {
+    expect(getGamePhase({ gameStatus })).toBe(expected)
+  })
+
+  it('falls back to unknown for a status it does not recognize', () => {
+    expect(getGamePhase({ gameStatus: 'weather delay' })).toBe('unknown')
+    expect(getGamePhase({ gameStatus: '' })).toBe('unknown')
   })
 })

@@ -60,8 +60,12 @@ global.fetch = async (input, init) => {
 
   if (url === 'https://api.sleeper.app/v1/league/league1/matchups/1') {
     return jsonResponse([
-      { roster_id: 1, matchup_id: 1, players_points: { p1: 10 }, players: ['p1'] },
-      { roster_id: 2, matchup_id: 1, players_points: { p2: 8 }, players: ['p2'] },
+      // `points` is the roster's total and is what the scoreboard renders;
+      // Sleeper always returns it (SleeperMatchup declares it required), so
+      // omitting it here left both teams showing 0.0 against rosters that
+      // had scored.
+      { roster_id: 1, matchup_id: 1, points: 10, players_points: { p1: 10 }, players: ['p1'] },
+      { roster_id: 2, matchup_id: 1, points: 8, players_points: { p2: 8 }, players: ['p2'] },
     ]);
   }
 

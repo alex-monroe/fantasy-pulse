@@ -4,6 +4,8 @@ import {
   groupMatchupPlayers,
   groupPlayersByPosition,
   processMatchups,
+  summarizeMatchup,
+  summarizeWeek,
   MATCHUP_COLORS,
   mockTeams,
 } from '@roster-loom/core';
@@ -140,5 +142,104 @@ describe('processMatchups', () => {
     const { fantasyHeroes } = processMatchups(mockTeams);
     const mahomes = fantasyHeroes.find((p) => p.name === 'Patrick Mahomes');
     expect(mahomes?.matchups).toEqual(['Gridiron Gladiators', 'Endzone Enforcers']);
+  });
+});
+
+describe('summarizeMatchup', () => {
+  const live = (name: string, score: number) =>
+    makePlayer({ name, realTeam: 'KC', score, gameStatus: 'in_progress' });
+  const pregame = (name: string) => makePlayer({ name, realTeam: 'BUF', gameStatus: 'pregame' });
+  const final = (name: string, score: number) =>
+    makePlayer({ name, realTeam: 'SF', score, gameStatus: 'final' });
+
+  it('reports the differential and who is ahead', () => {
+    const team = makeTeam(1, 'Mine', [live('A', 20)], 'Theirs', [final('B', 12)]);
+    const summary = summarizeMatchup(team);
+
+    expect(summary.score).toBe(20);
+    expect(summary.opponentScore).toBe(12);
+    expect(summary.differential).toBe(8);
+    expect(summary.isLeading).toBe(true);
+    expect(summary.isTied).toBe(false);
+    expect(summary.scoreShare).toBeCloseTo(20 / 32, 5);
+  });
+
+  it('treats a level matchup as tied and splits the bar evenly at 0-0', () => {
+    const team = makeTeam(1, 'Mine', [pregame('A')], 'Theirs', [pregame('B')]);
+    const summary = summarizeMatchup(team);
+
+    expect(summary.isTied).toBe(true);
+    expect(summary.isLeading).toBe(false);
+    expect(summary.scoreShare).toBe(0.5);
+  });
+
+  it('counts starters by game phase and ignores the bench', () => {
+    const team = makeTeam(
+      1,
+      'Mine',
+      [
+        live('A', 10),
+        pregame('B'),
+        final('C', 5),
+        makePlayer({ name: 'Benched', realTeam: 'KC', gameStatus: 'in_progress', onBench: true }),
+      ],
+      'Theirs',
+      [live('D', 3)],
+    );
+
+    expect(summarizeMatchup(team).counts).toEqual({ live: 1, yetToPlay: 1, done: 1 });
+    expect(summarizeMatchup(team).opponentCounts).toEqual({ live: 1, yetToPlay: 0, done: 0 });
+  });
+});
+
+describe('summarizeWeek', () => {
+  it('tallies leading, trailing, and tied matchups', () => {
+    const winning = makeTeam(
+      1,
+      'Winning',
+      [makePlayer({ name: 'A', realTeam: 'KC', score: 30 })],
+      'Opp1',
+      [makePlayer({ name: 'B', realTeam: 'SF', score: 10 })],
+    );
+    const losing = makeTeam(
+      2,
+      'Losing',
+      [makePlayer({ name: 'C', realTeam: 'BUF', score: 5 })],
+      'Opp2',
+      [makePlayer({ name: 'D', realTeam: 'MIA', score: 25 })],
+    );
+    const level = makeTeam(3, 'Level', [], 'Opp3', []);
+
+    expect(summarizeWeek([winning, losing, level])).toMatchObject({
+      leading: 1,
+      trailing: 1,
+      tied: 1,
+      total: 3,
+    });
+  });
+
+  it('deduplicates a player rostered in several leagues', () => {
+    const shared = () =>
+      makePlayer({ name: 'Josh Allen', realTeam: 'BUF', score: 20, gameStatus: 'in_progress' });
+    const teamA = makeTeam(1, 'A', [shared()], 'OppA', []);
+    const teamB = makeTeam(2, 'B', [shared()], 'OppB', []);
+
+    expect(summarizeWeek([teamA, teamB]).playersLive).toBe(1);
+  });
+
+  it('counts starters who have not kicked off yet', () => {
+    const team = makeTeam(
+      1,
+      'A',
+      [
+        makePlayer({ name: 'Early', realTeam: 'KC', gameStatus: 'final' }),
+        makePlayer({ name: 'Late', realTeam: 'LV', gameStatus: 'pregame' }),
+        makePlayer({ name: 'Bench', realTeam: 'DEN', gameStatus: 'pregame', onBench: true }),
+      ],
+      'Opp',
+      [],
+    );
+
+    expect(summarizeWeek([team]).playersYetToPlay).toBe(1);
   });
 });

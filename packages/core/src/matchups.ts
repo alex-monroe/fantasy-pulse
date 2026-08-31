@@ -1,3 +1,4 @@
+import { getGamePhase } from './player-status';
 import type { GroupedPlayer, Player, Team } from './types';
 
 /**
@@ -268,4 +269,154 @@ export const processMatchups = (matchups: Team[]): MatchupReport => {
   });
 
   return { fantasyHeroes, publicEnemies, doubleAgents };
+};
+
+/** How many of a roster's starters are in each game phase. */
+export interface RosterGameCounts {
+  /** Starters whose game is being played right now. */
+  live: number;
+  /** Starters whose game has not kicked off yet. */
+  yetToPlay: number;
+  /** Starters whose game is over. */
+  done: number;
+}
+
+/** A single league matchup reduced to the numbers the scoreboard shows. */
+export interface MatchupSummary {
+  /** The team the summary describes. */
+  team: Team;
+  /** The user's score. */
+  score: number;
+  /** The opponent's score. */
+  opponentScore: number;
+  /** User score minus opponent score. Negative when trailing. */
+  differential: number;
+  /** Whether the user is ahead. */
+  isLeading: boolean;
+  /** Whether both sides are level (to a tenth of a point). */
+  isTied: boolean;
+  /** The user's share of the combined score, in [0, 1]. `0.5` when both are zero. */
+  scoreShare: number;
+  /** Game-phase counts across the user's starters. */
+  counts: RosterGameCounts;
+  /** Game-phase counts across the opponent's starters. */
+  opponentCounts: RosterGameCounts;
+}
+
+const countStarterGamePhases = (players: Player[]): RosterGameCounts => {
+  const counts: RosterGameCounts = { live: 0, yetToPlay: 0, done: 0 };
+
+  players.forEach((player) => {
+    if (!player || player.onBench) {
+      return;
+    }
+
+    const phase = getGamePhase(player);
+    if (phase === 'live') {
+      counts.live += 1;
+    } else if (phase === 'pregame') {
+      counts.yetToPlay += 1;
+    } else if (phase === 'final') {
+      counts.done += 1;
+    }
+  });
+
+  return counts;
+};
+
+/**
+ * Reduces one league matchup to the handful of numbers the scoreboard
+ * renders: both scores, who is ahead and by how much, the split used for
+ * the tug-of-war bar, and how much football each side has left.
+ *
+ * @param team - The user's team, with its opponent attached.
+ * @returns The summary for that matchup.
+ */
+export const summarizeMatchup = (team: Team): MatchupSummary => {
+  const score = team.totalScore ?? 0;
+  const opponentScore = team.opponent?.totalScore ?? 0;
+  const differential = score - opponentScore;
+  const combined = score + opponentScore;
+
+  return {
+    team,
+    score,
+    opponentScore,
+    differential,
+    isLeading: differential > 0,
+    isTied: Math.abs(differential) < 0.05,
+    scoreShare: combined > 0 ? score / combined : 0.5,
+    counts: countStarterGamePhases(team.players ?? []),
+    opponentCounts: countStarterGamePhases(team.opponent?.players ?? []),
+  };
+};
+
+/** Aggregate standing across every league the user is playing this week. */
+export interface WeekOverview {
+  /** Matchups the user is currently winning. */
+  leading: number;
+  /** Matchups the user is currently losing. */
+  trailing: number;
+  /** Matchups that are level. */
+  tied: number;
+  /** Total matchups. */
+  total: number;
+  /** Distinct starters of the user's whose game is live right now. */
+  playersLive: number;
+  /** Distinct starters of the user's who have not kicked off yet. */
+  playersYetToPlay: number;
+}
+
+/**
+ * Rolls every matchup up into the one-line "how is my Sunday going"
+ * summary shown above the board. Players are deduplicated across leagues
+ * so someone rostered in six leagues counts once.
+ *
+ * @param teams - The user's teams with their opponents.
+ * @returns The week-wide overview.
+ */
+export const summarizeWeek = (teams: Team[]): WeekOverview => {
+  const overview: WeekOverview = {
+    leading: 0,
+    trailing: 0,
+    tied: 0,
+    total: teams.length,
+    playersLive: 0,
+    playersYetToPlay: 0,
+  };
+
+  const livePlayers = new Set<string>();
+  const pendingPlayers = new Set<string>();
+
+  teams.forEach((team) => {
+    const { isLeading, isTied } = summarizeMatchup(team);
+    if (isTied) {
+      overview.tied += 1;
+    } else if (isLeading) {
+      overview.leading += 1;
+    } else {
+      overview.trailing += 1;
+    }
+
+    (team.players ?? []).forEach((player) => {
+      if (!player || player.onBench) {
+        return;
+      }
+      const key = createPlayerAggregationKey(player);
+      if (!key) {
+        return;
+      }
+      const phase = getGamePhase(player);
+      if (phase === 'live') {
+        livePlayers.add(key);
+      } else if (phase === 'pregame') {
+        pendingPlayers.add(key);
+      }
+    });
+  });
+
+  overview.playersLive = livePlayers.size;
+  overview.playersYetToPlay = pendingPlayers.size;
+
+  return overview;
 };

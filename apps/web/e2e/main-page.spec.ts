@@ -109,13 +109,31 @@ test.describe('Main Page', () => {
     await expect(page.getByText('Yahoo Warriors')).toBeVisible();
     await expect(page.getByText('The Witchcraft')).toBeVisible();
 
-    // Verify matchup scores
-    await expect(page.getByText('10.0')).toBeVisible();
-    await expect(page.getByText('8.0')).toBeVisible();
-    await expect(page.getByText('100.0')).toBeVisible();
-    await expect(page.getByText('90.0')).toBeVisible();
-    await expect(page.getByText('13.9')).toBeVisible();
-    await expect(page.getByText('0.00')).toBeVisible();
+    // Verify matchup scores. Address the league's tile in the week
+    // scoreboard rather than matching loose page text: a bare
+    // getByText('10.0') also hits position-band totals and the
+    // differential chips, which is a strict-mode violation.
+    const tileFor = (teamName: string) =>
+      page.getByTestId('matchup-tile').filter({ hasText: teamName });
+
+    const expectMatchup = async (
+      teamName: string,
+      teamScore: string,
+      opponentScore: string,
+    ) => {
+      await expect(tileFor(teamName).getByTestId('matchup-team-score')).toHaveText(
+        teamScore,
+      );
+      await expect(
+        tileFor(teamName).getByTestId('matchup-opponent-score'),
+      ).toHaveText(opponentScore);
+    };
+
+    await expectMatchup('Sleeper Squad', '10.0', '8.0');
+    await expectMatchup('Yahoo Warriors', '100.0', '90.0');
+    // The Ottoneu golden puts The Witchcraft away at 0.00 against
+    // The Triple Helix at 40.10.
+    await expectMatchup('The Witchcraft', '0.0', '40.1');
 
     // Verify player cards
     await expect(page.getByText('Sleeper Player 1')).toBeVisible();

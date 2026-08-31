@@ -146,3 +146,39 @@ export function getLiveProjectedPoints(player: ProjectableGamePlayer): number | 
 
   return player.score + player.projectedPoints * (percentRemaining / 100);
 }
+
+/** The coarse state of a player's real-life game. */
+export type GamePhase = 'pregame' | 'live' | 'final' | 'unknown';
+
+/**
+ * Collapses the many provider-specific `gameStatus` spellings into the
+ * three states the UI actually renders differently: not started yet,
+ * being played right now, and over.
+ *
+ * @param player - The player whose game to classify.
+ * @returns The coarse phase, or `'unknown'` when the provider gave us
+ *   nothing usable.
+ */
+export function getGamePhase(player: Pick<PlayerLike, 'gameStatus'>): GamePhase {
+  const status = player.gameStatus?.toLowerCase?.() ?? '';
+
+  if (status === 'pregame' || status === 'pre' || status === 'scheduled') {
+    return 'pregame';
+  }
+
+  if (
+    status === 'in_progress' ||
+    status === 'in' ||
+    status === 'in-progress' ||
+    status === 'possession' ||
+    status === 'halftime'
+  ) {
+    return 'live';
+  }
+
+  if (status === 'final' || status === 'post') {
+    return 'final';
+  }
+
+  return 'unknown';
+}
