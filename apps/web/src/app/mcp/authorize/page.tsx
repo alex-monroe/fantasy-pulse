@@ -35,13 +35,19 @@ function ErrorPage({ message }: { message: string }) {
  * only once redirect_uri is confirmed to belong to client_id is it safe
  * to send the browser back there, whether the user approves or denies.
  */
-export default async function AuthorizePage({ searchParams }: { searchParams: SearchParams }) {
-  const responseType = param(searchParams, 'response_type');
-  const clientId = param(searchParams, 'client_id');
-  const redirectUri = param(searchParams, 'redirect_uri');
-  const codeChallenge = param(searchParams, 'code_challenge');
-  const codeChallengeMethod = param(searchParams, 'code_challenge_method');
-  const state = param(searchParams, 'state');
+export default async function AuthorizePage({
+  searchParams,
+}: {
+  // Next 15 hands page props their search params as a promise.
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const responseType = param(params, 'response_type');
+  const clientId = param(params, 'client_id');
+  const redirectUri = param(params, 'redirect_uri');
+  const codeChallenge = param(params, 'code_challenge');
+  const codeChallengeMethod = param(params, 'code_challenge_method');
+  const state = param(params, 'state');
 
   if (responseType !== 'code' || !clientId || !redirectUri || !codeChallenge) {
     return (

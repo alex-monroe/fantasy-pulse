@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
-import { logDuration, startTimer } from '@/utils/performance-logger';
+import { logDuration, logEvent, startTimer } from '@/utils/performance-logger';
 import {
   getCurrentSleeperLeagues,
   getLeagueScoringSettings,
@@ -479,6 +479,24 @@ export async function invalidateSleeperPlayersCache() {
 }
 
 /**
+ * Derives a stable numeric team id from a Sleeper league id.
+ *
+ * Sleeper's leagues endpoint returns only the string `league_id` — there is
+ * no numeric `id` on the payload — so `Team.id` was previously `undefined`
+ * for every Sleeper team. That collapsed multiple Sleeper leagues into a
+ * single entry wherever the dashboard keys teams by id (matchup priority,
+ * score-change tracking). Hashing `league_id` keeps ids stable across
+ * renders and distinct across leagues.
+ */
+function sleeperTeamId(leagueId: string): number {
+  let hash = 0;
+  for (let i = 0; i < leagueId.length; i += 1) {
+    hash = (hash * 31 + leagueId.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
  * Builds teams for a Sleeper integration.
  * @param integration The sleeper integration record.
  * @param week The current NFL week.
@@ -617,7 +635,7 @@ export async function buildSleeperTeams(
         : [];
 
     teams.push({
-      id: league.id,
+      id: league.id ?? sleeperTeamId(league.league_id),
       name: userName,
       league: {
         provider: 'sleeper',
@@ -1416,7 +1434,7 @@ export async function getTeams(
   options?: { demo?: boolean }
 ) {
   const overallStart = startTimer();
-  console.log('[performance] getTeams invoked');
+  logEvent('getTeams invoked');
 
   const supabase = client ?? createClient();
 

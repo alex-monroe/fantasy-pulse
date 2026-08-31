@@ -13,14 +13,16 @@
     "dev": "npm run dev -w @roster-loom/web",
     "build": "npm run build -w @roster-loom/web",
     "start": "npm run start -w @roster-loom/web",
-    "lint": "npm run lint -w @roster-loom/web && npm run lint -w @roster-loom/mobile",
+    "lint": "sh -c 'npm run lint:web; w=$?; npm run lint:mobile; m=$?; [ $w -eq 0 ] && [ $m -eq 0 ]'",
     "typecheck": "npm run typecheck -w @roster-loom/web",
     "test": "npm run test -w @roster-loom/web && npm run test -w @roster-loom/mobile",
     "test:e2e": "npm run test:e2e -w @roster-loom/web",
     "mobile": "npm run start -w @roster-loom/mobile",
     "mobile:ios": "npm run ios -w @roster-loom/mobile",
     "mobile:android": "npm run android -w @roster-loom/mobile",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "lint:web": "npm run lint -w @roster-loom/web",
+    "lint:mobile": "npm run lint -w @roster-loom/mobile"
   },
   "devDependencies": {
     "patch-package": "^8.0.0",

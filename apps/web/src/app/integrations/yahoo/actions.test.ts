@@ -111,7 +111,7 @@ describe('yahoo actions', () => {
       }),
     );
 
-    expect(result.players[0]).toMatchObject({
+    expect(result.players![0]).toMatchObject({
       player_key: '461.p.40896',
       name: 'Jayden Daniels',
       totalPoints: '19.70',
@@ -132,14 +132,14 @@ describe('yahoo actions', () => {
     fetchJson.mockResolvedValue({ data: rosterExample });
     const result = await actions.getYahooRoster(1, '123.l.456', '1');
 
-    expect(result.players[0]).toMatchObject({
+    expect(result.players![0]).toMatchObject({
       player_key: 'p3',
       name: 'Yahoo Player 1',
       display_position: 'QB',
       onBench: false,
     });
 
-    const irPlayer = result.players.find((player: any) => player.player_key === 'p4');
+    const irPlayer = result.players!.find((player: any) => player.player_key === 'p4');
     expect(irPlayer).toMatchObject({ onBench: true });
   });
 });

@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { getTeams } from './actions';
 import HomePage from '@/components/home-page';
-import { logDuration, startTimer } from '@/utils/performance-logger';
+import { logDuration, logEvent, startTimer } from '@/utils/performance-logger';
 import { createClient } from '@/utils/supabase/server';
 import { DEMO_COOKIE, resolveDemoMode } from '@/lib/demo-mode';
 
@@ -11,7 +11,7 @@ import { DEMO_COOKIE, resolveDemoMode } from '@/lib/demo-mode';
  */
 export default async function Home() {
   const overallStart = startTimer();
-  console.log('[performance] Home page render invoked');
+  logEvent('Home page render invoked');
 
   const supabase = createClient();
   const userStart = startTimer();

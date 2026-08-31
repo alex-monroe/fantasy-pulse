@@ -430,6 +430,12 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
     const { users } = usersRes;
     const { players } = playersRes;
 
+    // The four calls above report failure through `error`, but a success with
+    // an empty body would still leave these undefined — narrow before use.
+    if (!matchups || !rosters || !users || !players) {
+      return { error: 'Sleeper returned an incomplete matchup payload.' };
+    }
+
     const usersMap = new Map(users.map((user) => [user.user_id, user]));
     const rostersMap = new Map(rosters.map((roster) => [roster.roster_id, roster]));
 

@@ -227,8 +227,12 @@ export interface SleeperMatchupPlayer {
 
 /**
  * Represents a Sleeper matchup enriched with user and player information.
+ *
+ * `players` is deliberately widened from the raw `string[]` of player IDs to
+ * fully-resolved `SleeperMatchupPlayer` objects, so this omits the base
+ * field rather than extending it — the two shapes are not assignable.
  */
-export interface SleeperEnrichedMatchup extends SleeperMatchup {
+export interface SleeperEnrichedMatchup extends Omit<SleeperMatchup, 'players'> {
   user: {
     display_name: string;
     avatar?: string;

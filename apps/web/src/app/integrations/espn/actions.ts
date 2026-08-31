@@ -441,7 +441,9 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
     return { matchup: null };
   }
 
-  const teamsById = new Map((data.teams ?? []).map((team: any) => [team.id, team]));
+  const teamsById = new Map<number, any>(
+    (data.teams ?? []).map((team: any) => [team.id, team] as [number, any])
+  );
   const isHome = matchup.home?.teamId === numericTeamId;
   const userSide = isHome ? matchup.home : matchup.away;
   const opponentSide = isHome ? matchup.away : matchup.home;

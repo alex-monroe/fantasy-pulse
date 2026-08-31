@@ -1,0 +1,52 @@
+name: CI
+
+# The fast correctness gate: lint, types and unit tests on every push and PR.
+# Playwright runs separately in playwright.yml — it needs browsers, real
+# Supabase secrets and about 60x this job's wall time. Contributors are told
+# not to run E2E locally, so this is the signal they can actually reproduce.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Lint, types, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      # `npm ci` installs strictly from the lockfile and fails when it is out
+      # of sync with package.json — which is the rule AGENTS.md states and
+      # nothing enforced until now.
+      - name: Install dependencies
+        run: npm ci
+
+      # Each check runs even when an earlier one fails, so a PR gets every
+      # problem in one report instead of one per push.
+      - name: Lint (web)
+        if: always()
+        run: npm run lint:web
+
+      - name: Lint (mobile)
+        if: always()
+        run: npm run lint:mobile
+
+      - name: Typecheck
+        if: always()
+        run: npm run typecheck
+
+      - name: Unit tests
+        if: always()
+        run: npm test

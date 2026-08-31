@@ -6,25 +6,40 @@ import { cookies } from 'next/headers'
  *
  * @remarks
  * This function uses Next.js `cookies` to manage authentication tokens.
+ * `cookies()` is async as of Next 15, so every accessor awaits it.
+ *
+ * `set` and `remove` throw when called from a Server Component (only
+ * route handlers and Server Actions may write cookies). Middleware
+ * refreshes the session on every request, so swallowing that error here
+ * is safe.
  *
  * @returns The Supabase client.
  */
 export function createClient() {
-  const cookieStore = cookies()
-
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         async get(name: string) {
-          return (await cookieStore.get(name)?.value) || null
+          const cookieStore = await cookies()
+          return cookieStore.get(name)?.value ?? null
         },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options })
+        async set(name: string, value: string, options: CookieOptions) {
+          try {
+            const cookieStore = await cookies()
+            cookieStore.set({ name, value, ...options })
+          } catch {
+            // Called from a Server Component — middleware handles the refresh.
+          }
         },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options })
+        async remove(name: string, options: CookieOptions) {
+          try {
+            const cookieStore = await cookies()
+            cookieStore.set({ name, value: '', ...options })
+          } catch {
+            // Called from a Server Component — middleware handles the refresh.
+          }
         },
       },
     }

@@ -53,7 +53,7 @@ function findStandingsAnchors(document: Document) {
 
     if (heading && /standings/i.test(heading.textContent || '')) {
       const anchors = Array.from(
-        section.querySelectorAll('table a[href*="/team/"]')
+        section.querySelectorAll<HTMLAnchorElement>('table a[href*="/team/"]')
       );
 
       if (anchors.length > 0) {
@@ -73,7 +73,9 @@ function findStandingsAnchors(document: Document) {
       continue;
     }
 
-    anchors.push(...table.querySelectorAll('tbody a[href*="/team/"]'));
+    anchors.push(
+      ...table.querySelectorAll<HTMLAnchorElement>('tbody a[href*="/team/"]')
+    );
   }
 
   return anchors;

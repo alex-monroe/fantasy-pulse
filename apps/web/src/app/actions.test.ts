@@ -778,11 +778,11 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams).toBeDefined();
-      expect(result.teams.length).toBe(1);
-      expect(result.teams[0].name).toBe('Team A');
-      expect(result.teams[0].players[0].gameStatus).toBe('pregame');
-      expect(result.teams[0].players[0].gameStartTime).toBe('2025-09-21T17:00:00Z');
+      expect(result.teams!).toBeDefined();
+      expect(result.teams!.length).toBe(1);
+      expect(result.teams![0].name).toBe('Team A');
+      expect(result.teams![0].players[0].gameStatus).toBe('pregame');
+      expect(result.teams![0].players[0].gameStartTime).toBe('2025-09-21T17:00:00Z');
     });
 
     it('should fetch and process yahoo teams correctly', async () => {
@@ -826,13 +826,13 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams).toBeDefined();
-      expect(result.teams.length).toBe(1);
-      expect(result.teams[0].name).toBe('Yahoo User Team');
-      expect(result.teams[0].totalScore).toBe(120);
-      expect(result.teams[0].players[0].gameStatus).toBe('in_progress');
-      expect(result.teams[0].players[0].gameQuarter).toBe('Q2');
-      expect(result.teams[0].players[0].gameClock).toBe('5:10');
+      expect(result.teams!).toBeDefined();
+      expect(result.teams!.length).toBe(1);
+      expect(result.teams![0].name).toBe('Yahoo User Team');
+      expect(result.teams![0].totalScore).toBe(120);
+      expect(result.teams![0].players[0].gameStatus).toBe('in_progress');
+      expect(result.teams![0].players[0].gameQuarter).toBe('Q2');
+      expect(result.teams![0].players[0].gameClock).toBe('5:10');
     });
 
     it('reads Yahoo tokens/teams with the caller-supplied client and user id (mobile bearer-token requests carry no cookies)', async () => {
@@ -889,7 +889,7 @@ describe('actions', () => {
       });
 
       const result = await getTeams();
-      expect(result.teams).toEqual([]);
+      expect(result.teams!).toEqual([]);
     });
 
     it('should continue if getYahooUserTeams returns an error', async () => {
@@ -911,7 +911,7 @@ describe('actions', () => {
       });
 
       const result = await getTeams();
-      expect(result.teams).toEqual([]);
+      expect(result.teams!).toEqual([]);
     });
 
     it('should continue if getYahooMatchups returns an error', async () => {
@@ -938,7 +938,7 @@ describe('actions', () => {
       });
 
       const result = await getTeams();
-      expect(result.teams).toEqual([]);
+      expect(result.teams!).toEqual([]);
     });
 
     it('should log an error if getYahooPlayerScores for user fails', async () => {
@@ -1088,7 +1088,7 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams[0].players[0].imageUrl).toBe('https://sleepercdn.com/content/nfl/players/thumb/1.jpg');
+      expect(result.teams![0].players[0].imageUrl).toBe('https://sleepercdn.com/content/nfl/players/thumb/1.jpg');
     });
   });
 
@@ -1170,9 +1170,9 @@ describe('actions', () => {
       });
 
       const result = await getTeams();
-      expect(result.teams).toHaveLength(1);
-      expect(result.teams[0].players).toHaveLength(2);
-      expect(result.teams[0].players[0]).toMatchObject({
+      expect(result.teams!).toHaveLength(1);
+      expect(result.teams![0].players).toHaveLength(2);
+      expect(result.teams![0].players[0]).toMatchObject({
         id: '1',
         name: 'Player One',
         position: 'RB',
@@ -1180,25 +1180,25 @@ describe('actions', () => {
         score: 5,
         onBench: false,
       });
-      expect(result.teams[0].players[0].imageUrl).toBe(
+      expect(result.teams![0].players[0].imageUrl).toBe(
         'https://sleepercdn.com/content/nfl/players/thumb/1.jpg'
       );
-      expect(result.teams[0].players[1].onBench).toBe(true);
-      expect(result.teams[0].opponent.players).toHaveLength(2);
-      expect(result.teams[0].players[1].position).toBe('WR');
-      expect(result.teams[0].opponent.players[0]).toMatchObject({
+      expect(result.teams![0].players[1].onBench).toBe(true);
+      expect(result.teams![0].opponent.players).toHaveLength(2);
+      expect(result.teams![0].players[1].position).toBe('WR');
+      expect(result.teams![0].opponent.players[0]).toMatchObject({
         id: '2',
         name: 'Player Two',
         position: 'WR',
         score: 3,
       });
-      expect(result.teams[0].opponent.players[0].imageUrl).toBe(
+      expect(result.teams![0].opponent.players[0].imageUrl).toBe(
         'https://sleepercdn.com/content/nfl/players/thumb/2.jpg'
       );
-      expect(result.teams[0].name).toBe('My Team');
-      expect(result.teams[0].totalScore).toBe(10);
-      expect(result.teams[0].opponent.name).toBe('Opponent');
-      expect(result.teams[0].opponent.totalScore).toBe(20);
+      expect(result.teams![0].name).toBe('My Team');
+      expect(result.teams![0].totalScore).toBe(10);
+      expect(result.teams![0].opponent.name).toBe('Opponent');
+      expect(result.teams![0].opponent.totalScore).toBe(20);
     });
 
     it('attaches a Sleeper-projection-derived projectedPoints, name-matched to the Ottoneu roster', async () => {
@@ -1261,7 +1261,7 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams[0].players[0]).toMatchObject({ id: '1', projectedPoints: 9.7 });
+      expect(result.teams![0].players[0]).toMatchObject({ id: '1', projectedPoints: 9.7 });
     });
 
     it('reads Ottoneu leagues with the caller-supplied client (mobile bearer-token requests carry no cookies)', async () => {
@@ -1362,16 +1362,16 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams).toHaveLength(1);
-      expect(result.teams[0].players).toHaveLength(1);
-      expect(result.teams[0].players[0]).toMatchObject({
+      expect(result.teams!).toHaveLength(1);
+      expect(result.teams![0].players).toHaveLength(1);
+      expect(result.teams![0].players[0]).toMatchObject({
         id: '6',
         name: 'User QB',
         realTeam: 'BUF',
         score: 12.3,
       });
-      expect(result.teams[0].opponent.players).toHaveLength(1);
-      expect(result.teams[0].opponent.players[0]).toMatchObject({
+      expect(result.teams![0].opponent.players).toHaveLength(1);
+      expect(result.teams![0].opponent.players[0]).toMatchObject({
         id: '5',
         name: 'Opp QB',
         score: 7.5,
@@ -1424,9 +1424,9 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams).toHaveLength(1);
-      expect(result.teams[0].players).toHaveLength(1);
-      expect(result.teams[0].players[0]).toMatchObject({
+      expect(result.teams!).toHaveLength(1);
+      expect(result.teams![0].players).toHaveLength(1);
+      expect(result.teams![0].players[0]).toMatchObject({
         id: '7',
         name: 'Roster Guy',
         position: 'WR',
@@ -1434,7 +1434,7 @@ describe('actions', () => {
         score: 0,
         onBench: false,
       });
-      expect(result.teams[0].opponent.players).toHaveLength(0);
+      expect(result.teams![0].opponent.players).toHaveLength(0);
     });
   });
 
@@ -1645,7 +1645,7 @@ describe('actions', () => {
 
       const result = await getTeams();
 
-      expect(result.teams).toHaveLength(1);
+      expect(result.teams!).toHaveLength(1);
 
       sleeperSpy.mockRestore();
       yahooSpy.mockRestore();

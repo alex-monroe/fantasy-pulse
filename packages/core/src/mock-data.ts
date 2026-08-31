@@ -31,7 +31,7 @@ export const mockTeams: Team[] = [
     totalScore: 124.5,
     players: [
       {
-        id: 101,
+        id: '101',
         name: 'Patrick Mahomes',
         position: 'QB',
         realTeam: 'KC',
@@ -51,7 +51,7 @@ export const mockTeams: Team[] = [
         onBench: false,
       },
       {
-        id: 102,
+        id: '102',
         name: 'C. McCaffrey',
         position: 'RB',
         realTeam: 'SF',
@@ -71,7 +71,7 @@ export const mockTeams: Team[] = [
         onBench: false,
       },
       {
-        id: 103,
+        id: '103',
         name: 'Justin Jefferson',
         position: 'WR',
         realTeam: 'MIN',
@@ -91,7 +91,7 @@ export const mockTeams: Team[] = [
         onBench: false,
       },
       {
-        id: 104,
+        id: '104',
         name: 'Travis Kelce',
         position: 'TE',
         realTeam: 'KC',
@@ -116,7 +116,7 @@ export const mockTeams: Team[] = [
       totalScore: 110.2,
       players: [
         {
-          id: 201,
+          id: '201',
           name: 'Josh Allen',
           position: 'QB',
           realTeam: 'BUF',
@@ -136,7 +136,7 @@ export const mockTeams: Team[] = [
           onBench: false,
         },
         {
-          id: 102,
+          id: '102',
           name: 'C. McCaffrey',
           position: 'RB',
           realTeam: 'SF',
@@ -156,7 +156,7 @@ export const mockTeams: Team[] = [
           onBench: false,
         },
         {
-          id: 203,
+          id: '203',
           name: 'Tyreek Hill',
           position: 'WR',
           realTeam: 'MIA',
@@ -184,7 +184,7 @@ export const mockTeams: Team[] = [
     totalScore: 98.7,
     players: [
       {
-        id: 101,
+        id: '101',
         name: 'Patrick Mahomes',
         position: 'QB',
         realTeam: 'KC',
@@ -204,7 +204,7 @@ export const mockTeams: Team[] = [
         onBench: false,
       },
       {
-        id: 205,
+        id: '205',
         name: 'Bijan Robinson',
         position: 'RB',
         realTeam: 'ATL',
@@ -224,7 +224,7 @@ export const mockTeams: Team[] = [
         onBench: false,
       },
       {
-        id: 206,
+        id: '206',
         name: 'A. St. Brown',
         position: 'WR',
         realTeam: 'DET',
@@ -249,7 +249,7 @@ export const mockTeams: Team[] = [
       totalScore: 105.1,
       players: [
         {
-          id: 207,
+          id: '207',
           name: 'Jalen Hurts',
           position: 'QB',
           realTeam: 'PHI',

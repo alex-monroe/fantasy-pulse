@@ -6,7 +6,7 @@ const email = `test-${uuid()}@test.com`;
 const password = 'testtest';
 
 test.describe('Login', () => {
-    let user;
+    let user: { id: string } | undefined;
     const supabase = createAdminClient();
 
     test.beforeAll(async () => {

@@ -1,3 +1,8 @@
+// Marks this file as a module. Without it TypeScript treats the top-level
+// `let actions` / `let createClient` as globals, which collide with the
+// identically-named declarations in the sibling providers' test files.
+export {};
+
 let actions: typeof import('./actions');
 let fetchJson: jest.Mock;
 let createClient: jest.Mock;

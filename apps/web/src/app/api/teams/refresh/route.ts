@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getTeams } from '@/app/actions';
 import { createApiClient } from '@/utils/supabase/api';
-import { logDuration, startTimer } from '@/utils/performance-logger';
+import { logDuration, logEvent, startTimer } from '@/utils/performance-logger';
 import { DEMO_COOKIE, DEMO_HEADER, resolveDemoMode } from '@/lib/demo-mode';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: Request) {
   const overallStart = startTimer();
-  console.log('[performance] refresh teams endpoint invoked');
+  logEvent('refresh teams endpoint invoked');
 
   const authHeader = request.headers.get('authorization');
   const isBearer = authHeader?.toLowerCase().startsWith('bearer ') ?? false;

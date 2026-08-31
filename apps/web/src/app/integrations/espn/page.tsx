@@ -169,7 +169,7 @@ export default function EspnPage() {
                     required
                   />
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Found in your league's URL: fantasy.espn.com/football/league?leagueId=
+                    Found in your league&apos;s URL: fantasy.espn.com/football/league?leagueId=
                     <strong>123456</strong>
                   </p>
                 </div>
