@@ -27,6 +27,7 @@ matchup data with cross-team player-share indicators.
 - **MCP server:** [docs/MCP.md](docs/MCP.md) — hosted AI-assistant access
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
+- **Onboarding gaps:** [docs/ONBOARDING_AUDIT.md](docs/ONBOARDING_AUDIT.md) — audit + remediation plan
 
 ## Documentation Map
 
@@ -44,6 +45,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries, conventions
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── ONBOARDING_AUDIT.md            # Onboarding audit (2026-08-31) + phased plan
 ├── MOBILE.md                      # Mobile app quickstart (Expo Go, env, layout)
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport
 ├── adding-integrations.md         # How to add a new fantasy provider

@@ -30,6 +30,7 @@ token reuse, caching) matters more than feature volume.
 - **MCP server:** [docs/MCP.md](docs/MCP.md)
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
+- **Onboarding gaps:** [docs/ONBOARDING_AUDIT.md](docs/ONBOARDING_AUDIT.md)
 
 ## Skills (`.claude/commands/`)
 
@@ -62,6 +63,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── ONBOARDING_AUDIT.md            # Onboarding audit (2026-08-31) + phased plan
 ├── DEMO_MODE.md                   # Fake-data mode for out-of-season testing
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport
 ├── adding-integrations.md         # How to add a new fantasy provider
