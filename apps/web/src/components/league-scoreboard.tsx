@@ -35,7 +35,10 @@ function MatchupTile({
   const remaining = counts.live + counts.yetToPlay;
 
   return (
-    <div className="min-w-[220px] flex-shrink-0 rounded-lg border bg-card p-2.5 md:min-w-0">
+    <div
+      data-testid="matchup-tile"
+      className="min-w-[220px] flex-shrink-0 rounded-lg border bg-card p-2.5 md:min-w-0"
+    >
       <div className="flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
         <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -60,13 +63,16 @@ function MatchupTile({
           <p className={cn('min-w-0 flex-1 truncate text-sm', isLeading ? 'font-semibold' : 'font-medium')}>
             {team.name}
           </p>
-          <p className={cn('text-lg font-bold leading-none tabular-nums', isLeading ? 'text-primary' : 'text-foreground')}>
+          <p
+            data-testid="matchup-team-score"
+            className={cn('text-lg font-bold leading-none tabular-nums', isLeading ? 'text-primary' : 'text-foreground')}
+          >
             <span className={cn('inline-block', isMyScoreChanged && 'score-celebrate')}>{score.toFixed(1)}</span>
           </p>
         </div>
         <div className="flex items-baseline gap-2 text-muted-foreground">
           <p className="min-w-0 flex-1 truncate text-xs">{team.opponent?.name ?? 'Opponent'}</p>
-          <p className="text-sm font-semibold leading-none tabular-nums">
+          <p data-testid="matchup-opponent-score" className="text-sm font-semibold leading-none tabular-nums">
             <span className={cn('inline-block', isOpponentScoreChanged && 'score-celebrate')}>
               {opponentScore.toFixed(1)}
             </span>

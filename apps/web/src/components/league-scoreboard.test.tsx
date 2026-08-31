@@ -63,6 +63,16 @@ describe('LeagueScoreboard', () => {
     expect(screen.getByText('+13.3')).toBeInTheDocument()
   })
 
+  it('exposes the test ids the e2e suite addresses tiles by', () => {
+    // apps/web/e2e/main-page.spec.ts locates each league's scores through
+    // these ids; a rename here has to be made there too.
+    renderScoreboard([makeTeam(1, 'My Squad', 124.5, 'Their Squad', 111.2)])
+
+    const tile = screen.getByTestId('matchup-tile')
+    expect(within(tile).getByTestId('matchup-team-score')).toHaveTextContent('124.5')
+    expect(within(tile).getByTestId('matchup-opponent-score')).toHaveTextContent('111.2')
+  })
+
   it('marks a trailing matchup with a negative differential', () => {
     renderScoreboard([makeTeam(1, 'My Squad', 80, 'Their Squad', 95.5)])
     expect(screen.getByText('−15.5')).toBeInTheDocument()
