@@ -5,11 +5,21 @@ Thanks for your interest! Most of what you need lives in the docs.
 ## For humans
 
 - **Local setup, env vars, dev server:** see the [README](README.md)
-  and [docs/COMMANDS.md](docs/COMMANDS.md).
+  and [docs/COMMANDS.md](docs/COMMANDS.md). `DEMO_MODE=1 npm run dev`
+  runs the app with no credentials at all.
+- **Your first contribution:** [docs/ONBOARDING.md](docs/ONBOARDING.md)
 - **How the codebase is laid out:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md)
 - **Running tests:** [docs/TESTING.md](docs/TESTING.md)
 - **Branching and PRs:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
 - **Adding a new fantasy provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
+
+## Before you open a PR
+
+```bash
+npm run lint && npm run typecheck && npm test
+```
+
+All three pass on a clean checkout and all three gate CI.
 
 ## For AI coding agents
 
@@ -19,7 +29,8 @@ the docs above.
 
 ## Test credentials
 
-For any login step in automated tests: `test@test.com` / `test`.
+For any login step in automated tests: `test@test.com` / `testtest`.
+The local Supabase seed (`npm run db:start`) creates this account.
 
 ## `package-lock.json`
 

@@ -6,10 +6,10 @@ Universal instructions for AI coding agents working on **Roster Loom**
 ## Project Overview
 
 A one-stop fantasy football scoreboard. Users connect Sleeper, Yahoo,
-and Ottoneu accounts; the app aggregates their teams and renders live
+Ottoneu and ESPN accounts; the app aggregates their teams and renders live
 matchup data with cross-team player-share indicators.
 
-- **Tech stack:** Next.js 15.3.6 (App Router) · React 18 · TypeScript 5 · Tailwind 3 · Supabase (Postgres + Auth) · Jest 29 · Playwright 1.55
+- **Tech stack:** Next.js 15.3.6 (App Router) · React 19 · TypeScript 5 · Tailwind 3 · Supabase (Postgres + Auth) · Jest 29 · Playwright 1.55
 - **Monorepo:** npm workspaces. Web app at `apps/web/`; mobile app at `apps/mobile/` (Expo / React Native); shared code at `packages/core/` (`@roster-loom/core`). See [docs/MOBILE.md](docs/MOBILE.md) for the mobile quickstart.
 - **Package manager:** **npm** (lockfile is committed; CI requires it in sync)
 - **Node:** **20.x** (from `.nvmrc` and `engines`)
@@ -17,6 +17,7 @@ matchup data with cross-team player-share indicators.
 
 ## Quick Reference
 
+- **Start here (new dev):** [docs/ONBOARDING.md](docs/ONBOARDING.md) — first hour, guided
 - **Commands:** [docs/COMMANDS.md](docs/COMMANDS.md) — every CLI command
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data flow, provider pattern
 - **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md) — where things live, module rules
@@ -45,6 +46,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries, conventions
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── ONBOARDING.md                  # New-developer first hour
 ├── ONBOARDING_AUDIT.md            # Onboarding audit (2026-08-31) + phased plan
 ├── MOBILE.md                      # Mobile app quickstart (Expo Go, env, layout)
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport

@@ -6,12 +6,12 @@ Guidance for [Claude Code](https://claude.com/claude-code) working on
 
 ## Project Overview
 
-Roster Loom aggregates Sleeper, Yahoo, and Ottoneu fantasy football
-teams into a single live scoreboard. The home page fans out to
-1–3 external APIs per render, so performance discipline (batched fetches,
+Roster Loom aggregates Sleeper, Yahoo, Ottoneu and ESPN fantasy
+football teams into a single live scoreboard. The home page fans out to
+1–4 external APIs per render, so performance discipline (batched fetches,
 token reuse, caching) matters more than feature volume.
 
-- **Tech stack:** Next.js 15.3.6 (App Router, Turbopack) · React 18 · TypeScript 5 · Tailwind 3 · Supabase · Jest 29 · Playwright 1.55
+- **Tech stack:** Next.js 15.3.6 (App Router, Turbopack) · React 19 · TypeScript 5 · Tailwind 3 · Supabase · Jest 29 · Playwright 1.55
 - **Monorepo:** npm workspaces. Web app at `apps/web/`; mobile app at `apps/mobile/` (Expo / React Native); shared logic (Sleeper helpers, types, `fetchJson`) at `packages/core/` published as `@roster-loom/core`. Mobile quickstart in [docs/MOBILE.md](docs/MOBILE.md).
 - **Package manager:** `npm` — never use `pnpm` or `yarn` in this repo
 - **Node:** `nvm use` will pick **20.x** from `.nvmrc`
@@ -19,6 +19,7 @@ token reuse, caching) matters more than feature volume.
 
 ## Quick Reference
 
+- **Onboarding:** [docs/ONBOARDING.md](docs/ONBOARDING.md)
 - **Commands:** [docs/COMMANDS.md](docs/COMMANDS.md)
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md)
@@ -63,6 +64,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── ONBOARDING.md                  # New-developer first hour
 ├── ONBOARDING_AUDIT.md            # Onboarding audit (2026-08-31) + phased plan
 ├── DEMO_MODE.md                   # Fake-data mode for out-of-season testing
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport

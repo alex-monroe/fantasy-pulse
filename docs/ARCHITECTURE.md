@@ -2,6 +2,11 @@
 
 High-level design of Roster Loom (a.k.a. fantasy-pulse).
 
+Four providers are supported: **Sleeper**, **Yahoo**, **Ottoneu** and
+**ESPN**. They are not interchangeable — Sleeper is username-based,
+Yahoo is OAuth, Ottoneu is scraped from public pages, and ESPN reuses
+two cookies copied from a logged-in browser session.
+
 ## Tech stack
 
 | Layer            | Choice                                                         |
@@ -9,7 +14,7 @@ High-level design of Roster Loom (a.k.a. fantasy-pulse).
 | Framework        | Next.js **15.3.6** (App Router, Turbopack dev)                 |
 | Language         | TypeScript 5                                                   |
 | Runtime          | Node **20.x** (`engines` + `.nvmrc`)                           |
-| UI               | React 18, Tailwind CSS 3, shadcn/Radix UI                      |
+| UI               | React 19, Tailwind CSS 3, shadcn/Radix UI                      |
 | Auth + DB        | Supabase (Postgres + Auth, SSR via `@supabase/ssr`)            |
 | Unit tests       | Jest 29 + Testing Library (jsdom env)                          |
 | E2E tests        | Playwright 1.55 (CI-only; see [TESTING.md](TESTING.md))        |
@@ -25,7 +30,7 @@ apps/web/                     # Next.js app (Vercel deploys this)
 │   ├── app/                  # Next.js App Router
 │   │   ├── (dashboard)/      # Authenticated dashboard route group
 │   │   ├── api/              # Route handlers (OAuth callbacks, teams API)
-│   │   ├── integrations/     # One folder per provider (sleeper, yahoo, ottoneu)
+│   │   ├── integrations/     # One per provider (sleeper, yahoo, ottoneu, espn)
 │   │   ├── login/  register/
 │   │   ├── actions.ts        # Cross-provider server actions (team building, scoring)
 │   │   ├── layout.tsx  page.tsx  loading.tsx
@@ -57,16 +62,17 @@ User → / (home)
       → apps/web/src/app/page.tsx (server component)
         → apps/web/src/app/actions.ts:buildAllTeams()
           → for each user_integration:
-              → sleeper/actions.ts | yahoo/actions.ts | ottoneu/actions.ts
+              → sleeper | yahoo | ottoneu | espn actions.ts
                 → external API (cached/throttled per provider)
-              → mapSleeperPlayer / Yahoo parser / Ottoneu scraper (JSDOM)
+              → mapSleeperPlayer / Yahoo parser / Ottoneu scraper (JSDOM) / ESPN parser
             → merge into Team[] with cross-team Player share counts
         → render PlayerCard grid with live scores + game progress
 ```
 
-Every provider follows the same shape: an `actions.ts` (server), a `page.tsx`
-(integration management UI), a per-provider `README.md`, and an
-`*.example.json` snapshot for the most useful API response.
+Every provider follows the same shape: an `actions.ts` (server), a
+`page.tsx` (integration management UI), a colocated `actions.test.ts`, a
+per-provider `README.md`, and an `*.example.json` snapshot for the most
+useful API response where one applies.
 
 `getTeams()` is the single seam every consumer sits behind: the web
 render, the mobile app (via `/api/teams/refresh`), demo mode, and the
@@ -76,8 +82,10 @@ render, the mobile app (via `/api/teams/refresh`), demo mode, and the
 
 Each integration under `apps/web/src/app/integrations/<provider>/`:
 
-- `actions.ts` — `'use server'` API calls + DB writes; export
-  `build<Provider>Teams` consumed by `apps/web/src/app/actions.ts`
+- `actions.ts` — `'use server'` API calls + DB writes. Note that the
+  `build<Provider>Teams` functions, which turn a provider's raw payloads
+  into `Team[]`, currently live in `apps/web/src/app/actions.ts` rather
+  than here.
 - `actions.test.ts` — unit tests colocated next to implementation
 - `page.tsx` — UI for connecting and managing the integration
 - `README.md` — flow + payload shapes
@@ -108,7 +116,7 @@ keeps sessions fresh on every request.
 
 ## Performance discipline
 
-The home page assembles data from 1–3 external fantasy APIs on every
+The home page assembles data from 1–4 external fantasy APIs on every
 load. Recent commits (see `git log`) have focused on:
 
 - `Promise.all` fan-out in `apps/web/src/app/actions.ts`

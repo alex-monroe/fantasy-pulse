@@ -191,7 +191,7 @@ the tools with fake data out of season.
 
 ## Performance
 
-The provider fan-out is expensive (1–3 external APIs), so it is loaded
+The provider fan-out is expensive (1–4 external APIs), so it is loaded
 lazily and at most once per request: `initialize` and `tools/list` never
 touch a provider, and a batch containing several `tools/call` messages
 still fans out only once. `dispatchMcpPayload` owns that guarantee, so

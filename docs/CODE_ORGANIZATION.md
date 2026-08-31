@@ -35,9 +35,10 @@ Pure TypeScript only. No React, no Next.js, no browser-only globals
 mobile app shares this code, so anything that doesn't run in both
 environments belongs in an app, not the package.
 
-Currently shared: shared types (`types.ts`), Sleeper helpers
-(`sleeper.ts`), `fetchJson`, and mock data fixtures. Import as
-`@roster-loom/core`.
+Currently shared: types (`types.ts`), Sleeper helpers (`sleeper.ts`),
+`fetchJson` (`fetch-json.ts`), matchup grouping (`matchups.ts`), player
+game status (`player-status.ts`), the demo generator (`demo-data.ts`)
+and mock fixtures (`mock-data.ts`). Import as `@roster-loom/core`.
 
 ## `apps/web/src/app/` — Next.js App Router
 
@@ -66,8 +67,13 @@ integrations/<provider>/
 ├── actions.test.ts      # Jest tests, colocated
 ├── page.tsx             # Connect / manage UI
 ├── README.md            # Flow + payload shapes
-└── *.example.json       # Captured API response (when applicable)
+└── *.example.json       # Captured API response (sleeper, yahoo)
 ```
+
+The four providers are `sleeper`, `yahoo`, `ottoneu` and `espn`. A Jest
+test asserts that this list matches the `FantasyProvider` union in
+`packages/core/src/types.ts` and that each provider is named in the
+docs, so a fifth cannot be added without the documentation following.
 
 Adding a new provider? Follow [adding-integrations.md](adding-integrations.md);
 it codifies this exact pattern.
