@@ -1,7 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Users } from 'lucide-react';
+import Link from 'next/link';
 import {
   Team,
   Player,
@@ -10,18 +11,16 @@ import {
   assignTeamColors,
   createPlayerAggregationKey,
   groupMatchupPlayers,
-  groupPlayersByPosition,
 } from '@roster-loom/core';
 import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { Badge } from '@/components/ui/badge';
-import { PlayerCard } from '@/components/player-card';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AppNavigation } from '@/components/app-navigation';
+import { LeagueScoreboard } from '@/components/league-scoreboard';
 import { MatchupPrioritySelector } from '@/components/matchup-priority-selector';
+import { PlayerBoard } from '@/components/player-board';
 
 /**
  * The main content of the application.
@@ -222,14 +221,8 @@ function AppContent({
     [teams, matchupPriority]
   );
 
-  const myStarters = myPlayers.filter(p => !p.onBench);
-  const myBench = myPlayers.filter(p => p.onBench);
-  const opponentStarters = opponentPlayers.filter(p => !p.onBench);
-  const opponentBench = opponentPlayers.filter(p => p.onBench);
-
-  const myPlayersByPosition = groupPlayersByPosition(myStarters);
-  const opponentPlayersByPosition = groupPlayersByPosition(opponentStarters);
-  const positions = ['QB', 'WR', 'RB', 'TE', 'Other'];
+  const [showOpponents, setShowOpponents] = useState(true);
+  const [isScoreboardCollapsed, setIsScoreboardCollapsed] = useState(false);
 
   const handleRefreshClick = () => {
     void onRefresh();
@@ -244,6 +237,8 @@ function AppContent({
     return key ? changedPlayerScoreKeys.has(key) : false;
   };
 
+  const hasTeams = teams.length > 0;
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppNavigation
@@ -254,6 +249,18 @@ function AppContent({
               teamColors={teamColors}
               onPriorityChange={(order) => setMatchupPriority(order)}
             />
+            <Button
+              // Desktop-only: on a phone the boards stack anyway, and the
+              // nav has no room for a fourth control.
+              className="hidden sm:inline-flex"
+              variant={showOpponents ? 'secondary' : 'outline'}
+              onClick={() => setShowOpponents((previous) => !previous)}
+              aria-pressed={showOpponents}
+              title={showOpponents ? 'Hide opponent rosters' : 'Show opponent rosters'}
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden lg:inline">Opponents</span>
+            </Button>
             <Button
               variant="outline"
               onClick={handleRefreshClick}
@@ -266,135 +273,59 @@ function AppContent({
           </div>
         )}
       />
-      <div className="sticky top-14 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="flex gap-2 overflow-x-auto px-2 py-2 sm:px-4 md:px-6">
-          {teams.map((team, index) => {
-            const color = teamColors.get(team.id) ?? MATCHUP_COLORS[index % MATCHUP_COLORS.length];
-            const teamScoreKey = `team-${team.id}-total`;
-            const opponentScoreKey = `team-${team.id}-opponent`;
-            return (
-              <div
-                key={team.id}
-                className="flex min-w-[200px] flex-shrink-0 items-center gap-2 rounded-md border bg-card px-2.5 py-1.5"
-              >
-                <div className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-xs font-medium leading-tight">{team.name}</p>
-                    <p className="text-base font-bold leading-tight text-primary">
-                      <span className={cn('inline-block', changedTeamScoreKeys.has(teamScoreKey) && 'score-celebrate')}>
-                        {(team.totalScore ?? 0).toFixed(1)}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-xs text-muted-foreground leading-tight">{team.opponent?.name ?? 'Opponent'}</p>
-                    <p className="text-base font-bold leading-tight text-muted-foreground">
-                      <span className={cn('inline-block', changedTeamScoreKeys.has(opponentScoreKey) && 'score-celebrate')}>
-                        {(team.opponent?.totalScore ?? 0).toFixed(1)}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 space-y-2">
-          {refreshError && (
-            <Alert variant="destructive">
-              <AlertTitle>Refresh failed</AlertTitle>
-              <AlertDescription>{refreshError}</AlertDescription>
-            </Alert>
-          )}
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 items-start">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3">
-                        <CardTitle className="text-sm font-semibold sm:text-base">My Players</CardTitle>
-                        <Badge variant="secondary" className="ml-2">{myPlayers.length}</Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2.5 p-2 pt-0 sm:p-3 sm:pt-0">
-                        {positions.map(position => (
-                          myPlayersByPosition[position].length > 0 && (
-                            <div key={position}>
-                              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{position}</h3>
-                              <div className="space-y-1">
-                                {myPlayersByPosition[position]
-                                  .sort((a, b) => b.score - a.score)
-                                  .map(player => (
-                                    <PlayerCard
-                                      key={`my-player-${player.id}-${player.name}`}
-                                      player={player}
-                                      isScoreChanged={isPlayerScoreChanged(player)}
-                                    />
-                                  ))}
-                              </div>
-                            </div>
-                          )
-                        ))}
-                        {myBench.length > 0 && (
-                            <div>
-                                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Bench</h3>
-                                <div className="space-y-1">
-                                    {myBench
-                                        .sort((a, b) => b.score - a.score)
-                                        .map(player => (
-                                            <PlayerCard
-                                              key={`my-bench-${player.id}-${player.name}`}
-                                              player={player}
-                                              isScoreChanged={isPlayerScoreChanged(player)}
-                                            />
-                                        ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3">
-                        <CardTitle className="text-sm font-semibold sm:text-base">Opponent Players</CardTitle>
-                        <Badge variant="secondary" className="ml-2">{opponentPlayers.length}</Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2.5 p-2 pt-0 sm:p-3 sm:pt-0">
-                        {positions.map(position => (
-                          opponentPlayersByPosition[position].length > 0 && (
-                            <div key={position}>
-                              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{position}</h3>
-                              <div className="space-y-1">
-                                {opponentPlayersByPosition[position]
-                                  .sort((a, b) => b.score - a.score)
-                                  .map(player => (
-                                    <PlayerCard
-                                      key={`opponent-player-${player.id}-${player.name}`}
-                                      player={player}
-                                      isScoreChanged={isPlayerScoreChanged(player)}
-                                    />
-                                  ))}
-                              </div>
-                            </div>
-                          )
-                        ))}
-                        {opponentBench.length > 0 && (
-                            <div>
-                                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Bench</h3>
-                                <div className="space-y-1">
-                                    {opponentBench
-                                        .sort((a, b) => b.score - a.score)
-                                        .map(player => (
-                                            <PlayerCard
-                                              key={`opponent-bench-${player.id}-${player.name}`}
-                                              player={player}
-                                              isScoreChanged={isPlayerScoreChanged(player)}
-                                            />
-                                        ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+      <LeagueScoreboard
+        teams={teams}
+        teamColors={teamColors}
+        changedScoreKeys={changedTeamScoreKeys}
+        collapsed={isScoreboardCollapsed}
+        onToggleCollapsed={() => setIsScoreboardCollapsed((previous) => !previous)}
+      />
+
+      <main className="flex-1 px-2 py-3 sm:px-4 lg:px-6">
+        {refreshError && (
+          <Alert variant="destructive" className="mb-3">
+            <AlertTitle>Refresh failed</AlertTitle>
+            <AlertDescription>{refreshError}</AlertDescription>
+          </Alert>
+        )}
+
+        {hasTeams ? (
+          // Opponents shown: two half-width boards side by side on desktop.
+          // Opponents hidden: one full-bleed board, so your own players
+          // spread across every column the screen has.
+          <div className={cn('grid items-start gap-5', showOpponents && 'lg:grid-cols-2 lg:gap-6')}>
+            <PlayerBoard
+              title="My players"
+              players={myPlayers}
+              width={showOpponents ? 'split' : 'wide'}
+              keyPrefix="mine"
+              isPlayerScoreChanged={isPlayerScoreChanged}
+            />
+            {showOpponents && (
+              <PlayerBoard
+                title="Opponents"
+                tone="opponent"
+                players={opponentPlayers}
+                width="split"
+                keyPrefix="opponent"
+                isPlayerScoreChanged={isPlayerScoreChanged}
+                className="lg:border-l lg:pl-6"
+              />
+            )}
+          </div>
+        ) : (
+          <div className="mx-auto mt-12 max-w-md rounded-lg border border-dashed p-10 text-center">
+            <h2 className="text-base font-semibold">No matchups to show</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Connect a Sleeper, Yahoo, ESPN, or Ottoneu league and every roster you own
+              shows up here on one board.
+            </p>
+            <Button asChild className="mt-4">
+              <Link href="/integrations">Connect a league</Link>
+            </Button>
+          </div>
+        )}
       </main>
     </div>
   )

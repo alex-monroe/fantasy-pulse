@@ -75,7 +75,13 @@ it codifies this exact pattern.
 ## `apps/web/src/components/`
 
 - Top-level: app-specific components (`home-page.tsx`,
-  `player-card.tsx`, `app-navigation.tsx`, `matchup-priority-selector.tsx`)
+  `league-scoreboard.tsx`, `player-board.tsx`, `player-card.tsx`,
+  `app-navigation.tsx`, `matchup-priority-selector.tsx`)
+
+  The dashboard is three layers: `home-page.tsx` owns the data and the
+  view state, `league-scoreboard.tsx` is the sticky per-league matchup
+  rail, and `player-board.tsx` lays every player out in position bands
+  built from `PlayerCard`s.
 - `components/ui/`: shadcn/Radix primitives — treat as generated/library
   code; only edit if you'd accept the change upstream.
 
