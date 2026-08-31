@@ -39,6 +39,9 @@ apps/web/                     # Next.js app (Vercel deploys this)
 │   ├── components/           # App-specific + shadcn UI primitives (`components/ui`)
 │   ├── hooks/                # React hooks (`use-mobile`, `use-toast`)
 │   ├── lib/                  # Web-only: env, `cn`, doc-map test
+│   ├── lib/nfl/              # Cross-provider infrastructure: week,
+│   │                         #   scoreboard, Sleeper player cache,
+│   │                         #   name matching, scoring profile
 │   ├── utils/                # logger, performance-logger, supabase clients
 │   └── middleware.ts         # Supabase session refresh middleware
 └── e2e/                      # Playwright specs (do not run locally — see TESTING.md)
@@ -60,14 +63,17 @@ See [CODE_ORGANIZATION.md](CODE_ORGANIZATION.md) for module boundaries and conve
 ```
 User → / (home)
       → apps/web/src/app/page.tsx (server component)
-        → apps/web/src/app/actions.ts:buildAllTeams()
-          → for each user_integration:
-              → sleeper | yahoo | ottoneu | espn actions.ts
-                → external API (cached/throttled per provider)
-              → mapSleeperPlayer / Yahoo parser / Ottoneu scraper (JSDOM) / ESPN parser
-            → merge into Team[] with cross-team Player share counts
+        → apps/web/src/app/actions.ts:getTeams()
+          → shared per-request data (lib/nfl/): week, Sleeper player
+            list, ESPN scoreboard
+          → Promise.all over user_integrations:
+              → integrations/<provider>/build-teams.ts
+                → integrations/<provider>/actions.ts → external API
+          → merge into Team[] with cross-team Player share counts
         → render PlayerCard grid with live scores + game progress
 ```
+
+Step by step, with file references: [DATA_FLOW.md](DATA_FLOW.md).
 
 Every provider follows the same shape: an `actions.ts` (server), a
 `page.tsx` (integration management UI), a colocated `actions.test.ts`, a
@@ -82,10 +88,9 @@ render, the mobile app (via `/api/teams/refresh`), demo mode, and the
 
 Each integration under `apps/web/src/app/integrations/<provider>/`:
 
-- `actions.ts` — `'use server'` API calls + DB writes. Note that the
-  `build<Provider>Teams` functions, which turn a provider's raw payloads
-  into `Team[]`, currently live in `apps/web/src/app/actions.ts` rather
-  than here.
+- `actions.ts` — `'use server'` API calls + DB writes
+- `build-teams.ts` — `build<Provider>Teams`, which turns this provider's
+  payloads into `Team[]`; consumed by `apps/web/src/app/actions.ts`
 - `actions.test.ts` — unit tests colocated next to implementation
 - `page.tsx` — UI for connecting and managing the integration
 - `README.md` — flow + payload shapes

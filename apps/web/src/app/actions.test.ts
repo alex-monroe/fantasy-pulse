@@ -1,5 +1,12 @@
 import * as actions from './actions';
-const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCache } = actions;
+const { getTeams, invalidateSleeperPlayersCache } = actions;
+// The builders live next to the provider whose payloads they translate.
+// They import their data functions from `./actions` in the same folder,
+// which is a different module — so the jest.mock calls below still
+// intercept them.
+import { buildSleeperTeams } from './integrations/sleeper/build-teams';
+import { buildYahooTeams } from './integrations/yahoo/build-teams';
+import { buildEspnTeams } from './integrations/espn/build-teams';
 import { mapSleeperPlayer } from '@roster-loom/core';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@roster-loom/core';
 import { createClient } from '@/utils/supabase/server';
@@ -17,12 +24,12 @@ import {
   getYahooAccessToken,
 } from '@/app/integrations/yahoo/actions';
 import {
-  getLeagues as getOttoneuLeagues,
+  getOttoneuLeagueRows as getOttoneuLeagues,
   getOttoneuTeamInfo,
 } from '@/app/integrations/ottoneu/actions';
 import {
-  getLeagues as getEspnLeagues,
-  getTeams as getEspnTeamRows,
+  getEspnLeagueRows as getEspnLeagues,
+  getEspnTeamRows,
   getEspnMatchup,
 } from '@/app/integrations/espn/actions';
 
@@ -46,13 +53,13 @@ jest.mock('@/app/integrations/yahoo/actions', () => ({
 }));
 
 jest.mock('@/app/integrations/ottoneu/actions', () => ({
-  getLeagues: jest.fn(),
+  getOttoneuLeagueRows: jest.fn(),
   getOttoneuTeamInfo: jest.fn(),
 }));
 
 jest.mock('@/app/integrations/espn/actions', () => ({
-  getLeagues: jest.fn(),
-  getTeams: jest.fn(),
+  getEspnLeagueRows: jest.fn(),
+  getEspnTeamRows: jest.fn(),
   getEspnMatchup: jest.fn(),
 }));
 
@@ -1469,7 +1476,7 @@ describe('actions', () => {
         },
       });
 
-      const result = await actions.buildEspnTeams({ id: 42 }, {});
+      const result = await buildEspnTeams({ id: 42 }, {});
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
@@ -1529,7 +1536,7 @@ describe('actions', () => {
         ['1', { player_id: '1', week: 3, season: '2025', stats: { pts_half_ppr: 22.1 } }],
       ]);
 
-      const result = await actions.buildEspnTeams(
+      const result = await buildEspnTeams(
         { id: 42 },
         playerNameMap,
         sleeperProjectionsByPlayerId
@@ -1541,7 +1548,7 @@ describe('actions', () => {
     it('returns no teams when there are no stored ESPN teams', async () => {
       (getEspnTeamRows as jest.Mock).mockResolvedValue({ teams: [], error: null });
 
-      const result = await actions.buildEspnTeams({ id: 42 }, {});
+      const result = await buildEspnTeams({ id: 42 }, {});
 
       expect(result).toEqual([]);
     });
@@ -1554,7 +1561,7 @@ describe('actions', () => {
       (getEspnLeagues as jest.Mock).mockResolvedValue({ leagues: [] });
       (getEspnMatchup as jest.Mock).mockResolvedValue({ error: 'Failed to fetch matchup from ESPN: unknown error' });
 
-      const result = await actions.buildEspnTeams({ id: 42 }, {});
+      const result = await buildEspnTeams({ id: 42 }, {});
 
       expect(result).toEqual([]);
     });

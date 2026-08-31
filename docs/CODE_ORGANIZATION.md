@@ -64,6 +64,7 @@ Every provider directory follows the **same five-file pattern**:
 ```
 integrations/<provider>/
 ├── actions.ts           # 'use server' API calls + DB writes
+├── build-teams.ts       # build<Provider>Teams: payloads → Team[]
 ├── actions.test.ts      # Jest tests, colocated
 ├── page.tsx             # Connect / manage UI
 ├── README.md            # Flow + payload shapes
@@ -102,6 +103,13 @@ Component tests are colocated as `<name>.test.tsx` next to the implementation.
 - `doc-map.test.ts`     enforces that AGENTS.md / CLAUDE.md links resolve
 - `fetch-json.test.ts`  tests for `fetchJson` (the implementation lives
                         in `packages/core/`)
+- `nfl/`                cross-provider infrastructure the four builders
+                        share: `week.ts`, `scoreboard.ts`,
+                        `sleeper-players.ts` (cached master list),
+                        `player-matching.ts` (name → Sleeper id),
+                        `projections.ts`. Lives here rather than in a
+                        provider folder so providers never import each
+                        other.
 - `mcp/`                the MCP server: `protocol.ts` (JSON-RPC / transport),
                         `tools.ts` (definitions + handlers), `views.ts`
                         (pure `Team[]` transforms), `tokens.ts` (access
@@ -140,8 +148,9 @@ edit a committed migration — add a new one. After changes, regenerate
 ## Module boundaries (rules)
 
 1. **Providers don't import providers.** `integrations/yahoo` must not
-   import from `integrations/sleeper`. Cross-provider orchestration
-   lives in `apps/web/src/app/actions.ts`.
+   import from `integrations/sleeper`. Shared infrastructure belongs in
+   `apps/web/src/lib/nfl/`; cross-provider orchestration lives in
+   `apps/web/src/app/actions.ts`. An ESLint rule enforces this.
 2. **`'use server'` files don't get imported by client components**
    except through Server Actions. Keep React Server Component code in
    `page.tsx` / `layout.tsx`.

@@ -355,7 +355,7 @@ export async function getEspnIntegration() {
  * Gets the leagues linked to an ESPN integration.
  * @param integrationId - The integration ID.
  */
-export async function getLeagues(integrationId: number) {
+export async function getEspnLeagueRows(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('fp_leagues')
@@ -373,7 +373,7 @@ export async function getLeagues(integrationId: number) {
  * Gets the teams linked to an ESPN integration.
  * @param integrationId - The integration ID.
  */
-export async function getTeams(integrationId: number) {
+export async function getEspnTeamRows(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('fp_teams')

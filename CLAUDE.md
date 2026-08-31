@@ -22,6 +22,7 @@ token reuse, caching) matters more than feature volume.
 - **Onboarding:** [docs/ONBOARDING.md](docs/ONBOARDING.md)
 - **Commands:** [docs/COMMANDS.md](docs/COMMANDS.md)
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Data flow:** [docs/DATA_FLOW.md](docs/DATA_FLOW.md)
 - **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md)
 - **Testing:** [docs/TESTING.md](docs/TESTING.md)
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
@@ -60,6 +61,7 @@ packages/core/                     # @roster-loom/core — shared logic + types
 supabase/                          # Migrations (shared OttoneuDB)
 docs/
 ├── ARCHITECTURE.md                # System design, tech stack, data flow
+├── DATA_FLOW.md                   # One request end to end, with file refs
 ├── COMMANDS.md                    # All CLI commands grouped by domain
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals

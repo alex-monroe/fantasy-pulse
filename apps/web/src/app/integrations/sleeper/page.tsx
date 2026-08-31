@@ -6,7 +6,7 @@ import {
   connectSleeper,
   getSleeperLeagues,
   getSleeperIntegration,
-  getLeagues,
+  getSleeperLeagueRows,
   removeSleeperIntegration,
   getLeagueMatchups,
 } from './actions';
@@ -112,7 +112,7 @@ export default function SleeperPage() {
   useEffect(() => {
     if (integration) {
       const fetchLeagues = async () => {
-        const dbResponse = await getLeagues(integration.id);
+        const dbResponse = await getSleeperLeagueRows(integration.id);
         if (dbResponse.error) {
           setError(dbResponse.error);
           return;

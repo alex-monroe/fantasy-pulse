@@ -393,7 +393,7 @@ export async function getOttoneuIntegration() {
  * cookies) must pass their own client so this RLS-scoped read resolves
  * to the right user instead of silently returning zero rows.
  */
-export async function getLeagues(
+export async function getOttoneuLeagueRows(
   integrationId: number,
   client?: SupabaseClient
 ) {

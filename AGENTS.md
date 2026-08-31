@@ -20,6 +20,7 @@ matchup data with cross-team player-share indicators.
 - **Start here (new dev):** [docs/ONBOARDING.md](docs/ONBOARDING.md) — first hour, guided
 - **Commands:** [docs/COMMANDS.md](docs/COMMANDS.md) — every CLI command
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data flow, provider pattern
+- **Data flow:** [docs/DATA_FLOW.md](docs/DATA_FLOW.md) — one request, end to end
 - **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md) — where things live, module rules
 - **Testing:** [docs/TESTING.md](docs/TESTING.md) — Jest setup, why E2E is off-limits
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — branch + PR rules
@@ -42,6 +43,7 @@ packages/core/                     # @roster-loom/core — shared logic + types
 supabase/                          # Migrations (shared OttoneuDB)
 docs/
 ├── ARCHITECTURE.md                # System design, tech stack, data flow
+├── DATA_FLOW.md                   # One request end to end, with file refs
 ├── COMMANDS.md                    # All CLI commands grouped by domain
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries, conventions
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals

@@ -3,7 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
-import { getCurrentNflWeek } from '@/app/actions';
+import { getCurrentNflWeek } from '@/lib/nfl/week';
 import logger from '@/utils/logger';
 import { fetchJson } from '@roster-loom/core';
 import { getEnv } from '@/lib/env';
@@ -203,7 +203,7 @@ export async function removeYahooIntegration(integrationId: number) {
  * @param integrationId - The ID of the integration.
  * @returns A list of leagues or an error.
  */
-export async function getLeagues(integrationId: number) {
+export async function getYahooLeagueRows(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('fp_leagues')
@@ -222,7 +222,7 @@ export async function getLeagues(integrationId: number) {
  * @param integrationId - The ID of the integration.
  * @returns A list of teams or an error.
  */
-export async function getTeams(integrationId: number) {
+export async function getYahooTeamRows(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('fp_teams')

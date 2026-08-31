@@ -5,8 +5,8 @@ import ReactConfetti from 'react-confetti';
 import {
   connectEspn,
   getEspnIntegration,
-  getLeagues,
-  getTeams,
+  getEspnLeagueRows,
+  getEspnTeamRows,
   getEspnMatchup,
   removeEspnIntegration,
 } from './actions';
@@ -62,8 +62,8 @@ export default function EspnPage() {
     if (!integration) return;
     const fetchLinked = async () => {
       const [leaguesRes, teamsRes] = await Promise.all([
-        getLeagues(integration.id),
-        getTeams(integration.id),
+        getEspnLeagueRows(integration.id),
+        getEspnTeamRows(integration.id),
       ]);
       if (leaguesRes.error) {
         setError(leaguesRes.error);

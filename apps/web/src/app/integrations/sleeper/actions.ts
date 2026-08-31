@@ -104,7 +104,7 @@ export async function removeSleeperIntegration(integrationId: number) {
  * @param integrationId - The ID of the integration.
  * @returns A list of leagues or an error.
  */
-export async function getLeagues(integrationId: number) {
+export async function getSleeperLeagueRows(integrationId: number) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('fp_leagues')

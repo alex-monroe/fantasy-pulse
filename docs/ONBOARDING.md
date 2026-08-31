@@ -48,16 +48,18 @@ memorising an API.
    The whole app is "turn four different providers' payloads into
    `Team[]`, then render it."
 
-2. **`apps/web/src/app/actions.ts`** — the orchestrator. Start at
-   `getTeams()` at the bottom: it resolves the user, fans out to every
-   connected provider in parallel, merges the results, and counts how
-   many of your teams each player appears on. This is the single seam
-   the web render, the mobile app, demo mode and the MCP server all sit
-   behind.
+2. **`apps/web/src/app/actions.ts`** — the orchestrator, and only ~340
+   lines. `getTeams()` resolves the user, fans out to every connected
+   provider in parallel, merges the results, and counts how many of your
+   teams each player appears on. This is the single seam the web render,
+   the mobile app, demo mode and the MCP server all sit behind.
+   [DATA_FLOW.md](DATA_FLOW.md) traces one request through it with file
+   references.
 
 3. **One provider, end to end** — pick
    `apps/web/src/app/integrations/sleeper/`. Read its `README.md`, then
-   `actions.ts`, then `actions.test.ts`. Sleeper is the simplest of the
+   `actions.ts` (the API calls), then `build-teams.ts` (payloads →
+   `Team[]`). Sleeper is the simplest of the
    four (no auth, public JSON API). Once you've read one, the other
    three differ mainly in how they authenticate — see the table in
    [adding-integrations.md](adding-integrations.md).

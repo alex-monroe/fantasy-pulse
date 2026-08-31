@@ -47,7 +47,7 @@ const rosterExample = {
 jest.mock('@roster-loom/core', () => ({ fetchJson: jest.fn() }));
 jest.mock('@/utils/supabase/server', () => ({ createClient: jest.fn() }));
 jest.mock('@/utils/logger', () => ({ info: jest.fn(), error: jest.fn(), debug: jest.fn() }));
-jest.mock('@/app/actions', () => ({ getCurrentNflWeek: jest.fn().mockResolvedValue(2) }));
+jest.mock('@/lib/nfl/week', () => ({ getCurrentNflWeek: jest.fn().mockResolvedValue(2) }));
 
 describe('yahoo actions', () => {
   const eqChain = jest.fn().mockReturnThis();

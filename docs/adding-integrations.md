@@ -27,9 +27,18 @@ mainly in how they authenticate:
    - If OAuth is required, create `apps/web/src/app/api/auth/<provider>/route.ts` similar to `apps/web/src/app/api/auth/yahoo/route.ts`.
    - Add any required environment variables to `.env.example`.
 
-3. **Update shared actions**
-   - Implement a helper like `build<Provider>Teams` in `apps/web/src/app/actions.ts`.
-   - Export any provider-specific functions and add corresponding tests in `apps/web/src/app/actions.test.ts`.
+3. **Build teams**
+   - Implement `build<Provider>Teams` in
+     `apps/web/src/app/integrations/<provider>/build-teams.ts`, returning
+     `Team[]`. It imports its data functions from `./actions` and any
+     shared infrastructure (week, scoreboard, Sleeper player list, name
+     matching) from `@/lib/nfl/*` — never from another provider.
+   - Register it in the `teamBuilders` map in
+     `apps/web/src/app/actions.ts` and add a branch for the new
+     `provider` value in `getTeams`.
+   - Add the provider to the `FantasyProvider` union in
+     `packages/core/src/types.ts`. A test asserts that union, the
+     `integrations/` directory listing and the docs all agree.
 
 4. **Expose in the UI**
    - Add a card linking to the new provider in `apps/web/src/app/integrations/page.tsx`.

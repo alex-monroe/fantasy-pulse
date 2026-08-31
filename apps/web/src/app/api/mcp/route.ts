@@ -14,7 +14,8 @@
  */
 import { NextResponse } from 'next/server';
 
-import { getCurrentNflWeek, getTeams } from '@/app/actions';
+import { getTeams } from '@/app/actions';
+import { getCurrentNflWeek } from '@/lib/nfl/week';
 import { DEMO_HEADER, resolveDemoMode } from '@/lib/demo-mode';
 import { dispatchMcpPayload, SUPPORTED_PROTOCOL_VERSIONS } from '@/lib/mcp/protocol';
 import { resolveOAuthAccessTokenUser } from '@/lib/mcp/oauth';

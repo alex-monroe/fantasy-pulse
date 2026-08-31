@@ -5,7 +5,7 @@ import {
   connectOttoneu,
   getOttoneuIntegration,
   removeOttoneuIntegration,
-  getLeagues,
+  getOttoneuLeagueRows,
   getOttoneuTeamInfo,
   getOttoneuLeagueTeams,
 } from './actions';
@@ -51,7 +51,7 @@ export default function OttoneuPage() {
       }
       if (integration) {
         setIntegration(integration);
-        const { leagues } = await getLeagues(integration.id);
+        const { leagues } = await getOttoneuLeagueRows(integration.id);
         if (cancelled) return;
         if (leagues && leagues[0]) {
           setLeagueName(leagues[0].name);

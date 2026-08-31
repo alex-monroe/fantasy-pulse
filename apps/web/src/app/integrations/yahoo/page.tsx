@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getYahooIntegration, getLeagues, removeYahooIntegration, getYahooLeagues, getYahooRoster, getYahooUserTeams, getTeams } from './actions';
+import { getYahooIntegration, getYahooLeagueRows, removeYahooIntegration, getYahooLeagues, getYahooRoster, getYahooUserTeams, getYahooTeamRows } from './actions';
 import { AppNavigation } from '@/components/app-navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -103,7 +103,7 @@ export default function YahooPage() {
       const fetchLeaguesAndTeams = async () => {
         setError(null);
         // Fetch leagues
-        const leaguesDbResponse = await getLeagues(integration.id);
+        const leaguesDbResponse = await getYahooLeagueRows(integration.id);
         if (leaguesDbResponse.error) {
           setError(leaguesDbResponse.error);
         } else if (leaguesDbResponse.leagues && leaguesDbResponse.leagues.length > 0) {
@@ -118,7 +118,7 @@ export default function YahooPage() {
         }
 
         // Fetch teams
-        const teamsDbResponse = await getTeams(integration.id);
+        const teamsDbResponse = await getYahooTeamRows(integration.id);
         if (teamsDbResponse.error) {
           setError(teamsDbResponse.error);
         } else if (teamsDbResponse.teams && teamsDbResponse.teams.length > 0) {

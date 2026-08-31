@@ -95,6 +95,7 @@ one fails, you broke it. E2E tests exist but are CI-only — see
 | Doc | What's in it |
 | --- | --- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flow, the provider pattern |
+| [docs/DATA_FLOW.md](docs/DATA_FLOW.md) | One request end to end, with file references |
 | [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md) | Where things live, module boundaries |
 | [docs/COMMANDS.md](docs/COMMANDS.md) | Every CLI command, grouped by domain |
 | [docs/TESTING.md](docs/TESTING.md) | Jest setup, the E2E policy, CI signals |
