@@ -4,6 +4,12 @@ Point-in-time audit of `alex-monroe/fantasy-pulse` (Roster Loom) against
 one question: **what does it cost someone who has never seen this repo to
 become productive in it?**
 
+**Status: phases 1–3 and 5–8 implemented; phase 4 partially.** The
+findings below are preserved as written, as a record of what was true on
+the audit date — several name files that have since been deleted. See
+[Implementation status](#implementation-status) at the end for what
+landed and what is still open.
+
 Performed against `main` at `86f0b78` on 2026-08-31. Findings were
 verified by running `npm install`, `npm test`, `npm run typecheck` and
 `npm run lint` on a clean checkout, and by reading
@@ -524,3 +530,55 @@ extend ideas already here.
 - **The agent permission list** in `.claude/settings.json` — carefully
   considered, and a good model for the human-facing "how we work here"
   note proposed in Phase 7.
+
+## Implementation status
+
+Worked through in order; each phase is one commit, and lint, typecheck,
+the full Jest suite and a production build were green at every step.
+
+| Phase | State | Notes |
+| ----- | ----- | ----- |
+| 1 — honest checks | **done** | 79 type errors and 1 lint error cleared, `ignoreBuildErrors` removed, `.github/workflows/ci.yml` added |
+| 2 — zero-credential run | **done** | `DEMO_MODE=1 npm run dev` needs no account; local Supabase config + seed added |
+| 3 — front door | **done** | README, mobile README, CONTRIBUTING, ESPN everywhere, React 19, widened doc-map test |
+| 4 — database | **partial** | Schema reference now covers all 8 tables and 8 functions; **`database.types.ts` and the RLS audit are still open** |
+| 5 — surface area | **done** | 20 UI components and 21 dependencies removed |
+| 6 — split the orchestrator | **done** | `actions.ts` 1,726 → 342 lines; cycle broken; `DATA_FLOW.md` added |
+| 7 — first contribution | **done** | `docs/ONBOARDING.md` |
+| 8 — drift prevention | **done** | 4 lint rules, 3 doc-invariant tests, enforcement table |
+
+### Still open
+
+1. **D5 — the RLS question.** Unchanged and unanswered: no migration
+   enables row level security on the four app tables, and confirming the
+   live project's policies needs dashboard access. The schema reference
+   now flags this explicitly rather than implying protection. **This is
+   the one item worth doing next**, because if policies really are
+   missing it is a security fix, not a documentation one.
+2. **C4 — `database.types.ts`.** Generating it needs Docker or the
+   linked project, neither available in the environment this work was
+   done in. `/db-types` documents both paths, and notes that generating
+   the file is only half the job — the `Database` type also has to be
+   threaded through the three Supabase clients, or every query still
+   returns `any`.
+3. **`npm run db:start` has not been executed end to end.** Docker was
+   unavailable. `config.toml` parses and the seed is plain SQL against
+   the migrated schema, but the first person with Docker should run it
+   and fix whatever it says.
+
+### Deviations from the plan as written
+
+- Phase 6 proposed lifting the name-matching helpers into
+  `packages/core/`. They went to `apps/web/src/lib/nfl/` instead: they
+  depend on `string-similarity`, and adding a dependency to the
+  platform-neutral package for code the mobile app never calls is a bad
+  trade. The rule that mattered — providers not importing providers —
+  is satisfied either way, and is now lint-enforced.
+- Phase 6 also put each `build<Provider>Teams` in a new `build-teams.ts`
+  rather than merging it into the provider's `actions.ts`. The existing
+  tests mock the provider's data functions, and intra-module calls don't
+  go through the module namespace, so merging would have required
+  rewriting roughly 700 lines of tests. A sibling module preserves the
+  mock boundaries exactly.
+- Phase 7 was written during Phase 3, because the widened doc-map test
+  caught the dangling link to it immediately.
