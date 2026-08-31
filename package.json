@@ -14,15 +14,19 @@
     "build": "npm run build -w @roster-loom/web",
     "start": "npm run start -w @roster-loom/web",
     "lint": "sh -c 'npm run lint:web; w=$?; npm run lint:mobile; m=$?; [ $w -eq 0 ] && [ $m -eq 0 ]'",
+    "lint:web": "npm run lint -w @roster-loom/web",
+    "lint:mobile": "npm run lint -w @roster-loom/mobile",
     "typecheck": "npm run typecheck -w @roster-loom/web",
     "test": "npm run test -w @roster-loom/web && npm run test -w @roster-loom/mobile",
     "test:e2e": "npm run test:e2e -w @roster-loom/web",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase status",
     "mobile": "npm run start -w @roster-loom/mobile",
     "mobile:ios": "npm run ios -w @roster-loom/mobile",
     "mobile:android": "npm run android -w @roster-loom/mobile",
-    "postinstall": "patch-package",
-    "lint:web": "npm run lint -w @roster-loom/web",
-    "lint:mobile": "npm run lint -w @roster-loom/mobile"
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "patch-package": "^8.0.0",

@@ -3,7 +3,7 @@ import { getTeams } from './actions';
 import HomePage from '@/components/home-page';
 import { logDuration, logEvent, startTimer } from '@/utils/performance-logger';
 import { createClient } from '@/utils/supabase/server';
-import { DEMO_COOKIE, resolveDemoMode } from '@/lib/demo-mode';
+import { DEMO_COOKIE, isDemoModeEnv, resolveDemoMode } from '@/lib/demo-mode';
 
 /**
  * The home page of the application.
@@ -44,5 +44,13 @@ export default async function Home() {
     resultType,
   });
 
-  return <HomePage teams={teams} user={user} demo={demo} />;
+  return (
+    <HomePage
+      teams={teams}
+      user={user}
+      demo={demo}
+      // On a DEMO_MODE=1 instance there is nothing to sign in to.
+      demoInstance={isDemoModeEnv()}
+    />
+  );
 }

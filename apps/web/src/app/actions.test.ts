@@ -1651,4 +1651,50 @@ describe('actions', () => {
       yahooSpy.mockRestore();
     });
   });
+
+  describe('demo mode and the login gate', () => {
+    const originalDemoMode = process.env.DEMO_MODE;
+
+    afterEach(() => {
+      if (originalDemoMode === undefined) {
+        delete process.env.DEMO_MODE;
+      } else {
+        process.env.DEMO_MODE = originalDemoMode;
+      }
+    });
+
+    it('serves demo teams to an anonymous visitor when DEMO_MODE is set', async () => {
+      process.env.DEMO_MODE = '1';
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
+
+      const result = await getTeams();
+
+      expect('teams' in result).toBe(true);
+      expect(result.teams!.length).toBeGreaterThan(0);
+      // The whole point: no session was required to get here.
+      expect(mockSupabase.auth.getUser).not.toHaveBeenCalled();
+    });
+
+    it('still requires a login for the per-session demo opt-in', async () => {
+      delete process.env.DEMO_MODE;
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
+
+      // This is what the ?demo=1 cookie and the x-demo-mode header resolve to.
+      const result = await getTeams(undefined, undefined, { demo: true });
+
+      expect(result).toEqual({ error: 'You must be logged in.' });
+    });
+
+    it('serves demo teams to a signed-in user via the per-session opt-in', async () => {
+      delete process.env.DEMO_MODE;
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1' } },
+      });
+
+      const result = await getTeams(undefined, undefined, { demo: true });
+
+      expect('teams' in result).toBe(true);
+      expect(result.teams!.length).toBeGreaterThan(0);
+    });
+  });
 });

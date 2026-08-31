@@ -1436,6 +1436,23 @@ export async function getTeams(
   const overallStart = startTimer();
   logEvent('getTeams invoked');
 
+  // Instance-wide demo mode short-circuits ahead of the login gate. A
+  // deployment configured with DEMO_MODE=1 exists only to show fake data, so
+  // requiring an account there buys nothing — and skipping it is what makes
+  // `DEMO_MODE=1 npm run dev` a genuine zero-credential first run.
+  //
+  // The per-session opt-ins (the `?demo=1` cookie and the `x-demo-mode`
+  // header) deliberately stay *behind* auth further down: on a real
+  // deployment nobody should reach a scoreboard by appending a query param.
+  if (isDemoModeEnv()) {
+    const teams = generateDemoTeams(Date.now());
+    logDuration('getTeams total', overallStart, {
+      result: 'demo-instance',
+      teamCount: teams.length,
+    });
+    return { teams };
+  }
+
   const supabase = client ?? createClient();
 
   let resolvedUserId = userId;
@@ -1450,10 +1467,10 @@ export async function getTeams(
     resolvedUserId = user.id;
   }
 
-  // Demo mode: return deterministic, self-updating fake data instead of
-  // hitting any provider. Placed after auth so the login gate still
-  // applies (log in as the test account); no integrations required.
-  const demo = options?.demo ?? isDemoModeEnv();
+  // Per-session demo opt-in (`?demo=1` cookie, `x-demo-mode` header), which
+  // stays behind the login gate above. The instance-wide switch was already
+  // handled before auth.
+  const demo = options?.demo ?? false;
   if (demo) {
     const teams = generateDemoTeams(Date.now());
     logDuration('getTeams total', overallStart, {

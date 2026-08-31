@@ -6,8 +6,8 @@ lets you exercise the full experience — web and mobile — any time, with
 deterministic fake data that looks like a Sunday mid-slate: many active
 teams, full rosters, live game clocks, and scores that climb every ~30s.
 
-It swaps only the *data source*. Auth, routing, team-building fan-out
-shape, player grouping, the matchup report, `PlayerCard`, score-change
+It swaps only the *data source*. Routing, team-building fan-out shape,
+player grouping, the matchup report, `PlayerCard`, score-change
 animations, and both UIs all run the real production code.
 
 ## How it works
@@ -15,9 +15,8 @@ animations, and both UIs all run the real production code.
 Every rendered scoreboard — the web first paint, the web **Refresh**
 button, and the mobile app — funnels through one function,
 `getTeams()` in `apps/web/src/app/actions.ts`. In demo mode `getTeams()`
-short-circuits (after the login check) and returns
-`generateDemoTeams(Date.now())` from `@roster-loom/core`, skipping every
-provider and external call. Because the mobile app fetches teams from the
+short-circuits and returns `generateDemoTeams(Date.now())` from
+`@roster-loom/core`, skipping every provider and external call. Because the mobile app fetches teams from the
 web app's `/api/teams/refresh` endpoint (which also calls `getTeams()`),
 it gets demo data for free.
 
@@ -42,16 +41,31 @@ Demo mode is enabled by any of these (broadest first):
 | Browser session | Visit any page with `?demo=1` (clear with `?demo=0`) | that browser only; persisted in the `rl_demo` cookie |
 | Mobile build | `EXPO_PUBLIC_DEMO_MODE=1` in `apps/mobile/.env.local` | that build (sends the `x-demo-mode` header) |
 
-You still sign in (use the test account in
-[CLAUDE.md](../CLAUDE.md) → Critical Rules); demo mode needs **no**
-connected integrations.
+### Demo mode and the login gate
+
+The three switches are deliberately **not** equivalent where auth is
+concerned:
+
+- **`DEMO_MODE=1` bypasses the login gate entirely.** An instance
+  configured that way exists only to serve fake data, so requiring an
+  account buys nothing — and skipping it is what makes a clean clone
+  runnable with no credentials at all.
+- **`?demo=1` and `x-demo-mode` stay behind the login gate.** On a real
+  deployment nobody should reach a scoreboard by appending a query
+  param, so these opt-ins only change the data source for someone who
+  is already signed in (use the test account in
+  [CLAUDE.md](../CLAUDE.md) → Critical Rules).
+
+Either way demo mode needs **no** connected integrations. Whenever demo
+data is being served, the scoreboard shows a "Demo data" banner so it is
+never mistaken for live scoring.
 
 ### Quickest local run
 
 ```bash
-# Web
+# Web — no Supabase credentials and no account needed
 DEMO_MODE=1 npm run dev            # then open http://localhost:9002
-# or leave DEMO_MODE unset and open http://localhost:9002/?demo=1
+# or, signed in already, leave DEMO_MODE unset and open http://localhost:9002/?demo=1
 
 # Mobile (point EXPO_PUBLIC_API_URL at your web app first)
 EXPO_PUBLIC_DEMO_MODE=1 npm run mobile

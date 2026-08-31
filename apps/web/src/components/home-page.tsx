@@ -30,12 +30,14 @@ import { PlayerBoard } from '@/components/player-board';
  * @returns The main content of the application.
  */
 function AppContent({
+  demo = false,
   onSignOut,
   teams,
   onRefresh,
   isRefreshing,
   refreshError,
 }: {
+  demo?: boolean,
   onSignOut: () => void | Promise<void>,
   teams: Team[],
   onRefresh: () => void | Promise<void>,
@@ -283,6 +285,15 @@ function AppContent({
       />
 
       <main className="flex-1 px-2 py-3 sm:px-4 lg:px-6">
+        {demo && (
+          <Alert className="mb-3">
+            <AlertTitle>Demo data</AlertTitle>
+            <AlertDescription>
+              These scores are simulated, not live. Every other part of the
+              app is the real thing. See docs/DEMO_MODE.md.
+            </AlertDescription>
+          </Alert>
+        )}
         {refreshError && (
           <Alert variant="destructive" className="mb-3">
             <AlertTitle>Refresh failed</AlertTitle>
@@ -338,7 +349,19 @@ function AppContent({
  * @param user - The current user.
  * @returns The home page of the application.
  */
-export default function HomePage({ teams, user, demo = false }: { teams: Team[], user: any, demo?: boolean }) {
+export default function HomePage({
+  teams,
+  user,
+  demo = false,
+  demoInstance = false,
+}: {
+  teams: Team[],
+  user: any,
+  /** Serving demo data, from any source (env switch, cookie, or header). */
+  demo?: boolean,
+  /** Serving demo data because of the instance-wide DEMO_MODE env switch. */
+  demoInstance?: boolean,
+}) {
   const router = useRouter();
   const [currentTeams, setCurrentTeams] = useState<Team[]>(teams);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -346,10 +369,12 @@ export default function HomePage({ teams, user, demo = false }: { teams: Team[],
   const isRefreshingRef = useRef(false);
 
   useEffect(() => {
-    if (!user) {
+    // A DEMO_MODE=1 instance serves fake data with no account, so there is
+    // nothing to send an anonymous visitor to /login for.
+    if (!user && !demoInstance) {
       router.replace('/login');
     }
-  }, [user, router]);
+  }, [user, demoInstance, router]);
 
   useEffect(() => {
     setCurrentTeams(teams);
@@ -414,6 +439,7 @@ export default function HomePage({ teams, user, demo = false }: { teams: Team[],
 
   return (
     <AppContent
+      demo={demo}
       onSignOut={handleSignOut}
       teams={currentTeams}
       onRefresh={handleRefresh}

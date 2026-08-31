@@ -11,6 +11,17 @@ directly from `apps/web/` if you prefer.
 ```bash
 nvm use                                    # picks Node 20 from .nvmrc
 npm install                                # installs all workspaces
+```
+
+That is enough to run the app against fake data:
+
+```bash
+DEMO_MODE=1 npm run dev                    # http://localhost:9002, no credentials
+```
+
+For real provider data you need environment variables and a database:
+
+```bash
 cp apps/web/.env.example apps/web/.env.local   # fill in Supabase + Yahoo credentials
 ```
 
@@ -58,6 +69,25 @@ Run both before pushing. CI does not currently gate on them, but reviewers will.
 ## Supabase
 
 The Supabase CLI is installed as a dev dependency.
+
+### Local stack (recommended for development)
+
+Needs Docker. Boots Postgres + Auth locally, applies every migration in
+`supabase/migrations/`, then runs `supabase/seed.sql` — which creates the
+`test@test.com` / `testtest` account and a couple of `fp_` rows.
+
+```bash
+npm run db:start        # boot the stack (prints the local URL + anon key)
+npm run db:status       # show URLs, keys and container health
+npm run db:reset        # re-apply migrations + seed from scratch
+npm run db:stop         # shut it down
+```
+
+Put the URL and anon key `db:start` prints into `apps/web/.env.local`.
+Working locally means migrations are safe to experiment with and you
+never touch the shared OttoneuDB project.
+
+### Against the hosted project
 
 ```bash
 npx supabase migration new <name>   # create a new SQL migration
