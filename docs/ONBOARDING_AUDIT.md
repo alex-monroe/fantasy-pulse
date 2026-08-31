@@ -257,10 +257,11 @@ nothing; `apps/web/src/ai/dev.ts` is imported by nothing.
 
 ## The plan
 
-Seven phases, roughly five to seven focused days. The order matters —
-each phase makes the next cheaper or safer, and the refactor is last
+Eight phases, roughly six to eight focused days. The order matters —
+each phase makes the next cheaper or safer, and the refactor sits late
 because it's the only one that can break the product. Phases 1–3 are
-what a new developer actually feels.
+what a new developer actually feels; Phase 8 is what stops this audit
+being needed again.
 
 ### Phase 1 — Make the three checks honest (½–1 day)
 
@@ -415,6 +416,91 @@ that fails halfway through is worse than none.*
 
 **Done when** someone who has never seen the repo opens a merged PR in
 an afternoon without asking a question.
+
+### Phase 8 — Make drift impossible to reintroduce (~1 day)
+
+*Everything above is a one-time cleanup. This phase is what stops the
+same audit being needed again in a year.*
+
+The repo already ran the experiment that tells us what works.
+`doc-map.test.ts` guards exactly two files — AGENTS.md and CLAUDE.md —
+and those two are the most accurate documents here. Everything it
+doesn't guard rotted. The same pattern holds at smaller scale: the
+colocated provider READMEs, which live next to the code they describe,
+are markedly more accurate than the central docs in `docs/`.
+
+Two conclusions follow, and everything in this phase derives from them:
+**a claim survives only if something executes it**, and **accuracy
+decays with distance from the code**.
+
+Why it drifted in the first place, so the fix isn't cargo-culted:
+
+1. **Nothing was enforced.** CI gated only Playwright; six architectural
+   rules in AGENTS.md, zero checks. An unenforced rule is worse than no
+   rule — it teaches readers the docs are aspirational, and once someone
+   learns that, they stop trusting the accurate parts too. That is why
+   C3 matters more than its individual violations suggest.
+2. **Machine-readable things were hand-maintained.** A hand-written
+   snapshot of a Postgres schema is guaranteed to fall behind; a
+   hand-typed provider list repeated across seven documents is
+   guaranteed to miss the fourth provider.
+3. **There is no new reader.** Drift is normally caught by someone
+   getting confused. With one human author and a fleet of agents, nobody
+   has been confused yet. This is the deepest cause and the one no lint
+   rule fixes.
+
+Work, in order of leverage:
+
+- **Generalize the test that already works.** `doc-map.test.ts`
+  validates markdown *links*; widen it to every backticked path-like
+  token across all docs, plus every `npm run <script>` a doc mentions.
+  This one test would have caught the missing `database.types.ts` (C4),
+  the wrong `.env.example` path (A2), the dead `setup.sh` and the stale
+  `src/ai/` descriptions (A3, E7).
+- **Derive enumerations instead of typing them.** A test that reads the
+  `integrations/` directory, asserts it matches the `FantasyProvider`
+  union in `packages/core/src/types.ts`, and asserts every provider is
+  named in README.md, ARCHITECTURE.md and CODE_ORGANIZATION.md. About 25
+  lines, and the ESPN gap (C1) becomes impossible.
+- **Turn the architectural rules into lint rules.** `apps/web/.eslintrc.json`
+  is three lines today. Four of the six rules in AGENTS.md are pure
+  `no-restricted-imports` config, no custom rule authoring: providers
+  don't import providers; Supabase access stays in `utils/supabase/`;
+  `packages/core` imports no React/Next/React Native/node builtins;
+  `no-console` outside the logger. The performance-logger rule needs a
+  heuristic (a file calling `fetch(` must import it) — crude, but that
+  heuristic is exactly what would have caught Sleeper and Ottoneu (C3).
+- **Make generated artifacts fail CI when stale.** Regenerate
+  `database.types.ts` and the schema reference in CI, then
+  `git diff --exit-code`. This is the structural fix for the whole D
+  group: stop hand-maintaining a snapshot of a machine-readable thing.
+  Much easier once Phase 2 lands `config.toml`, because CI can generate
+  from a local Postgres instead of needing production credentials.
+- **Keep prose away from specifics.** Documentation that names a
+  particular function or file is a liability unless a test asserts it.
+  ARCHITECTURE.md should describe stable shapes — data flow, boundaries,
+  the *why* — and link to code for specifics rather than restating them.
+  C2 is the cautionary example: it named the exact file each
+  `build<Provider>Teams` lives in, which was true once.
+
+**What no check can catch.** Nothing above would flag the README's
+promised AI assistant (A3) — no test detects documentation of a feature
+that was never built. The cure is the fresh reader the project doesn't
+have, and it can be manufactured cheaply: a scheduled job that takes a
+clean container, follows the README *literally*, and reports every
+divergence. That is exactly how A1 through A3 were found, and none of
+them would have failed a unit test. Monthly is plenty. The existing
+`/retro` skill is aimed at this target already; it just looks at
+conversation friction rather than doc-versus-reality.
+
+**The standing rule.** Every rule in AGENTS.md is either enforced by a
+check or deleted — no third category. A new rule ships with its check in
+the same PR, or it ships as guidance ("prefer…") rather than law. That
+keeps the document short, and keeps every remaining line true.
+
+**Done when** every architectural rule in AGENTS.md has a corresponding
+failing-test-if-violated, and no document contains a hand-maintained
+list of something the code already knows.
 
 ## What's already working
 
