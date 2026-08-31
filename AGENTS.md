@@ -78,9 +78,15 @@ Per-provider docs are colocated with their code under
 
 ## Architectural Rules
 
-1. **Providers don't import providers.** `integrations/yahoo` may not
-   import from `integrations/sleeper`. Cross-provider work lives in
-   `apps/web/src/app/actions.ts`.
+Each of these is enforced by a lint rule or a test — see the
+enforcement table in [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md).
+If you add a rule here, add its check in the same PR.
+
+1. **Providers don't import providers**, and never import the
+   orchestrator. `integrations/yahoo` may not import from
+   `integrations/sleeper` or from `apps/web/src/app/actions.ts`. Shared
+   infrastructure goes in `apps/web/src/lib/nfl/`; cross-provider work
+   lives in `apps/web/src/app/actions.ts`.
 2. **Supabase access is centralized** in `apps/web/src/utils/supabase/`
    (`server.ts` for RSC/route handlers, `client.ts` for the browser).
 3. **External API calls are timed.** Wrap them with `startTimer` /
@@ -88,9 +94,11 @@ Per-provider docs are colocated with their code under
 4. **Schema changes happen via new SQL migrations** under
    `supabase/migrations/`. Never edit a committed migration. Regenerate
    `docs/references/database-schema.md` afterward.
-5. **Every new provider follows the five-file pattern**
-   (`actions.ts`, `actions.test.ts`, `page.tsx`, `README.md`,
-   `*.example.json`) — see [docs/adding-integrations.md](docs/adding-integrations.md).
+5. **Every new provider follows the same file pattern**
+   (`actions.ts`, `build-teams.ts`, `actions.test.ts`, `page.tsx`,
+   `README.md`, plus `*.example.json` where useful) — see
+   [docs/adding-integrations.md](docs/adding-integrations.md). A test
+   asserts the pattern and that the provider is named in the docs.
 6. **Web-only deps stay in `apps/web/`.** Anything in `packages/core/`
    must not import React, Next.js, or browser-only modules — the mobile
    app will share it.

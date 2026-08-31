@@ -122,8 +122,8 @@ now lives in `packages/core/src/` and is imported as `@roster-loom/core`.
 
 - `logger.ts`               pino-based structured logger
 - `performance-logger.ts`   `startTimer` / `logDuration` for external calls
-- `supabase/server.ts`      server-side Supabase client (App Router)
-- `supabase/client.ts`      browser Supabase client
+- `utils/supabase/server.ts`      server-side Supabase client (App Router)
+- `utils/supabase/client.ts`      browser Supabase client
 
 Anything that touches an external API should be timed with
 `performance-logger.ts` — this is the convention recent commits have been
@@ -161,3 +161,25 @@ edit a committed migration — add a new one. After changes, regenerate
 5. **`packages/core/` stays platform-neutral.** No React, no Next.js,
    no node/browser-only APIs — it has to run in both web and (eventually)
    React Native.
+
+## Enforcement
+
+Every rule above is enforced by something that fails, or it isn't a rule.
+This is the standing convention from
+[ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md) Phase 8: a new rule ships with
+its check in the same PR, or it ships as guidance rather than law.
+
+| Rule | Enforced by |
+| ---- | ----------- |
+| Providers don't import providers | `no-restricted-imports` in `apps/web/.eslintrc.json` |
+| Providers don't import the orchestrator (no cycles) | same |
+| Supabase clients only from `utils/supabase/` | same |
+| No `console.log` outside tests and the loggers | `no-console` in the same config |
+| Doc links resolve | `apps/web/src/lib/doc-map.test.ts` |
+| Backticked paths and `npm run` scripts in docs exist | `apps/web/src/lib/doc-claims.test.ts` |
+| Provider list agrees across code, types and docs | `apps/web/src/lib/providers.test.ts` |
+| Every provider follows the file pattern | same |
+
+Two rules have no automated check yet, and are worth knowing are on the
+honour system: `packages/core/` staying platform-neutral, and external
+calls being wrapped in `performance-logger`.

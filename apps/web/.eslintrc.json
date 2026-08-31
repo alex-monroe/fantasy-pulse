@@ -1,4 +1,87 @@
 {
   "root": true,
-  "extends": ["next/core-web-vitals"]
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "no-console": [
+      "error",
+      {
+        "allow": [
+          "warn",
+          "error"
+        ]
+      }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@supabase/ssr",
+            "message": "Create Supabase clients through @/utils/supabase/{server,client,api} instead."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/app/integrations/**/*.ts",
+        "src/app/integrations/**/*.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@supabase/ssr",
+                "message": "Create Supabase clients through @/utils/supabase/{server,client,api} instead."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "@/app/integrations/**",
+                  "../sleeper/**",
+                  "../yahoo/**",
+                  "../ottoneu/**",
+                  "../espn/**"
+                ],
+                "message": "Providers must not import other providers. Put shared code in @/lib/nfl/, or orchestrate in @/app/actions."
+              },
+              {
+                "group": [
+                  "@/app/actions"
+                ],
+                "message": "Importing the orchestrator from a provider creates a cycle. Import from @/lib/nfl/* instead."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/utils/supabase/*.ts",
+        "src/middleware.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": [
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "src/utils/performance-logger.ts",
+        "src/utils/logger.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }
