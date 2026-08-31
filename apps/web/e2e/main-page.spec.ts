@@ -131,7 +131,7 @@ test.describe('Main Page', () => {
 
     await expectMatchup('Sleeper Squad', '10.0', '8.0');
     await expectMatchup('Yahoo Warriors', '100.0', '90.0');
-    // The Ottoneu golden has The Witchcraft away at 0.00 against
+    // The Ottoneu golden puts The Witchcraft away at 0.00 against
     // The Triple Helix at 40.10.
     await expectMatchup('The Witchcraft', '0.0', '40.1');
 
