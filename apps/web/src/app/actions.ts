@@ -1371,6 +1371,18 @@ export async function buildEspnTeams(
 
       const leagueRow = leagueLookup.get(row.league_id);
 
+      const mappedUserPlayers = (matchup.userTeam.players ?? []).map(mapEspnPlayer);
+      const mappedOpponentPlayers = (matchup.opponentTeam.players ?? []).map(mapEspnPlayer);
+      console.log('[debug] espn: buildEspnTeams player counts', {
+        integrationId: integration.id,
+        teamId: row.team_id,
+        rawUserPlayers: matchup.userTeam.players?.length ?? 0,
+        mappedUserPlayers: mappedUserPlayers.length,
+        rawOpponentPlayers: matchup.opponentTeam.players?.length ?? 0,
+        mappedOpponentPlayers: mappedOpponentPlayers.length,
+        sampleUserPlayer: mappedUserPlayers[0],
+      });
+
       return {
         id: row.id,
         name: matchup.userTeam.name || row.name,
@@ -1382,11 +1394,11 @@ export async function buildEspnTeams(
           totalRosters: leagueRow?.total_rosters ?? null,
         },
         totalScore: matchup.userTeam.totalPoints ?? 0,
-        players: (matchup.userTeam.players ?? []).map(mapEspnPlayer),
+        players: mappedUserPlayers,
         opponent: {
           name: matchup.opponentTeam.name || 'Opponent',
           totalScore: matchup.opponentTeam.totalPoints ?? 0,
-          players: (matchup.opponentTeam.players ?? []).map(mapEspnPlayer),
+          players: mappedOpponentPlayers,
         },
       };
     })
