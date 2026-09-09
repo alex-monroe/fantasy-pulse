@@ -465,6 +465,21 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
     !hasRosterEntries(userSide, teamsById.get(userSide?.teamId)) &&
     !hasRosterEntries(opponentSide, teamsById.get(opponentSide?.teamId));
 
+  logger.debug(
+    {
+      integrationId,
+      leagueId,
+      teamId,
+      currentPeriod,
+      userLiveEntries: userSide?.rosterForCurrentScoringPeriod?.entries?.length ?? null,
+      userStaticEntries: teamsById.get(userSide?.teamId)?.roster?.entries?.length ?? null,
+      opponentLiveEntries: opponentSide?.rosterForCurrentScoringPeriod?.entries?.length ?? null,
+      opponentStaticEntries: teamsById.get(opponentSide?.teamId)?.roster?.entries?.length ?? null,
+      rostersMissing,
+    },
+    'espn: roster entry counts from initial fetch'
+  );
+
   if (currentPeriod != null && rostersMissing) {
     const rosterFetchStart = startTimer();
     const { data: rosterData, error: rosterError } = await fetchEspnLeague(
@@ -481,6 +496,20 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
       currentPeriod,
       success: !rosterError,
     });
+    logger.debug(
+      {
+        integrationId,
+        leagueId,
+        teamId,
+        currentPeriod,
+        rosterError,
+        scopedTeamCount: rosterData?.teams?.length ?? null,
+        scopedUserEntries:
+          rosterData?.teams?.find((t: any) => t.id === userSide?.teamId)?.roster?.entries
+            ?.length ?? null,
+      },
+      'espn: scoped roster re-fetch result'
+    );
     if (!rosterError && rosterData?.teams) {
       teamsById = new Map((rosterData.teams ?? []).map((team: any) => [team.id, team]));
     }
