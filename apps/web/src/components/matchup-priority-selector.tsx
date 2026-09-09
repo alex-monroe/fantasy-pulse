@@ -9,7 +9,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import type { Team } from '@roster-loom/core';
+import { getTeamKey, type Team } from '@roster-loom/core';
 import { ChevronDown, ChevronUp, ListFilter } from 'lucide-react';
 
 function getTeamOpponentName(team: Team): string {
@@ -17,9 +17,12 @@ function getTeamOpponentName(team: Team): string {
 }
 
 type MatchupPrioritySelectorProps = {
+    /** The teams, already in priority order. */
     teams: Team[];
-    teamColors: Map<number, string>;
-    onPriorityChange: (order: number[]) => void;
+    /** {@link getTeamKey} -> matchup color, shared with the scoreboard. */
+    teamColors: Map<string, string>;
+    /** Called with the reordered team keys. */
+    onPriorityChange: (order: string[]) => void;
 };
 
 export function MatchupPrioritySelector({ teams, teamColors, onPriorityChange }: MatchupPrioritySelectorProps) {
@@ -27,9 +30,11 @@ export function MatchupPrioritySelector({ teams, teamColors, onPriorityChange }:
         return null;
     }
 
-    const handleMove = (teamId: number, direction: -1 | 1) => {
-        const order = teams.map((team) => team.id);
-        const currentIndex = order.indexOf(teamId);
+    const teamKeys = teams.map((team, index) => getTeamKey(team, index));
+
+    const handleMove = (teamKey: string, direction: -1 | 1) => {
+        const order = [...teamKeys];
+        const currentIndex = order.indexOf(teamKey);
         if (currentIndex === -1) {
             return;
         }
@@ -64,10 +69,11 @@ export function MatchupPrioritySelector({ teams, teamColors, onPriorityChange }:
                 </SheetHeader>
                 <div className="space-y-2">
                     {teams.map((team, index) => {
-                        const color = teamColors.get(team.id) ?? '#6b7280';
+                        const teamKey = teamKeys[index];
+                        const color = teamColors.get(teamKey) ?? '#6b7280';
                         return (
                             <div
-                                key={team.id}
+                                key={teamKey}
                                 className="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2"
                             >
                                 <div className="flex items-center gap-3">
@@ -91,7 +97,7 @@ export function MatchupPrioritySelector({ teams, teamColors, onPriorityChange }:
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8"
-                                        onClick={() => handleMove(team.id, -1)}
+                                        onClick={() => handleMove(teamKey, -1)}
                                         disabled={index === 0}
                                         aria-label={`Increase priority for ${team.name}`}
                                     >
@@ -101,7 +107,7 @@ export function MatchupPrioritySelector({ teams, teamColors, onPriorityChange }:
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8"
-                                        onClick={() => handleMove(team.id, 1)}
+                                        onClick={() => handleMove(teamKey, 1)}
                                         disabled={index === teams.length - 1}
                                         aria-label={`Decrease priority for ${team.name}`}
                                     >

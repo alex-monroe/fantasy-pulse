@@ -10,6 +10,7 @@ import {
   MATCHUP_COLORS,
   assignTeamColors,
   createPlayerAggregationKey,
+  getTeamKey,
   groupMatchupPlayers,
 } from '@roster-loom/core';
 import { cn } from '@/lib/utils';
@@ -42,7 +43,8 @@ function AppContent({
   isRefreshing: boolean,
   refreshError: string | null,
 }) {
-  const [matchupPriority, setMatchupPriority] = useState<number[]>(() => teams.map((team) => team.id));
+  const teamKeys = useMemo(() => teams.map((team, index) => getTeamKey(team, index)), [teams]);
+  const [matchupPriority, setMatchupPriority] = useState<string[]>(() => teamKeys);
   const [changedTeamScores, setChangedTeamScores] = useState<string[]>([]);
   const [changedPlayerScores, setChangedPlayerScores] = useState<string[]>([]);
   const previousTeamsRef = useRef<Team[] | null>(null);
@@ -58,9 +60,9 @@ function AppContent({
     const nextTeamChanges = new Set<string>();
     const nextPlayerChanges = new Set<string>();
 
-    const previousTeamMap = new Map<number, Team>();
-    previousTeams.forEach((team) => {
-      previousTeamMap.set(team.id, team);
+    const previousTeamMap = new Map<string, Team>();
+    previousTeams.forEach((team, index) => {
+      previousTeamMap.set(getTeamKey(team, index), team);
     });
 
     const buildPlayerMap = (players: Player[]) => {
@@ -88,10 +90,11 @@ function AppContent({
       });
     };
 
-    teams.forEach((team) => {
-      const teamScoreKey = `team-${team.id}-total`;
-      const opponentScoreKey = `team-${team.id}-opponent`;
-      const previousTeam = previousTeamMap.get(team.id);
+    teams.forEach((team, index) => {
+      const teamKey = getTeamKey(team, index);
+      const teamScoreKey = `${teamKey}-total`;
+      const opponentScoreKey = `${teamKey}-opponent`;
+      const previousTeam = previousTeamMap.get(teamKey);
 
       if (!previousTeam) {
         nextTeamChanges.add(teamScoreKey);
@@ -161,58 +164,56 @@ function AppContent({
 
   useEffect(() => {
     setMatchupPriority((previousOrder) => {
-      const seen = new Set<number>();
-      const nextOrder: number[] = [];
+      const currentKeys = new Set(teamKeys);
+      const seen = new Set<string>();
+      const nextOrder: string[] = [];
 
-      previousOrder.forEach((teamId) => {
-        if (seen.has(teamId)) {
+      previousOrder.forEach((teamKey) => {
+        if (seen.has(teamKey) || !currentKeys.has(teamKey)) {
           return;
         }
 
-        const teamExists = teams.some((team) => team.id === teamId);
-        if (teamExists) {
-          nextOrder.push(teamId);
-          seen.add(teamId);
-        }
+        nextOrder.push(teamKey);
+        seen.add(teamKey);
       });
 
-      teams.forEach((team) => {
-        if (!seen.has(team.id)) {
-          nextOrder.push(team.id);
-          seen.add(team.id);
+      teamKeys.forEach((teamKey) => {
+        if (!seen.has(teamKey)) {
+          nextOrder.push(teamKey);
+          seen.add(teamKey);
         }
       });
 
       return nextOrder;
     });
-  }, [teams]);
+  }, [teamKeys]);
 
   const priorityOrderedTeams = useMemo(() => {
-    const teamById = new Map<number, Team>();
-    teams.forEach((team) => {
-      teamById.set(team.id, team);
+    const teamByKey = new Map<string, Team>();
+    teams.forEach((team, index) => {
+      teamByKey.set(teamKeys[index], team);
     });
 
     const ordered: Team[] = [];
-    const seen = new Set<number>();
+    const seen = new Set<string>();
 
-    matchupPriority.forEach((teamId) => {
-      const team = teamById.get(teamId);
-      if (team && !seen.has(team.id)) {
+    matchupPriority.forEach((teamKey) => {
+      const team = teamByKey.get(teamKey);
+      if (team && !seen.has(teamKey)) {
         ordered.push(team);
-        seen.add(team.id);
+        seen.add(teamKey);
       }
     });
 
-    teams.forEach((team) => {
-      if (!seen.has(team.id)) {
+    teams.forEach((team, index) => {
+      if (!seen.has(teamKeys[index])) {
         ordered.push(team);
-        seen.add(team.id);
+        seen.add(teamKeys[index]);
       }
     });
 
     return ordered;
-  }, [teams, matchupPriority]);
+  }, [teams, teamKeys, matchupPriority]);
 
   const teamColors = useMemo(() => assignTeamColors(teams, MATCHUP_COLORS), [teams]);
 

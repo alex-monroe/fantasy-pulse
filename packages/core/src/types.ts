@@ -115,7 +115,14 @@ export type LeagueRef = {
  * Represents a fantasy football team.
  */
 export type Team = {
-  /** The unique identifier for the team. */
+  /**
+   * The team's identifier in whichever store its builder drew it from —
+   * a `fp_leagues` row for Sleeper, an `fp_teams` row for Yahoo and
+   * ESPN, the team id on the page for Ottoneu. Those namespaces overlap,
+   * and Sleeper resolves leagues live from an API that carries no id at
+   * all, so this is neither unique nor always present. Identify a team
+   * with `getTeamKey` instead.
+   */
   id: number;
   /** The name of the team. */
   name: string;

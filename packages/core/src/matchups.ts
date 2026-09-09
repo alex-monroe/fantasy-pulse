@@ -191,6 +191,36 @@ export const createPlayerAggregationKey = (player: Player | GroupedPlayer): stri
 };
 
 /**
+ * The identity a team is tracked by across the aggregated views: colors,
+ * matchup priority, and React keys.
+ *
+ * `Team.id` cannot carry this. Each provider fills it from a different
+ * namespace — Sleeper from a database column that live-resolved leagues
+ * don't carry at all (so it is `undefined` for every Sleeper team),
+ * Yahoo and ESPN from their team rows, Ottoneu from the id on the team
+ * page — so ids both collide and go missing. The provider's own league
+ * id is unique per league and always present on a real matchup, so it
+ * leads here, with the team id and finally the team's position as
+ * fallbacks for the fixtures that carry no league.
+ *
+ * @param team - The team to identify.
+ * @param index - The team's position in the list, used as a last resort.
+ * @returns A key unique to that team within the user's set of teams.
+ */
+export const getTeamKey = (team: Team, index: number): string => {
+  const league = team?.league;
+  if (league?.providerLeagueId) {
+    return `${league.provider}:${league.providerLeagueId}`;
+  }
+
+  if (Number.isFinite(team?.id)) {
+    return `team-${team.id}`;
+  }
+
+  return `team-index-${index}`;
+};
+
+/**
  * Assigns a stable color to each team based on its position in the list.
  * Every team gets its own color — the palette is extended with generated
  * hues rather than reused — so two leagues never share a dot, whichever
@@ -198,15 +228,15 @@ export const createPlayerAggregationKey = (player: Player | GroupedPlayer): stri
  *
  * @param teams - The teams to color.
  * @param colors - The palette to draw the first colors from.
- * @returns A map from team id to hex color.
+ * @returns A map from {@link getTeamKey} to hex color.
  */
 export const assignTeamColors = (
   teams: Team[],
   colors: string[] = MATCHUP_COLORS,
-): Map<number, string> => {
-  const colorMap = new Map<number, string>();
+): Map<string, string> => {
+  const colorMap = new Map<string, string>();
   teams.forEach((team, index) => {
-    colorMap.set(team.id, getMatchupColor(index, colors));
+    colorMap.set(getTeamKey(team, index), getMatchupColor(index, colors));
   });
   return colorMap;
 };
@@ -275,23 +305,25 @@ export interface GroupedRosters {
  * (position, score, etc.) is taken from the highest-priority team.
  *
  * @param teams - The user's teams with their opponents.
- * @param options.priorityOrder - Team ids in priority order (index 0 =
- *   highest priority). Defaults to the order `teams` is given in.
+ * @param options.priorityOrder - {@link getTeamKey} values in priority
+ *   order (index 0 = highest priority). Defaults to the order `teams` is
+ *   given in.
  * @param options.colors - The palette to color-code matchups with.
  * @returns The deduplicated, color-coded rosters.
  */
 export const groupMatchupPlayers = (
   teams: Team[],
-  options: { priorityOrder?: number[]; colors?: string[] } = {},
+  options: { priorityOrder?: string[]; colors?: string[] } = {},
 ): GroupedRosters => {
   const { priorityOrder, colors = MATCHUP_COLORS } = options;
   const teamColors = assignTeamColors(teams, colors);
+  const teamKeys = teams.map((team, index) => getTeamKey(team, index));
 
-  const priorityLookup = new Map<number, number>();
-  const order = priorityOrder ?? teams.map((team) => team.id);
-  order.forEach((teamId, index) => {
-    if (!priorityLookup.has(teamId)) {
-      priorityLookup.set(teamId, index);
+  const priorityLookup = new Map<string, number>();
+  const order = priorityOrder ?? teamKeys;
+  order.forEach((teamKey, index) => {
+    if (!priorityLookup.has(teamKey)) {
+      priorityLookup.set(teamKey, index);
     }
   });
 
@@ -300,9 +332,10 @@ export const groupMatchupPlayers = (
   const myPlayerPriorityMap = new Map<string, number>();
   const opponentPlayerPriorityMap = new Map<string, number>();
 
-  teams.forEach((team) => {
-    const color = teamColors.get(team.id) ?? getMatchupColor(0, colors);
-    const teamPriority = priorityLookup.get(team.id) ?? Number.MAX_SAFE_INTEGER;
+  teams.forEach((team, index) => {
+    const teamKey = teamKeys[index];
+    const color = teamColors.get(teamKey) ?? getMatchupColor(index, colors);
+    const teamPriority = priorityLookup.get(teamKey) ?? Number.MAX_SAFE_INTEGER;
 
     groupPlayers(team.players, myPlayersMap, myPlayerPriorityMap, color, teamPriority);
     groupPlayers(

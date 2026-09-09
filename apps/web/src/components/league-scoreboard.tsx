@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   getMatchupColor,
+  getTeamKey,
   summarizeMatchup,
   summarizeWeek,
   type MatchupSummary,
@@ -104,7 +105,7 @@ function MatchupTile({
  * below needs the room.
  *
  * @param teams - The user's teams, in display order.
- * @param teamColors - Team id -> matchup color, shared with the player dots.
+ * @param teamColors - Team key -> matchup color, shared with the player dots.
  * @param changedScoreKeys - Score keys that moved on the last refresh.
  * @param collapsed - Whether the tiles are hidden.
  * @param onToggleCollapsed - Called when the collapse control is used.
@@ -118,7 +119,7 @@ export function LeagueScoreboard({
   onToggleCollapsed,
 }: {
   teams: Team[];
-  teamColors: Map<number, string>;
+  teamColors: Map<string, string>;
   changedScoreKeys: Set<string>;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -169,15 +170,18 @@ export function LeagueScoreboard({
 
         {!collapsed && (
           <div className="flex max-h-[38vh] gap-2 overflow-x-auto overflow-y-auto pb-1 md:grid md:grid-cols-3 md:overflow-x-visible lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {summaries.map((summary, index) => (
-              <MatchupTile
-                key={summary.team.id}
-                summary={summary}
-                color={teamColors.get(summary.team.id) ?? getMatchupColor(index)}
-                isMyScoreChanged={changedScoreKeys.has(`team-${summary.team.id}-total`)}
-                isOpponentScoreChanged={changedScoreKeys.has(`team-${summary.team.id}-opponent`)}
-              />
-            ))}
+            {summaries.map((summary, index) => {
+              const teamKey = getTeamKey(summary.team, index);
+              return (
+                <MatchupTile
+                  key={teamKey}
+                  summary={summary}
+                  color={teamColors.get(teamKey) ?? getMatchupColor(index)}
+                  isMyScoreChanged={changedScoreKeys.has(`${teamKey}-total`)}
+                  isOpponentScoreChanged={changedScoreKeys.has(`${teamKey}-opponent`)}
+                />
+              );
+            })}
           </div>
         )}
       </div>
