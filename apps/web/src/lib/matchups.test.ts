@@ -1,6 +1,8 @@
 import {
   assignTeamColors,
   createPlayerAggregationKey,
+  getMatchupColor,
+  getTeamKey,
   groupMatchupPlayers,
   groupPlayersByPosition,
   processMatchups,
@@ -45,6 +47,11 @@ const makeTeam = (
   },
 });
 
+const makeSleeperTeam = (id: number, name: string, providerLeagueId: string): Team => ({
+  ...makeTeam(id, name, [], 'Opp', []),
+  league: { provider: 'sleeper', providerLeagueId, name: `${name} League` },
+});
+
 describe('createPlayerAggregationKey', () => {
   it('normalizes name + team, case-insensitive and trimmed', () => {
     expect(createPlayerAggregationKey(makePlayer({ name: ' Josh Allen ', realTeam: 'BUF' }))).toBe(
@@ -58,14 +65,80 @@ describe('createPlayerAggregationKey', () => {
   });
 });
 
+describe('getTeamKey', () => {
+  it('identifies a team by its provider and league id', () => {
+    const team = makeSleeperTeam(1, 'Team', 'league-a');
+    expect(getTeamKey(team, 0)).toBe('sleeper:league-a');
+  });
+
+  it('tells apart leagues whose builder left the team id undefined', () => {
+    // The Sleeper builder resolves leagues live from Sleeper's API, whose
+    // payloads carry no database id, so every Sleeper team arrives with an
+    // undefined id.
+    const teams = ['league-a', 'league-b', 'league-c'].map((leagueId) =>
+      makeSleeperTeam(undefined as unknown as number, `Team ${leagueId}`, leagueId),
+    );
+
+    expect(new Set(teams.map((team, index) => getTeamKey(team, index))).size).toBe(3);
+  });
+
+  it('falls back to the team id, then to the position, without a league', () => {
+    expect(getTeamKey(makeTeam(7, 'Team', [], 'Opp', []), 2)).toBe('team-7');
+    const idless = { ...makeTeam(0, 'Team', [], 'Opp', []), id: undefined as unknown as number };
+    expect(getTeamKey(idless, 2)).toBe('team-index-2');
+  });
+});
+
 describe('assignTeamColors', () => {
-  it('cycles through the palette by team order', () => {
-    const teams = Array.from({ length: MATCHUP_COLORS.length + 1 }, (_, i) =>
+  it('assigns the palette in team order', () => {
+    const teams = Array.from({ length: MATCHUP_COLORS.length }, (_, i) =>
       makeTeam(i, `Team ${i}`, [], 'Opp', []),
     );
     const colors = assignTeamColors(teams);
-    expect(colors.get(0)).toBe(MATCHUP_COLORS[0]);
-    expect(colors.get(MATCHUP_COLORS.length)).toBe(MATCHUP_COLORS[0]); // wraps around
+    MATCHUP_COLORS.forEach((color, index) => {
+      expect(colors.get(getTeamKey(teams[index], index))).toBe(color);
+    });
+  });
+
+  it('keeps every team a different color once the palette runs out', () => {
+    const teams = Array.from({ length: MATCHUP_COLORS.length * 3 }, (_, i) =>
+      makeTeam(i, `Team ${i}`, [], 'Opp', []),
+    );
+    const colors = assignTeamColors(teams);
+    const assigned = teams.map((team, index) => colors.get(getTeamKey(team, index)));
+
+    expect(assigned.every((color) => typeof color === 'string')).toBe(true);
+    expect(new Set(assigned).size).toBe(teams.length);
+  });
+
+  it('gives every Sleeper league its own color despite their shared undefined id', () => {
+    const teams = ['league-a', 'league-b', 'league-c'].map((leagueId) =>
+      makeSleeperTeam(undefined as unknown as number, `Team ${leagueId}`, leagueId),
+    );
+
+    const colors = assignTeamColors(teams);
+    const assigned = teams.map((team, index) => colors.get(getTeamKey(team, index)));
+
+    expect(assigned).toEqual([MATCHUP_COLORS[0], MATCHUP_COLORS[1], MATCHUP_COLORS[2]]);
+  });
+});
+
+describe('getMatchupColor', () => {
+  it('returns the palette entry for the first matchups', () => {
+    MATCHUP_COLORS.forEach((color, index) => {
+      expect(getMatchupColor(index)).toBe(color);
+    });
+  });
+
+  it('generates further hex colors that never repeat', () => {
+    const colors = Array.from({ length: 60 }, (_, i) => getMatchupColor(i));
+    colors.forEach((color) => expect(color).toMatch(/^#[0-9a-f]{6}$/));
+    expect(new Set(colors).size).toBe(colors.length);
+  });
+
+  it('falls back to the first palette entry for an invalid index', () => {
+    expect(getMatchupColor(-1)).toBe(MATCHUP_COLORS[0]);
+    expect(getMatchupColor(Number.NaN)).toBe(MATCHUP_COLORS[0]);
   });
 });
 
@@ -114,8 +187,25 @@ describe('groupMatchupPlayers', () => {
     ];
 
     // Team 2 is highest priority, so its score (42) should win.
-    const { myPlayers } = groupMatchupPlayers(teams, { priorityOrder: [2, 1] });
+    const { myPlayers } = groupMatchupPlayers(teams, { priorityOrder: ['team-2', 'team-1'] });
     expect(myPlayers[0].score).toBe(42);
+  });
+
+  it('gives a player a separate dot per Sleeper league despite their shared undefined id', () => {
+    const teams = ['league-a', 'league-b', 'league-c'].map((leagueId) => ({
+      ...makeSleeperTeam(undefined as unknown as number, `Team ${leagueId}`, leagueId),
+      players: [makePlayer({ name: 'Patrick Mahomes', realTeam: 'KC', position: 'QB', score: 10 })],
+    }));
+
+    const { myPlayers } = groupMatchupPlayers(teams);
+
+    expect(myPlayers).toHaveLength(1);
+    expect(myPlayers[0].count).toBe(3);
+    expect(myPlayers[0].matchupColors.map((matchup) => matchup.color)).toEqual([
+      MATCHUP_COLORS[0],
+      MATCHUP_COLORS[1],
+      MATCHUP_COLORS[2],
+    ]);
   });
 
   it('collapses a bench-everywhere player as benched in its matchup color', () => {

@@ -4,8 +4,164 @@ import type { GroupedPlayer, Player, Team } from './types';
 /**
  * The palette used to color-code matchups across the aggregated views.
  * Shared so the web dashboard and the mobile app assign identical colors.
+ *
+ * Ordered so neighbouring leagues land on well-separated hues. Users with
+ * more leagues than there are entries here fall through to
+ * {@link getMatchupColor}, which keeps generating distinct colors rather
+ * than wrapping the palette around.
  */
-export const MATCHUP_COLORS = ['#f87171', '#60a5fa', '#facc15', '#4ade80', '#a78bfa', '#f472b6'];
+export const MATCHUP_COLORS = [
+  '#f87171', // red
+  '#60a5fa', // blue
+  '#facc15', // yellow
+  '#4ade80', // green
+  '#a78bfa', // violet
+  '#f472b6', // pink
+  '#fb923c', // orange
+  '#22d3ee', // cyan
+  '#a3e635', // lime
+  '#818cf8', // indigo
+  '#2dd4bf', // teal
+  '#e879f9', // fuchsia
+];
+
+/** Where the generated hues start when the palette offers none to space them against. */
+const GENERATED_HUE_OFFSET = 25;
+
+/** Saturation of the generated hues, matching the palette's weight. */
+const GENERATED_SATURATION = 80;
+
+/**
+ * Generated colors alternate between a light and a deep lightness. Hue
+ * alone stops carrying a dot once there are enough of them, so every
+ * other one is darkened to keep neighbours telling themselves apart.
+ */
+const GENERATED_LIGHTNESS = [66, 48];
+
+/**
+ * Converts an HSL triple to a hex string, so generated colors are the
+ * same shape as the hand-picked palette (the DOM and React Native both
+ * take hex without any further handling).
+ *
+ * @param hue - Hue in degrees.
+ * @param saturation - Saturation as a percentage.
+ * @param lightness - Lightness as a percentage.
+ * @returns The color as `#rrggbb`.
+ */
+const hslToHex = (hue: number, saturation: number, lightness: number): string => {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const huePrime = (((hue % 360) + 360) % 360) / 60;
+  const x = chroma * (1 - Math.abs((huePrime % 2) - 1));
+  const [r, g, b] =
+    huePrime < 1
+      ? [chroma, x, 0]
+      : huePrime < 2
+        ? [x, chroma, 0]
+        : huePrime < 3
+          ? [0, chroma, x]
+          : huePrime < 4
+            ? [0, x, chroma]
+            : huePrime < 5
+              ? [x, 0, chroma]
+              : [chroma, 0, x];
+
+  const m = l - chroma / 2;
+  const toChannel = (value: number) =>
+    Math.round((value + m) * 255)
+      .toString(16)
+      .padStart(2, '0');
+
+  return `#${toChannel(r)}${toChannel(g)}${toChannel(b)}`;
+};
+
+/**
+ * The hue of a `#rgb` / `#rrggbb` color, in degrees.
+ *
+ * @param hex - The color to read.
+ * @returns The hue, or `null` for a grey or unparseable color (neither
+ *   has a hue worth spacing the generated colors against).
+ */
+const hueOfHex = (hex: string): number | null => {
+  const raw = typeof hex === 'string' ? hex.trim().replace('#', '') : '';
+  const full = raw.length === 3 ? raw.replace(/./g, (char) => char + char) : raw;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) {
+    return null;
+  }
+
+  const [r, g, b] = [0, 2, 4].map((offset) => parseInt(full.slice(offset, offset + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const delta = max - Math.min(r, g, b);
+  if (delta === 0) {
+    return null;
+  }
+
+  const hue = max === r ? (g - b) / delta : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+  return (((hue * 60) % 360) + 360) % 360;
+};
+
+/**
+ * Picks the hue furthest from every hue already in use, by bisecting the
+ * widest gap on the color wheel. Repeating this keeps each new league's
+ * dot as far as possible from the ones already on screen.
+ *
+ * @param hues - The hues already taken, in any order.
+ * @returns The next hue, in degrees.
+ */
+const bisectWidestHueGap = (hues: number[]): number => {
+  if (hues.length === 0) {
+    return GENERATED_HUE_OFFSET;
+  }
+
+  const sorted = [...hues].sort((a, b) => a - b);
+  let widest = -1;
+  let hue = sorted[0];
+
+  sorted.forEach((current, index) => {
+    const next = index + 1 < sorted.length ? sorted[index + 1] : sorted[0] + 360;
+    const gap = next - current;
+    if (gap > widest) {
+      widest = gap;
+      hue = (current + gap / 2) % 360;
+    }
+  });
+
+  return hue;
+};
+
+/**
+ * The color for the nth matchup. The first entries come from the
+ * hand-picked palette; past the end of it, colors are generated on hues
+ * that sit in the widest gaps left by the ones already used, so every
+ * league keeps its own dot instead of two leagues sharing one once the
+ * palette runs out.
+ *
+ * @param index - The matchup's position in the display order.
+ * @param colors - The palette to draw the first colors from.
+ * @returns A hex color, distinct from every other index's.
+ */
+export const getMatchupColor = (index: number, colors: string[] = MATCHUP_COLORS): string => {
+  const position = Number.isFinite(index) && index > 0 ? Math.floor(index) : 0;
+  if (position < colors.length) {
+    return colors[position];
+  }
+
+  const hues = colors.map(hueOfHex).filter((hue): hue is number => hue !== null);
+
+  const generated = position - colors.length;
+  let hue = bisectWidestHueGap(hues);
+  for (let step = 0; step < generated; step += 1) {
+    hues.push(hue);
+    hue = bisectWidestHueGap(hues);
+  }
+
+  return hslToHex(
+    hue,
+    GENERATED_SATURATION,
+    GENERATED_LIGHTNESS[generated % GENERATED_LIGHTNESS.length],
+  );
+};
 
 /** The fantasy positions we bucket players into, in display order. */
 export const PLAYER_POSITIONS = ['QB', 'WR', 'RB', 'TE', 'Other'] as const;
@@ -35,19 +191,52 @@ export const createPlayerAggregationKey = (player: Player | GroupedPlayer): stri
 };
 
 /**
+ * The identity a team is tracked by across the aggregated views: colors,
+ * matchup priority, and React keys.
+ *
+ * `Team.id` cannot carry this. Each provider fills it from a different
+ * namespace — Sleeper from a database column that live-resolved leagues
+ * don't carry at all (so it is `undefined` for every Sleeper team),
+ * Yahoo and ESPN from their team rows, Ottoneu from the id on the team
+ * page — so ids both collide and go missing. The provider's own league
+ * id is unique per league and always present on a real matchup, so it
+ * leads here, with the team id and finally the team's position as
+ * fallbacks for the fixtures that carry no league.
+ *
+ * @param team - The team to identify.
+ * @param index - The team's position in the list, used as a last resort.
+ * @returns A key unique to that team within the user's set of teams.
+ */
+export const getTeamKey = (team: Team, index: number): string => {
+  const league = team?.league;
+  if (league?.providerLeagueId) {
+    return `${league.provider}:${league.providerLeagueId}`;
+  }
+
+  if (Number.isFinite(team?.id)) {
+    return `team-${team.id}`;
+  }
+
+  return `team-index-${index}`;
+};
+
+/**
  * Assigns a stable color to each team based on its position in the list.
+ * Every team gets its own color — the palette is extended with generated
+ * hues rather than reused — so two leagues never share a dot, whichever
+ * providers they come from.
  *
  * @param teams - The teams to color.
- * @param colors - The palette to cycle through.
- * @returns A map from team id to hex color.
+ * @param colors - The palette to draw the first colors from.
+ * @returns A map from {@link getTeamKey} to hex color.
  */
 export const assignTeamColors = (
   teams: Team[],
   colors: string[] = MATCHUP_COLORS,
-): Map<number, string> => {
-  const colorMap = new Map<number, string>();
+): Map<string, string> => {
+  const colorMap = new Map<string, string>();
   teams.forEach((team, index) => {
-    colorMap.set(team.id, colors[index % colors.length]);
+    colorMap.set(getTeamKey(team, index), getMatchupColor(index, colors));
   });
   return colorMap;
 };
@@ -116,23 +305,25 @@ export interface GroupedRosters {
  * (position, score, etc.) is taken from the highest-priority team.
  *
  * @param teams - The user's teams with their opponents.
- * @param options.priorityOrder - Team ids in priority order (index 0 =
- *   highest priority). Defaults to the order `teams` is given in.
+ * @param options.priorityOrder - {@link getTeamKey} values in priority
+ *   order (index 0 = highest priority). Defaults to the order `teams` is
+ *   given in.
  * @param options.colors - The palette to color-code matchups with.
  * @returns The deduplicated, color-coded rosters.
  */
 export const groupMatchupPlayers = (
   teams: Team[],
-  options: { priorityOrder?: number[]; colors?: string[] } = {},
+  options: { priorityOrder?: string[]; colors?: string[] } = {},
 ): GroupedRosters => {
   const { priorityOrder, colors = MATCHUP_COLORS } = options;
   const teamColors = assignTeamColors(teams, colors);
+  const teamKeys = teams.map((team, index) => getTeamKey(team, index));
 
-  const priorityLookup = new Map<number, number>();
-  const order = priorityOrder ?? teams.map((team) => team.id);
-  order.forEach((teamId, index) => {
-    if (!priorityLookup.has(teamId)) {
-      priorityLookup.set(teamId, index);
+  const priorityLookup = new Map<string, number>();
+  const order = priorityOrder ?? teamKeys;
+  order.forEach((teamKey, index) => {
+    if (!priorityLookup.has(teamKey)) {
+      priorityLookup.set(teamKey, index);
     }
   });
 
@@ -141,9 +332,10 @@ export const groupMatchupPlayers = (
   const myPlayerPriorityMap = new Map<string, number>();
   const opponentPlayerPriorityMap = new Map<string, number>();
 
-  teams.forEach((team) => {
-    const color = teamColors.get(team.id) ?? colors[0];
-    const teamPriority = priorityLookup.get(team.id) ?? Number.MAX_SAFE_INTEGER;
+  teams.forEach((team, index) => {
+    const teamKey = teamKeys[index];
+    const color = teamColors.get(teamKey) ?? getMatchupColor(index, colors);
+    const teamPriority = priorityLookup.get(teamKey) ?? Number.MAX_SAFE_INTEGER;
 
     groupPlayers(team.players, myPlayersMap, myPlayerPriorityMap, color, teamPriority);
     groupPlayers(

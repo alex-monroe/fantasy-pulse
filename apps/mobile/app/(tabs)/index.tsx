@@ -1,6 +1,7 @@
 import type { GroupedPlayer, Team } from '@roster-loom/core';
 import {
   assignTeamColors,
+  getTeamKey,
   groupMatchupPlayers,
   groupPlayersByPosition,
   PLAYER_POSITIONS,
@@ -61,13 +62,16 @@ export default function OverviewScreen() {
             style={styles.scoreboard}
             contentContainerStyle={styles.scoreboardContent}
           >
-            {teams.map((team) => (
-              <MatchupScore
-                key={team.id}
-                team={team}
-                color={teamColors.get(team.id) ?? '#888'}
-              />
-            ))}
+            {teams.map((team, index) => {
+              const teamKey = getTeamKey(team, index);
+              return (
+                <MatchupScore
+                  key={teamKey}
+                  team={team}
+                  color={teamColors.get(teamKey) ?? '#888'}
+                />
+              );
+            })}
           </ScrollView>
 
           <ScrollView

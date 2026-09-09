@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { LeagueScoreboard } from '@/components/league-scoreboard'
+import { getTeamKey } from '@roster-loom/core'
 import type { Player, Team } from '@roster-loom/core'
 
 const makePlayer = (overrides: Partial<Player> & Pick<Player, 'name'>): Player => ({
@@ -36,7 +37,9 @@ const makeTeam = (
 })
 
 const renderScoreboard = (teams: Team[], onToggleCollapsed = jest.fn(), collapsed = false) => {
-  const teamColors = new Map(teams.map((team, index) => [team.id, ['#f87171', '#60a5fa'][index % 2]]))
+  const teamColors = new Map(
+    teams.map((team, index) => [getTeamKey(team, index), ['#f87171', '#60a5fa'][index % 2]]),
+  )
   return {
     onToggleCollapsed,
     ...render(
