@@ -1309,11 +1309,14 @@ export async function buildOttoneuTeams(
  * Builds teams for an ESPN integration.
  * @param integration The ESPN integration record.
  * @param playerNameMap Sleeper name lookup, used to resolve headshots.
+ * @param week The current NFL week, passed through as ESPN's scoring
+ *   period so the matchup payload comes back with lineups attached.
  * @returns A list of teams from ESPN.
  */
 export async function buildEspnTeams(
   integration: any,
   playerNameMap: { [key: string]: string },
+  week?: number,
   sleeperProjectionsByPlayerId?: Map<string, SleeperProjection>,
   projectionScoringMode: SleeperStockScoringMode = DEFAULT_NON_SLEEPER_PROJECTION_SCORING
 ): Promise<Team[]> {
@@ -1362,7 +1365,8 @@ export async function buildEspnTeams(
       const { matchup, error } = await getEspnMatchup(
         integration.id,
         row.league_id,
-        row.team_id
+        row.team_id,
+        week
       );
 
       if (error || !matchup) {
@@ -1581,6 +1585,7 @@ export async function getTeams(
       builderPromise = teamBuilders.buildEspnTeams(
         integration,
         playerNameMap,
+        week,
         sleeperProjectionsByPlayerId
       );
     }

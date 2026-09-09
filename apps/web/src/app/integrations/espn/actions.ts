@@ -35,17 +35,30 @@ async function fetchEspnLeague(
   espnS2: string,
   swid: string,
   views: string[],
-  season = currentEspnSeason()
+  options: { season?: number; scoringPeriodId?: number } = {}
 ) {
-  const url = `${ESPN_BASE_URL}/${season}/segments/0/leagues/${leagueId}?${views
-    .map((view) => `view=${view}`)
-    .join('&')}`;
+  const { season = currentEspnSeason(), scoringPeriodId } = options;
+
+  const query = views.map((view) => `view=${view}`);
+  // ESPN only fills in a matchup's lineups
+  // (`rosterForCurrentScoringPeriod`) for the scoring period the request
+  // names. Leave `scoringPeriodId` off and the key still comes back — with
+  // an empty `entries` array — which is what left ESPN teams rendering as
+  // a score with no players behind it.
+  if (typeof scoringPeriodId === 'number' && Number.isFinite(scoringPeriodId)) {
+    query.push(`scoringPeriodId=${scoringPeriodId}`);
+  }
+
+  const url = `${ESPN_BASE_URL}/${season}/segments/0/leagues/${leagueId}?${query.join('&')}`;
 
   return fetchJson<any>(url, {
     headers: {
       Cookie: espnCookieHeader(espnS2, swid),
       Accept: 'application/json',
     },
+    // Live scoring data, same as the Sleeper and Yahoo matchup fetches:
+    // never serve it from fetchJson's shared one-hour cache.
+    disableCache: true,
   });
 }
 
@@ -75,7 +88,22 @@ function espnTeamName(team: any) {
 // numeric codes rather than names. These tables are reverse-engineered and
 // stable across the wider ESPN fantasy tooling ecosystem (e.g. the
 // `espn-api` Python package), but ESPN could change them without notice.
+//
+// Two *different* numeric scales are in play and they do not line up: a
+// player's own position lives in `player.defaultPositionId` (QB is 1),
+// while the slot they occupy in a lineup lives in `entry.lineupSlotId`
+// (the QB slot is 0). Reading one with the other's table is how every ESPN
+// quarterback ended up labelled "TQB".
 const ESPN_POSITION_ABBREVIATIONS: Record<number, string> = {
+  1: 'QB',
+  2: 'RB',
+  3: 'WR',
+  4: 'TE',
+  5: 'K',
+  16: 'D/ST',
+};
+
+const ESPN_LINEUP_SLOT_ABBREVIATIONS: Record<number, string> = {
   0: 'QB',
   1: 'TQB',
   2: 'RB',
@@ -138,6 +166,27 @@ export type EspnRosterPlayer = {
   onBench: boolean;
 };
 
+/**
+ * Resolves a player's position label, preferring their own
+ * `defaultPositionId` and falling back to the lineup slot they're in for
+ * the IDP/oddball ids the table above deliberately leaves out.
+ * @param player - The `playerPoolEntry.player` object from ESPN.
+ * @param lineupSlotId - The roster entry's lineup slot id.
+ * @returns A position abbreviation, or an empty string if neither maps.
+ */
+function espnPlayerPosition(player: any, lineupSlotId: unknown): string {
+  const fromPosition = ESPN_POSITION_ABBREVIATIONS[player?.defaultPositionId];
+  if (fromPosition) {
+    return fromPosition;
+  }
+
+  if (typeof lineupSlotId === 'number' && !ESPN_BENCH_LINEUP_SLOT_IDS.has(lineupSlotId)) {
+    return ESPN_LINEUP_SLOT_ABBREVIATIONS[lineupSlotId] ?? '';
+  }
+
+  return '';
+}
+
 function mapEspnRosterEntry(entry: any): EspnRosterPlayer {
   const player = entry?.playerPoolEntry?.player ?? {};
   const id = player.id != null ? String(player.id) : entry?.playerId != null ? String(entry.playerId) : '';
@@ -149,11 +198,30 @@ function mapEspnRosterEntry(entry: any): EspnRosterPlayer {
   return {
     id,
     name,
-    position: ESPN_POSITION_ABBREVIATIONS[player.defaultPositionId] ?? '',
+    position: espnPlayerPosition(player, entry?.lineupSlotId),
     realTeam: ESPN_PRO_TEAM_ABBREVIATIONS[player.proTeamId] ?? '',
     points: Number(entry?.playerPoolEntry?.appliedStatTotal ?? entry?.appliedStatTotal ?? 0) || 0,
     onBench: ESPN_BENCH_LINEUP_SLOT_IDS.has(entry?.lineupSlotId),
   };
+}
+
+/**
+ * Picks the first roster source that actually has entries.
+ *
+ * ESPN returns several roster shapes on one payload and the unhelpful ones
+ * are present-but-empty rather than missing, so `??` chaining would stop at
+ * the first empty array instead of falling through to the roster that has
+ * the players in it.
+ * @param candidates - Roster entry arrays in order of preference.
+ * @returns The first non-empty array, or an empty array.
+ */
+function firstNonEmptyRoster(...candidates: unknown[]): any[] {
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate;
+    }
+  }
+  return [];
 }
 
 /**
@@ -185,15 +253,10 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
   }
 
   const fetchStart = startTimer();
-  const { data, error, status } = await fetchJson<any>(
-    `${ESPN_BASE_URL}/${currentEspnSeason()}/segments/0/leagues/${trimmedLeagueId}?view=mTeam&view=mSettings`,
-    {
-      headers: {
-        Cookie: espnCookieHeader(espnS2, swid),
-        Accept: 'application/json',
-      },
-    }
-  );
+  const { data, error, status } = await fetchEspnLeague(trimmedLeagueId, espnS2, swid, [
+    'mTeam',
+    'mSettings',
+  ]);
   logEspnApiDuration('connect league', fetchStart, { leagueId: trimmedLeagueId, success: !error });
 
   if (status === 401 || status === 403) {
@@ -387,17 +450,74 @@ export async function getTeams(integrationId: number) {
   return { teams: data };
 }
 
+/** The views the matchup payload needs: schedule, scores, teams, rosters. */
+const ESPN_MATCHUP_VIEWS = ['mMatchup', 'mMatchupScore', 'mTeam', 'mRoster'];
+
 /**
- * Gets the current-week matchup (team totals only) for an ESPN team.
- *
- * ESPN's box score payload is deeply nested and stat-code driven; this
- * intentionally returns team-level totals rather than a full per-player
- * breakdown. See README.md for notes on extending this to player detail.
+ * Reshapes an ESPN league payload into the current head-to-head matchup for
+ * one team, including both lineups.
+ * @param data - The league payload from the ESPN API.
+ * @param teamId - The ESPN team id to build the matchup around.
+ * @returns The matchup, or null when the team has none this period.
+ */
+function buildEspnMatchup(data: any, teamId: string) {
+  const numericTeamId = Number(teamId);
+  const currentPeriod = data?.status?.currentMatchupPeriod;
+  const schedule = (data?.schedule ?? []) as any[];
+  const matchup = schedule.find(
+    (m) =>
+      m.matchupPeriodId === currentPeriod &&
+      (m.home?.teamId === numericTeamId || m.away?.teamId === numericTeamId)
+  );
+
+  if (!matchup) {
+    return null;
+  }
+
+  const teamsById = new Map((data?.teams ?? []).map((team: any) => [team.id, team]));
+  const isHome = matchup.home?.teamId === numericTeamId;
+
+  const buildSide = (side: any) => {
+    const team: any = teamsById.get(side?.teamId);
+    return {
+      teamId: String(side?.teamId),
+      name: team ? espnTeamName(team) : undefined,
+      logo_url: team?.logo,
+      totalPoints: side?.totalPoints ?? 0,
+      // `rosterForCurrentScoringPeriod` is the live lineup, but ESPN only
+      // populates it for the scoring period the request asked for;
+      // `rosterForMatchupPeriod` covers a finished period, and the team's
+      // own `roster` is the season-long fallback (e.g. before kickoff).
+      players: firstNonEmptyRoster(
+        side?.rosterForCurrentScoringPeriod?.entries,
+        side?.rosterForMatchupPeriod?.entries,
+        team?.roster?.entries
+      ).map((entry) => mapEspnRosterEntry(entry)),
+    };
+  };
+
+  return {
+    week: currentPeriod,
+    userTeam: buildSide(isHome ? matchup.home : matchup.away),
+    opponentTeam: buildSide(isHome ? matchup.away : matchup.home),
+  };
+}
+
+/**
+ * Gets the current-week matchup for an ESPN team, with both lineups.
  * @param integrationId - The integration ID (used to look up stored cookies).
  * @param leagueId - The ESPN league ID.
  * @param teamId - The ESPN team ID.
+ * @param week - The current NFL week, used as ESPN's `scoringPeriodId` so
+ *   the payload comes back with lineups attached. Omitting it costs an
+ *   extra round trip (the retry below), it does not change the result.
  */
-export async function getEspnMatchup(integrationId: number, leagueId: string, teamId: string) {
+export async function getEspnMatchup(
+  integrationId: number,
+  leagueId: string,
+  teamId: string,
+  week?: number
+) {
   const supabase = createClient();
   const { data: integration, error: integrationError } = await supabase
     .from('fp_user_integrations')
@@ -409,14 +529,27 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
     return { error: 'ESPN integration not found or missing credentials.' };
   }
 
-  const fetchStart = startTimer();
-  const { data, error, status } = await fetchEspnLeague(
-    leagueId,
-    integration.espn_s2,
-    integration.swid,
-    ['mMatchupScore', 'mTeam', 'mRoster']
-  );
-  logEspnApiDuration('fetch matchup', fetchStart, { integrationId, leagueId, teamId, success: !error });
+  const fetchLeague = async (scoringPeriodId?: number) => {
+    const fetchStart = startTimer();
+    const result = await fetchEspnLeague(
+      leagueId,
+      integration.espn_s2,
+      integration.swid,
+      ESPN_MATCHUP_VIEWS,
+      { scoringPeriodId }
+    );
+    logEspnApiDuration('fetch matchup', fetchStart, {
+      integrationId,
+      leagueId,
+      teamId,
+      scoringPeriodId,
+      success: !result.error,
+    });
+    return result;
+  };
+
+  const requestedPeriod = typeof week === 'number' && Number.isFinite(week) ? week : undefined;
+  const { data, error, status } = await fetchLeague(requestedPeriod);
 
   if (status === 401 || status === 403) {
     return {
@@ -428,47 +561,45 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
     return { error: `Failed to fetch matchup from ESPN: ${error || 'unknown error'}` };
   }
 
-  const numericTeamId = Number(teamId);
-  const currentPeriod = data.status?.currentMatchupPeriod;
-  const schedule = (data.schedule ?? []) as any[];
-  const matchup = schedule.find(
-    (m) =>
-      m.matchupPeriodId === currentPeriod &&
-      (m.home?.teamId === numericTeamId || m.away?.teamId === numericTeamId)
-  );
+  let matchup = buildEspnMatchup(data, teamId);
 
   if (!matchup) {
     return { matchup: null };
   }
 
-  const teamsById = new Map((data.teams ?? []).map((team: any) => [team.id, team]));
-  const isHome = matchup.home?.teamId === numericTeamId;
-  const userSide = isHome ? matchup.home : matchup.away;
-  const opponentSide = isHome ? matchup.away : matchup.home;
-  const userTeam = teamsById.get(userSide?.teamId);
-  const opponentTeam = teamsById.get(opponentSide?.teamId);
+  // Empty lineups on both sides means the scoring period we asked for
+  // wasn't the one ESPN has rosters for. The payload names its own current
+  // period, so retry with that once rather than showing a bare score.
+  if (!matchup.userTeam.players.length && !matchup.opponentTeam.players.length) {
+    const leaguePeriod =
+      data.scoringPeriodId ?? data.status?.latestScoringPeriod ?? data.status?.currentMatchupPeriod;
 
-  return {
-    matchup: {
-      week: currentPeriod,
-      userTeam: {
-        teamId: String(userSide?.teamId),
-        name: userTeam ? espnTeamName(userTeam) : undefined,
-        logo_url: userTeam?.logo,
-        totalPoints: userSide?.totalPoints ?? 0,
-        players: (
-          userSide?.rosterForCurrentScoringPeriod?.entries ?? userTeam?.roster?.entries ?? []
-        ).map(mapEspnRosterEntry),
+    if (typeof leaguePeriod === 'number' && leaguePeriod !== requestedPeriod) {
+      const retry = await fetchLeague(leaguePeriod);
+      const retriedMatchup = retry.data ? buildEspnMatchup(retry.data, teamId) : null;
+
+      if (
+        retriedMatchup &&
+        (retriedMatchup.userTeam.players.length || retriedMatchup.opponentTeam.players.length)
+      ) {
+        matchup = retriedMatchup;
+      }
+    }
+  }
+
+  if (!matchup.userTeam.players.length) {
+    logger.warn(
+      {
+        integrationId,
+        leagueId,
+        teamId,
+        requestedPeriod,
+        leagueScoringPeriod: data.scoringPeriodId,
+        currentMatchupPeriod: data.status?.currentMatchupPeriod,
       },
-      opponentTeam: {
-        teamId: String(opponentSide?.teamId),
-        name: opponentTeam ? espnTeamName(opponentTeam) : undefined,
-        logo_url: opponentTeam?.logo,
-        totalPoints: opponentSide?.totalPoints ?? 0,
-        players: (
-          opponentSide?.rosterForCurrentScoringPeriod?.entries ?? opponentTeam?.roster?.entries ?? []
-        ).map(mapEspnRosterEntry),
-      },
-    },
-  };
+      'ESPN matchup returned no roster entries'
+    );
+  }
+
+  return { matchup };
 }
