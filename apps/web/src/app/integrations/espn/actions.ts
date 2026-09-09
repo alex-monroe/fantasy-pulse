@@ -144,8 +144,13 @@ export type EspnRosterPlayer = {
   onBench: boolean;
 };
 
+let loggedRawEspnEntry = false;
 function mapEspnRosterEntry(entry: any): EspnRosterPlayer {
   const player = entry?.playerPoolEntry?.player ?? {};
+  if (!loggedRawEspnEntry) {
+    loggedRawEspnEntry = true;
+    console.log('[debug] espn: raw roster entry sample', JSON.stringify(entry)?.slice(0, 2000));
+  }
   const id = player.id != null ? String(player.id) : entry?.playerId != null ? String(entry.playerId) : '';
   const name =
     player.fullName ||
