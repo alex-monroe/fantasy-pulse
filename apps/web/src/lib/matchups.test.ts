@@ -1,6 +1,7 @@
 import {
   assignTeamColors,
   createPlayerAggregationKey,
+  getMatchupColor,
   groupMatchupPlayers,
   groupPlayersByPosition,
   processMatchups,
@@ -59,13 +60,44 @@ describe('createPlayerAggregationKey', () => {
 });
 
 describe('assignTeamColors', () => {
-  it('cycles through the palette by team order', () => {
-    const teams = Array.from({ length: MATCHUP_COLORS.length + 1 }, (_, i) =>
+  it('assigns the palette in team order', () => {
+    const teams = Array.from({ length: MATCHUP_COLORS.length }, (_, i) =>
       makeTeam(i, `Team ${i}`, [], 'Opp', []),
     );
     const colors = assignTeamColors(teams);
-    expect(colors.get(0)).toBe(MATCHUP_COLORS[0]);
-    expect(colors.get(MATCHUP_COLORS.length)).toBe(MATCHUP_COLORS[0]); // wraps around
+    MATCHUP_COLORS.forEach((color, index) => {
+      expect(colors.get(index)).toBe(color);
+    });
+  });
+
+  it('keeps every team a different color once the palette runs out', () => {
+    const teams = Array.from({ length: MATCHUP_COLORS.length * 3 }, (_, i) =>
+      makeTeam(i, `Team ${i}`, [], 'Opp', []),
+    );
+    const colors = assignTeamColors(teams);
+    const assigned = teams.map((team) => colors.get(team.id));
+
+    expect(assigned.every((color) => typeof color === 'string')).toBe(true);
+    expect(new Set(assigned).size).toBe(teams.length);
+  });
+});
+
+describe('getMatchupColor', () => {
+  it('returns the palette entry for the first matchups', () => {
+    MATCHUP_COLORS.forEach((color, index) => {
+      expect(getMatchupColor(index)).toBe(color);
+    });
+  });
+
+  it('generates further hex colors that never repeat', () => {
+    const colors = Array.from({ length: 60 }, (_, i) => getMatchupColor(i));
+    colors.forEach((color) => expect(color).toMatch(/^#[0-9a-f]{6}$/));
+    expect(new Set(colors).size).toBe(colors.length);
+  });
+
+  it('falls back to the first palette entry for an invalid index', () => {
+    expect(getMatchupColor(-1)).toBe(MATCHUP_COLORS[0]);
+    expect(getMatchupColor(Number.NaN)).toBe(MATCHUP_COLORS[0]);
   });
 });
 

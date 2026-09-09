@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  MATCHUP_COLORS,
+  getMatchupColor,
   summarizeMatchup,
   summarizeWeek,
   type MatchupSummary,
@@ -173,7 +173,7 @@ export function LeagueScoreboard({
               <MatchupTile
                 key={summary.team.id}
                 summary={summary}
-                color={teamColors.get(summary.team.id) ?? MATCHUP_COLORS[index % MATCHUP_COLORS.length]}
+                color={teamColors.get(summary.team.id) ?? getMatchupColor(index)}
                 isMyScoreChanged={changedScoreKeys.has(`team-${summary.team.id}-total`)}
                 isOpponentScoreChanged={changedScoreKeys.has(`team-${summary.team.id}-opponent`)}
               />
