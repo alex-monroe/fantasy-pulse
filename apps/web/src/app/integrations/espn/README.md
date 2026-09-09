@@ -56,15 +56,22 @@ generic failure, so the UI can prompt the user to repeat the steps above.
 ## Player rosters
 
 `getEspnMatchup` requests the `mRoster` view alongside `mMatchupScore`/
-`mTeam`, so each side of the current matchup includes a `players` array
-(current-scoring-period roster entries). ESPN identifies each player's
-position and pro team by numeric code rather than name; `actions.ts`
-decodes these via `ESPN_POSITION_ABBREVIATIONS` and
-`ESPN_PRO_TEAM_ABBREVIATIONS`. Those tables are reverse-engineered (not
-from an official ESPN spec) and are stable across the wider ESPN
-fantasy tooling ecosystem, but ESPN could change the codes without
-notice — if a player's position or team ever shows up blank, that's
-the first place to check.
+`mTeam`, so each side of the current matchup includes a `players` array,
+read from `rosterForCurrentScoringPeriod.entries` (a live snapshot) or,
+failing that, the team's static `roster.entries`. Without a
+`scoringPeriodId` pinned in the query string, ESPN can default the
+`mRoster` view to a period with no entries for either fallback — the
+matchup totals still render fine (they come from `schedule`/`teams`
+metadata, not the roster view), but every player list comes back empty.
+When that happens, `getEspnMatchup` re-fetches just the `mRoster` view
+with `scoringPeriodId` pinned to the matchup's current period before
+giving up. ESPN identifies each player's position and pro team by
+numeric code rather than name; `actions.ts` decodes these via
+`ESPN_POSITION_ABBREVIATIONS` and `ESPN_PRO_TEAM_ABBREVIATIONS`. Those
+tables are reverse-engineered (not from an official ESPN spec) and are
+stable across the wider ESPN fantasy tooling ecosystem, but ESPN could
+change the codes without notice — if a player's position or team ever
+shows up blank, that's the first place to check.
 
 `buildEspnTeams` in `apps/web/src/app/actions.ts` maps this roster
 data into the app's shared `Player`/`Team` types (resolving headshots

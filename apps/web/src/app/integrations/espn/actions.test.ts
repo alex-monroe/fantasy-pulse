@@ -312,6 +312,52 @@ describe('espn actions', () => {
       ]);
     });
 
+    it('re-fetches rosters with a pinned scoringPeriodId when the initial response has no roster data at all', async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+
+      // First call: mMatchupScore/mTeam/mRoster, but ESPN defaulted the
+      // roster view to a period with no entries for either side.
+      fetchJson.mockResolvedValueOnce({ data: matchupPayload, status: 200 });
+      // Second call: the scoped mRoster-only re-fetch, pinned to the
+      // current matchup period, actually has the entries.
+      fetchJson.mockResolvedValueOnce({
+        data: {
+          teams: [
+            {
+              id: 1,
+              roster: {
+                entries: [
+                  {
+                    lineupSlotId: 0,
+                    playerPoolEntry: {
+                      appliedStatTotal: 24.5,
+                      player: { id: 111, fullName: 'Star Quarterback', defaultPositionId: 0, proTeamId: 12 },
+                    },
+                  },
+                ],
+              },
+            },
+            { id: 2, roster: { entries: [] } },
+          ],
+        },
+        status: 200,
+      });
+
+      const result = await actions.getEspnMatchup(42, '999', '1');
+
+      expect(fetchJson).toHaveBeenCalledTimes(2);
+      const secondCallUrl = fetchJson.mock.calls[1][0] as string;
+      expect(secondCallUrl).toContain('view=mRoster');
+      expect(secondCallUrl).toContain('scoringPeriodId=3');
+      expect(result.matchup?.userTeam.players).toEqual([
+        { id: '111', name: 'Star Quarterback', position: 'QB', realTeam: 'KC', points: 24.5, onBench: false },
+      ]);
+    });
+
     it('returns a reconnect error when the stored cookies are rejected', async () => {
       const { mockSupabase, integrationSelect } = buildMockSupabase();
       createClient.mockReturnValue(mockSupabase);

@@ -35,11 +35,17 @@ async function fetchEspnLeague(
   espnS2: string,
   swid: string,
   views: string[],
+  scoringPeriodId?: number,
   season = currentEspnSeason()
 ) {
-  const url = `${ESPN_BASE_URL}/${season}/segments/0/leagues/${leagueId}?${views
-    .map((view) => `view=${view}`)
-    .join('&')}`;
+  const params = views.map((view) => `view=${view}`);
+  if (scoringPeriodId != null) {
+    // ESPN's mRoster view returns whatever period it defaults to
+    // server-side (often stale) unless scoringPeriodId is pinned
+    // explicitly alongside the view.
+    params.push(`scoringPeriodId=${scoringPeriodId}`);
+  }
+  const url = `${ESPN_BASE_URL}/${season}/segments/0/leagues/${leagueId}?${params.join('&')}`;
 
   return fetchJson<any>(url, {
     headers: {
@@ -441,10 +447,45 @@ export async function getEspnMatchup(integrationId: number, leagueId: string, te
     return { matchup: null };
   }
 
-  const teamsById = new Map((data.teams ?? []).map((team: any) => [team.id, team]));
+  let teamsById = new Map((data.teams ?? []).map((team: any) => [team.id, team]));
+
   const isHome = matchup.home?.teamId === numericTeamId;
   const userSide = isHome ? matchup.home : matchup.away;
   const opponentSide = isHome ? matchup.away : matchup.home;
+
+  // The mRoster view above returns whatever period ESPN defaults to
+  // server-side, which is frequently not the live/current week — pin
+  // scoringPeriodId explicitly and re-fetch rosters when that left both
+  // the live snapshot and the roster fallback empty, rather than
+  // silently rendering scores with no players.
+  const hasRosterEntries = (side: any, team: any) =>
+    (side?.rosterForCurrentScoringPeriod?.entries?.length ?? 0) > 0 ||
+    (team?.roster?.entries?.length ?? 0) > 0;
+  const rostersMissing =
+    !hasRosterEntries(userSide, teamsById.get(userSide?.teamId)) &&
+    !hasRosterEntries(opponentSide, teamsById.get(opponentSide?.teamId));
+
+  if (currentPeriod != null && rostersMissing) {
+    const rosterFetchStart = startTimer();
+    const { data: rosterData, error: rosterError } = await fetchEspnLeague(
+      leagueId,
+      integration.espn_s2,
+      integration.swid,
+      ['mRoster'],
+      currentPeriod
+    );
+    logEspnApiDuration('fetch matchup rosters (scoped)', rosterFetchStart, {
+      integrationId,
+      leagueId,
+      teamId,
+      currentPeriod,
+      success: !rosterError,
+    });
+    if (!rosterError && rosterData?.teams) {
+      teamsById = new Map((rosterData.teams ?? []).map((team: any) => [team.id, team]));
+    }
+  }
+
   const userTeam = teamsById.get(userSide?.teamId);
   const opponentTeam = teamsById.get(opponentSide?.teamId);
 
