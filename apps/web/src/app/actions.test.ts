@@ -1469,8 +1469,9 @@ describe('actions', () => {
         },
       });
 
-      const result = await actions.buildEspnTeams({ id: 42 }, {});
+      const result = await actions.buildEspnTeams({ id: 42 }, {}, 1);
 
+      expect(getEspnMatchup).toHaveBeenCalledWith(42, '999', '1', 1);
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
         id: 9,
@@ -1532,6 +1533,7 @@ describe('actions', () => {
       const result = await actions.buildEspnTeams(
         { id: 42 },
         playerNameMap,
+        1,
         sleeperProjectionsByPlayerId
       );
 

@@ -26,7 +26,7 @@ const matchupPayload = {
 
 jest.mock('@roster-loom/core', () => ({ fetchJson: jest.fn() }));
 jest.mock('@/utils/supabase/server', () => ({ createClient: jest.fn() }));
-jest.mock('@/utils/logger', () => ({ info: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+jest.mock('@/utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 
 // A chainable query-builder stub: every method returns itself so it
 // supports any combination/order of .eq()/.order()/.limit(), and it's
@@ -224,7 +224,7 @@ describe('espn actions', () => {
                         player: {
                           id: 111,
                           fullName: 'Star Quarterback',
-                          defaultPositionId: 0,
+                          defaultPositionId: 1,
                           proTeamId: 12,
                         },
                       },
@@ -236,7 +236,7 @@ describe('espn actions', () => {
                         player: {
                           id: 222,
                           fullName: 'Bench Guy',
-                          defaultPositionId: 4,
+                          defaultPositionId: 3,
                           proTeamId: 25,
                         },
                       },
@@ -284,7 +284,7 @@ describe('espn actions', () => {
                       player: {
                         id: 111,
                         fullName: 'Preseason QB',
-                        defaultPositionId: 0,
+                        defaultPositionId: 1,
                         proTeamId: 12,
                       },
                     },
@@ -309,6 +309,161 @@ describe('espn actions', () => {
 
       expect(result.matchup?.userTeam.players).toEqual([
         { id: '111', name: 'Preseason QB', position: 'QB', realTeam: 'KC', points: 0, onBench: false },
+      ]);
+    });
+
+    it('prefers the team roster when the live scoring-period roster is empty', async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+      fetchJson.mockResolvedValue({
+        data: {
+          scoringPeriodId: 1,
+          status: { currentMatchupPeriod: 1 },
+          teams: [
+            {
+              id: 1,
+              name: 'My Team',
+              owners: ['{USER-SWID-1234}'],
+              roster: {
+                entries: [
+                  {
+                    lineupSlotId: 0,
+                    playerPoolEntry: {
+                      appliedStatTotal: 0,
+                      player: { id: 111, fullName: 'Week One QB', defaultPositionId: 1, proTeamId: 12 },
+                    },
+                  },
+                ],
+              },
+            },
+            { id: 2, name: 'Rival Team', owners: ['{OTHER-SWID-5678}'] },
+          ],
+          schedule: [
+            {
+              matchupPeriodId: 1,
+              // ESPN sends the key back present-but-empty, which a `??`
+              // chain would treat as a real roster.
+              home: { teamId: 1, totalPoints: 0, rosterForCurrentScoringPeriod: { entries: [] } },
+              away: { teamId: 2, totalPoints: 0, rosterForCurrentScoringPeriod: { entries: [] } },
+            },
+          ],
+        },
+        status: 200,
+      });
+
+      const result = await actions.getEspnMatchup(42, '999', '1', 1);
+
+      expect(result.matchup?.userTeam.players).toEqual([
+        { id: '111', name: 'Week One QB', position: 'QB', realTeam: 'KC', points: 0, onBench: false },
+      ]);
+    });
+
+    it('asks ESPN for the given week and skips the fetch cache', async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+      fetchJson.mockResolvedValue({
+        data: {
+          scoringPeriodId: 1,
+          status: { currentMatchupPeriod: 1 },
+          teams: [
+            {
+              id: 1,
+              name: 'My Team',
+              owners: ['{USER-SWID-1234}'],
+              roster: {
+                entries: [
+                  {
+                    lineupSlotId: 0,
+                    playerPoolEntry: {
+                      appliedStatTotal: 0,
+                      player: { id: 111, fullName: 'Week One QB', defaultPositionId: 1, proTeamId: 12 },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+          schedule: [
+            { matchupPeriodId: 1, home: { teamId: 1, totalPoints: 0 }, away: { teamId: 2, totalPoints: 0 } },
+          ],
+        },
+        status: 200,
+      });
+
+      await actions.getEspnMatchup(42, '999', '1', 1);
+
+      expect(fetchJson).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchJson.mock.calls[0];
+      expect(url).toContain('scoringPeriodId=1');
+      expect(url).toContain('view=mRoster');
+      expect(init).toEqual(expect.objectContaining({ disableCache: true }));
+    });
+
+    it("retries with the league's own scoring period when lineups come back empty", async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+
+      const emptyPayload = {
+        scoringPeriodId: 2,
+        status: { currentMatchupPeriod: 2 },
+        teams: [
+          { id: 1, name: 'My Team', owners: ['{USER-SWID-1234}'] },
+          { id: 2, name: 'Rival Team', owners: ['{OTHER-SWID-5678}'] },
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 2,
+            home: { teamId: 1, totalPoints: 12, rosterForCurrentScoringPeriod: { entries: [] } },
+            away: { teamId: 2, totalPoints: 9, rosterForCurrentScoringPeriod: { entries: [] } },
+          },
+        ],
+      };
+
+      const populatedPayload = {
+        ...emptyPayload,
+        schedule: [
+          {
+            matchupPeriodId: 2,
+            home: {
+              teamId: 1,
+              totalPoints: 12,
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  {
+                    lineupSlotId: 2,
+                    playerPoolEntry: {
+                      appliedStatTotal: 12,
+                      player: { id: 333, fullName: 'Live Back', defaultPositionId: 2, proTeamId: 25 },
+                    },
+                  },
+                ],
+              },
+            },
+            away: { teamId: 2, totalPoints: 9, rosterForCurrentScoringPeriod: { entries: [] } },
+          },
+        ],
+      };
+
+      fetchJson
+        .mockResolvedValueOnce({ data: emptyPayload, status: 200 })
+        .mockResolvedValueOnce({ data: populatedPayload, status: 200 });
+
+      const result = await actions.getEspnMatchup(42, '999', '1', 5);
+
+      expect(fetchJson).toHaveBeenCalledTimes(2);
+      expect(fetchJson.mock.calls[0][0]).toContain('scoringPeriodId=5');
+      expect(fetchJson.mock.calls[1][0]).toContain('scoringPeriodId=2');
+      expect(result.matchup?.userTeam.players).toEqual([
+        { id: '333', name: 'Live Back', position: 'RB', realTeam: 'SF', points: 12, onBench: false },
       ]);
     });
 
