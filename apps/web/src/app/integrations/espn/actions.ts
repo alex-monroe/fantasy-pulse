@@ -454,6 +454,59 @@ export async function getTeams(integrationId: number) {
 const ESPN_MATCHUP_VIEWS = ['mMatchup', 'mMatchupScore', 'mTeam', 'mRoster'];
 
 /**
+ * Returns the first candidate that reads as a finite number.
+ * @param candidates - Values in order of preference.
+ * @returns The first finite number, or 0 when none qualify.
+ */
+function firstFiniteNumber(...candidates: unknown[]): number {
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined || candidate === '') {
+      continue;
+    }
+    const value = Number(candidate);
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return 0;
+}
+
+/** Trims the float noise that summing per-player points introduces. */
+function roundScore(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Reads a matchup side's score, preferring ESPN's live total.
+ *
+ * While games are being played ESPN keeps the running score in
+ * `totalPointsLive` and leaves `totalPoints` sitting at the value the
+ * matchup period opened with -- 0 for most of a Sunday -- only settling it
+ * once the period is finalised. Reading `totalPoints` alone is what left
+ * the scoreboard frozen on the opening score while players were visibly
+ * scoring. Outside live scoring the live key is absent entirely, so
+ * `totalPoints` stays the authority for finished weeks.
+ * @param side - The `home`/`away` object from a schedule entry.
+ * @param players - The side's mapped roster, summed as a last resort.
+ * @returns The side's current score, rounded to two decimals.
+ */
+function espnSideScore(side: any, players: EspnRosterPlayer[]): number {
+  const reported = firstFiniteNumber(side?.totalPointsLive, side?.totalPoints);
+  if (reported !== 0) {
+    return roundScore(reported);
+  }
+
+  // Both totals came back missing or zero while the lineup we just parsed
+  // has points on it: ESPN is contradicting itself, so trust the players.
+  const startersTotal = players.reduce(
+    (sum, player) => (player.onBench ? sum : sum + player.points),
+    0
+  );
+
+  return roundScore(startersTotal);
+}
+
+/**
  * Reshapes an ESPN league payload into the current head-to-head matchup for
  * one team, including both lineups.
  * @param data - The league payload from the ESPN API.
@@ -479,20 +532,22 @@ function buildEspnMatchup(data: any, teamId: string) {
 
   const buildSide = (side: any) => {
     const team: any = teamsById.get(side?.teamId);
+    // `rosterForCurrentScoringPeriod` is the live lineup, but ESPN only
+    // populates it for the scoring period the request asked for;
+    // `rosterForMatchupPeriod` covers a finished period, and the team's
+    // own `roster` is the season-long fallback (e.g. before kickoff).
+    const players = firstNonEmptyRoster(
+      side?.rosterForCurrentScoringPeriod?.entries,
+      side?.rosterForMatchupPeriod?.entries,
+      team?.roster?.entries
+    ).map((entry) => mapEspnRosterEntry(entry));
+
     return {
       teamId: String(side?.teamId),
       name: team ? espnTeamName(team) : undefined,
       logo_url: team?.logo,
-      totalPoints: side?.totalPoints ?? 0,
-      // `rosterForCurrentScoringPeriod` is the live lineup, but ESPN only
-      // populates it for the scoring period the request asked for;
-      // `rosterForMatchupPeriod` covers a finished period, and the team's
-      // own `roster` is the season-long fallback (e.g. before kickoff).
-      players: firstNonEmptyRoster(
-        side?.rosterForCurrentScoringPeriod?.entries,
-        side?.rosterForMatchupPeriod?.entries,
-        team?.roster?.entries
-      ).map((entry) => mapEspnRosterEntry(entry)),
+      totalPoints: espnSideScore(side, players),
+      players,
     };
   };
 
