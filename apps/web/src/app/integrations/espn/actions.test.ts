@@ -200,6 +200,99 @@ describe('espn actions', () => {
       });
     });
 
+    it('prefers the live total while games are in progress', async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+      fetchJson.mockResolvedValue({
+        data: {
+          ...matchupPayload,
+          schedule: [
+            {
+              matchupPeriodId: 3,
+              // Mid-Sunday: ESPN keeps the running score in
+              // `totalPointsLive` and leaves `totalPoints` on the score the
+              // matchup period opened with.
+              home: { teamId: 1, totalPoints: 0, totalPointsLive: 64.32 },
+              away: { teamId: 2, totalPoints: 0, totalPointsLive: 51.08 },
+            },
+          ],
+        },
+        status: 200,
+      });
+
+      const result = await actions.getEspnMatchup(42, '999', '1');
+
+      expect(result.matchup?.userTeam.totalPoints).toBe(64.32);
+      expect(result.matchup?.opponentTeam.totalPoints).toBe(51.08);
+    });
+
+    it('keeps the settled total once the live key drops off', async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+      fetchJson.mockResolvedValue({ data: matchupPayload, status: 200 });
+
+      const result = await actions.getEspnMatchup(42, '999', '1');
+
+      expect(result.matchup?.userTeam.totalPoints).toBe(101.5);
+      expect(result.matchup?.opponentTeam.totalPoints).toBe(88.25);
+    });
+
+    it('sums the starters when both ESPN totals come back zero', async () => {
+      const { mockSupabase, integrationSelect } = buildMockSupabase();
+      createClient.mockReturnValue(mockSupabase);
+      integrationSelect.mockReturnValue(
+        makeEqChain({ data: { espn_s2: 's2-value', swid: '{USER-SWID-1234}' }, error: null })
+      );
+      const entry = (
+        lineupSlotId: number,
+        id: number,
+        fullName: string,
+        appliedStatTotal: number
+      ) => ({
+        lineupSlotId,
+        playerPoolEntry: {
+          appliedStatTotal,
+          player: { id, fullName, defaultPositionId: 1, proTeamId: 12 },
+        },
+      });
+
+      fetchJson.mockResolvedValue({
+        data: {
+          ...matchupPayload,
+          schedule: [
+            {
+              matchupPeriodId: 3,
+              home: {
+                teamId: 1,
+                totalPoints: 0,
+                rosterForCurrentScoringPeriod: {
+                  entries: [
+                    entry(0, 111, 'Starting QB', 18.1),
+                    entry(2, 222, 'Starting RB', 7.2),
+                    entry(20, 333, 'Bench Guy', 25),
+                  ],
+                },
+              },
+              away: { teamId: 2, totalPoints: 0 },
+            },
+          ],
+        },
+        status: 200,
+      });
+
+      const result = await actions.getEspnMatchup(42, '999', '1');
+
+      // Starters only, and free of the 25.299999999999997 float noise.
+      expect(result.matchup?.userTeam.totalPoints).toBe(25.3);
+      expect(result.matchup?.opponentTeam.totalPoints).toBe(0);
+    });
+
     it('maps roster entries into player-level detail', async () => {
       const { mockSupabase, integrationSelect } = buildMockSupabase();
       createClient.mockReturnValue(mockSupabase);
