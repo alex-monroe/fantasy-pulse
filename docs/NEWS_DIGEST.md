@@ -12,7 +12,7 @@ matching that pool against the `Team[]` `getTeams()` already builds.
 Nothing about a user's rosters is ever written to the news tables.
 
 ```
-cron (daily) ──┐
+GH Actions ────┐
                ├─> POST /api/news/ingest ─> ingestNews()
 page render ───┘     (when the pool is stale)   │
                                                 ├─ fetch Rotowire RSS
@@ -31,7 +31,8 @@ page render ───┘     (when the pool is stale)   │
 | `apps/web/src/lib/news/source.ts` | Feed URL, freshness TTL, read-window constants. |
 | `apps/web/src/lib/news/ingest.ts` | Fetch the feed and upsert it. Service-role Supabase client. |
 | `apps/web/src/lib/news/digest.ts` | Read the pool and match it to one user's teams. |
-| `apps/web/src/app/api/news/ingest/route.ts` | Cron-triggered ingest endpoint. |
+| `apps/web/src/app/api/news/ingest/route.ts` | Scheduled ingest endpoint. |
+| `.github/workflows/news-ingest.yml` | The schedule: calls that endpoint every 15 minutes. |
 | `apps/web/src/app/(dashboard)/news-digest/` | The page and its components. |
 | `supabase/migrations/20260911120000_add_fp_news_items.sql` | `fp_news_items` + `fp_news_ingests`. |
 
@@ -63,8 +64,9 @@ hundred rostered players) does not pay a full cross product per render.
 
 Two things keep the pool current:
 
-- **The cron entry in `vercel.json`** hits `/api/news/ingest` once a day
-  (12:00 UTC), which is what the Vercel Hobby plan allows.
+- **The `News Ingest` GitHub Actions workflow**
+  (`.github/workflows/news-ingest.yml`) hits `/api/news/ingest` every 15
+  minutes.
 - **The page itself** ingests on demand when the pool is older than
   `NEWS_FRESHNESS_MS` (15 minutes), so a deployment with no scheduler
   still shows fresh news. That refresh is best-effort — if the feed is
@@ -83,8 +85,9 @@ retry it and turn one outage into a slow site.
 cannot poison the feed. Without that key configured the ingest fails with
 a clear error rather than writing nothing silently.
 
-`/api/news/ingest` requires `CRON_SECRET` as a bearer token (Vercel Cron
-sends exactly that). When the variable is unset the endpoint returns
+`/api/news/ingest` requires `CRON_SECRET` as a bearer token (the
+scheduled workflow sends exactly that). When the variable is unset on the
+deployment the endpoint returns
 **503, disabled** — not open. An unauthenticated write path that appears
 whenever an env var is forgotten is the wrong default, and the page's own
 stale-refresh covers the gap.
@@ -101,29 +104,41 @@ curl -X POST https://<deployment>/api/news/ingest \
 | Variable | Required | Purpose |
 | -------- | -------- | ------- |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes, to ingest | Writes to `fp_news_items`. Already used by the MCP server. |
-| `CRON_SECRET` | yes, to use the endpoint | Bearer token `/api/news/ingest` checks. Vercel sets this on cron requests when the project defines it. |
+| `CRON_SECRET` | yes, to use the endpoint | Bearer token `/api/news/ingest` checks. Set it on the deployment **and** as a GitHub Actions secret, with the same value. |
 | `ROTOWIRE_RSS_URL` | no | Overrides the feed URL. Defaults to Rotowire's public NFL news RSS. |
 
-### A note on `vercel.json`
+### Why GitHub Actions and not Vercel Cron
 
-The cron entry lives in the repo-root `vercel.json`, which is correct
-when the Vercel project's **Root Directory** is the repo root (the root
-`package.json`'s `build` script delegates into the workspace, which is
-what that setup needs). If the project's Root Directory is set to
-`apps/web` instead, move the file to `apps/web/vercel.json` — Vercel only
-reads the one inside the root directory.
+Vercel's cron frequency is plan-gated and this project is on **Hobby**,
+which allows one run per day — too coarse for player news, where the
+point is catching a practice report or an inactive within the hour.
+GitHub's scheduler has a five-minute floor and Actions is free on public
+repositories, which this repo is, so the schedule costs nothing.
 
-Cron frequency is plan-gated, and this project is on **Hobby**, which
-allows one run per day — hence `0 12 * * *`. Hobby also treats the hour
-as approximate: the run fires sometime within that hour, not on the
-minute. A Pro project can raise this to `0 * * * *` (hourly) or finer.
+The workflow is a thin trigger, not a second implementation: it `curl`s
+the same `/api/news/ingest` endpoint a Vercel cron would have hit, so
+there is still exactly one ingest code path. Setting it up needs two
+things on the repository, under **Settings → Secrets and variables →
+Actions**:
 
-The daily run is a backstop, not the freshness mechanism. What actually
-keeps the digest current is the page's own stale-refresh (see
-[Freshness](#freshness) above): the first visit after the pool passes 15
-minutes old re-ingests before rendering.
-The cron exists so the pool is usually already warm when someone opens
-the page, and so it keeps accumulating history on days nobody visits.
+- `CRON_SECRET` (**secret**) — the same value as the deployment's. The
+  workflow fails with a clear message if it is missing; the endpoint
+  answers 503 if the *deployment* is missing it.
+- `APP_BASE_URL` (**variable**, optional) — which deployment to poke.
+  Defaults to `https://fantasy-pulse.vercel.app`.
+
+Two things to know about GitHub's scheduler:
+
+- **`*/15` is a floor, not a promise.** Scheduled runs queue on shared
+  infrastructure, are routinely minutes late, and can be dropped under
+  load. That is fine here — a missed run costs one visitor a feed fetch
+  (the page refreshes a stale pool itself), not freshness.
+- **It auto-disables after 60 days of repository inactivity.** GitHub
+  emails the owner first; re-enable from the Actions tab. Again, the
+  page's own refresh means the digest keeps working meanwhile.
+
+Run it by hand from the Actions tab (**News Ingest → Run workflow**);
+`workflow_dispatch` is enabled for exactly that.
 
 ## Demo mode
 

@@ -79,6 +79,8 @@ docs/
   product name is "Roster Loom" but the repo is `fantasy-pulse`)
 - Default branch: `main`
 - CI: `.github/workflows/playwright.yml` runs on push + PR to `main`
+- Scheduled: `.github/workflows/news-ingest.yml` refreshes the player-news
+  pool every 15 minutes (see [docs/NEWS_DIGEST.md](docs/NEWS_DIGEST.md))
 
 ## Critical Rules
 

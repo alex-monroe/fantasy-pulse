@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
  * Whether a request is allowed to trigger an ingest.
  *
  * The endpoint writes to a shared, all-users table, so it is not open:
- * the caller must present `CRON_SECRET` as a bearer token. Vercel Cron
- * sends exactly that header when the variable is set on the project.
+ * the caller must present `CRON_SECRET` as a bearer token. The `News
+ * Ingest` GitHub Actions workflow sends exactly that header.
  *
  * When `CRON_SECRET` is unset the endpoint is disabled rather than open —
  * an unauthenticated write path that appears whenever an env var is
@@ -76,13 +76,16 @@ async function runIngest(request: Request) {
 /**
  * Ingests the player-news feed into the shared pool.
  *
- * Scheduled by `vercel.json`'s cron entry, which issues a GET.
+ * GET and POST behave identically. The scheduled caller
+ * (`.github/workflows/news-ingest.yml`) issues a POST; GET is kept so the
+ * endpoint can be poked from a browser or a platform scheduler that only
+ * issues GETs.
  */
 export async function GET(request: Request) {
   return runIngest(request);
 }
 
-/** POST behaves identically, for manual triggering with `curl -X POST`. */
+/** See {@link GET} — the scheduled workflow uses this one. */
 export async function POST(request: Request) {
   return runIngest(request);
 }

@@ -1,0 +1,101 @@
+# Keeps the player-news pool fresh (see docs/NEWS_DIGEST.md).
+#
+# This lives here rather than in vercel.json because the Vercel Hobby plan
+# caps cron jobs at one run per day. GitHub's scheduler has a five-minute
+# floor and Actions is free on public repositories, so the ingest can run
+# at the cadence the feature actually wants.
+#
+# The job is a thin trigger: it calls the deployed /api/news/ingest
+# endpoint, which owns the fetching, parsing and upserting. Keeping one
+# code path means the scheduled run and a manual run exercise exactly what
+# a stale page render would.
+name: News Ingest
+
+on:
+  schedule:
+    # Every 15 minutes, matching NEWS_FRESHNESS_MS in
+    # apps/web/src/lib/news/source.ts: the pool is refreshed just as it
+    # would otherwise go stale, so a page render should essentially never
+    # have to pay for a feed fetch itself.
+    #
+    # GitHub treats this as a floor, not a promise — scheduled runs queue
+    # on shared infrastructure and are routinely minutes late, and can be
+    # dropped entirely under load. That is fine here: the digest page
+    # still refreshes a stale pool on its own, so a missed run costs one
+    # visitor a feed fetch, not freshness.
+    - cron: '*/15 * * * *'
+  # Lets a run be kicked off by hand from the Actions tab.
+  workflow_dispatch:
+
+# The workflow reads nothing from GitHub and writes nothing back to it.
+permissions: {}
+
+concurrency:
+  # An ingest takes seconds; if one somehow runs long, let it finish
+  # rather than stacking a second one on top of it.
+  group: news-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Trigger news ingest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call the ingest endpoint
+        env:
+          # Must match CRON_SECRET on the deployment; without it the
+          # endpoint answers 503 (disabled) rather than running.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # Repository variable, so the schedule can be pointed at a
+          # different deployment without editing this file.
+          APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://fantasy-pulse.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET is not set on this repository. Add it under Settings > Secrets and variables > Actions, using the same value as the deployment."
+            exit 1
+          fi
+
+          body_file="$(mktemp)"
+
+          # --retry covers a cold serverless function or a blip at the
+          # news source; the endpoint is idempotent (items upsert on
+          # (source, guid)), so a retried call cannot duplicate anything.
+          # The body goes to a file rather than stdout because each retry
+          # would otherwise append another copy to the log.
+          if ! status=$(curl -sS -X POST "${APP_BASE_URL%/}/api/news/ingest" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H 'accept: application/json' \
+            --max-time 120 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            -o "$body_file" \
+            -w '%{http_code}' \
+            | tail -n1); then
+            echo "::error::Could not reach ${APP_BASE_URL%/}/api/news/ingest"
+            exit 1
+          fi
+
+          body=$(cat "$body_file")
+
+          echo "HTTP $status"
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::News ingest failed with HTTP $status"
+            exit 1
+          fi
+
+          # Surface the run's numbers on the workflow summary page so the
+          # Actions history doubles as an ingest log.
+          {
+            echo "### News ingest"
+            echo ""
+            echo '```json'
+            echo "$body"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
