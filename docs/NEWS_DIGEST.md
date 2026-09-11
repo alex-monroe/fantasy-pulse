@@ -12,7 +12,7 @@ matching that pool against the `Team[]` `getTeams()` already builds.
 Nothing about a user's rosters is ever written to the news tables.
 
 ```
-cron (hourly) ─┐
+cron (daily) ──┐
                ├─> POST /api/news/ingest ─> ingestNews()
 page render ───┘     (when the pool is stale)   │
                                                 ├─ fetch Rotowire RSS
@@ -63,7 +63,8 @@ hundred rostered players) does not pay a full cross product per render.
 
 Two things keep the pool current:
 
-- **The cron entry in `vercel.json`** hits `/api/news/ingest` hourly.
+- **The cron entry in `vercel.json`** hits `/api/news/ingest` once a day
+  (12:00 UTC), which is what the Vercel Hobby plan allows.
 - **The page itself** ingests on demand when the pool is older than
   `NEWS_FRESHNESS_MS` (15 minutes), so a deployment with no scheduler
   still shows fresh news. That refresh is best-effort — if the feed is
@@ -112,9 +113,17 @@ what that setup needs). If the project's Root Directory is set to
 `apps/web` instead, move the file to `apps/web/vercel.json` — Vercel only
 reads the one inside the root directory.
 
-Cron frequency is plan-gated: Hobby projects get one run per day, so
-change the schedule to something like `0 12 * * *` there. The page's own
-stale-refresh means the digest stays current either way.
+Cron frequency is plan-gated, and this project is on **Hobby**, which
+allows one run per day — hence `0 12 * * *`. Hobby also treats the hour
+as approximate: the run fires sometime within that hour, not on the
+minute. A Pro project can raise this to `0 * * * *` (hourly) or finer.
+
+The daily run is a backstop, not the freshness mechanism. What actually
+keeps the digest current is the page's own stale-refresh (see
+[Freshness](#freshness) above): the first visit after the pool passes 15
+minutes old re-ingests before rendering.
+The cron exists so the pool is usually already warm when someone opens
+the page, and so it keeps accumulating history on days nobody visits.
 
 ## Demo mode
 
