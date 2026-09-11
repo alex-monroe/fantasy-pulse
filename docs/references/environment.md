@@ -45,6 +45,17 @@ required for CI today — Yahoo flows are mocked at
 Neither provider requires API credentials. Sleeper is username-based,
 Ottoneu data is scraped from public pages.
 
+## News digest
+
+| Variable            | Where used | Notes |
+| ------------------- | ---------- | ----- |
+| `CRON_SECRET`       | Web server | Bearer token `/api/news/ingest` requires. Vercel Cron sends it automatically once the project defines it. **Unset means the endpoint is disabled (503), not open.** |
+| `ROTOWIRE_RSS_URL`  | Web server | Overrides the news feed URL. Defaults to Rotowire's public NFL news RSS. |
+
+Ingesting also needs `SUPABASE_SERVICE_ROLE_KEY` (above): `fp_news_items`
+grants no write access to the anon role on purpose. See
+[../NEWS_DIGEST.md](../NEWS_DIGEST.md).
+
 ## Demo mode
 
 | Variable                 | Where used | Notes |

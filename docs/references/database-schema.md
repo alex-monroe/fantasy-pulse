@@ -51,6 +51,36 @@ CREATE TABLE public.fp_user_integrations (
   CONSTRAINT user_integrations_pkey PRIMARY KEY (id)
 );
 
+CREATE TABLE public.fp_news_items (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  source text NOT NULL DEFAULT 'rotowire',
+  guid text NOT NULL,
+  title text NOT NULL,
+  headline text,
+  link text,
+  summary text,
+  author text,
+  published_at timestamp with time zone,
+  player_name text,
+  player_key text,
+  position text,
+  nfl_team text,
+  search_text text NOT NULL DEFAULT '',
+  fetched_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fp_news_items_pkey PRIMARY KEY (id),
+  CONSTRAINT fp_news_items_source_guid_key UNIQUE (source, guid)
+);
+
+CREATE TABLE public.fp_news_ingests (
+  source text NOT NULL,
+  last_fetched_at timestamp with time zone NOT NULL DEFAULT now(),
+  item_count integer NOT NULL DEFAULT 0,
+  new_item_count integer NOT NULL DEFAULT 0,
+  last_error text,
+  CONSTRAINT fp_news_ingests_pkey PRIMARY KEY (source)
+);
+
 CREATE TABLE public.fp_mcp_tokens (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   user_id uuid NOT NULL DEFAULT auth.uid(),
@@ -67,12 +97,19 @@ CREATE TABLE public.fp_mcp_tokens (
 );
 ```
 
-`fp_mcp_tokens` is the only table here with **row level security
-enabled** — it stores credential material for the [MCP
-server](../MCP.md), so a user may only read and manage their own rows.
-Token verification does not read the table directly; it goes through the
-`fp_mcp_token_owner(text)` SECURITY DEFINER function, which resolves a
-SHA-256 hash to a user id and stamps `last_used_at`.
+`fp_mcp_tokens` has **row level security enabled** — it stores credential
+material for the [MCP server](../MCP.md), so a user may only read and
+manage their own rows. Token verification does not read the table
+directly; it goes through the `fp_mcp_token_owner(text)` SECURITY DEFINER
+function, which resolves a SHA-256 hash to a user id and stamps
+`last_used_at`.
+
+`fp_news_items` and `fp_news_ingests` also have RLS enabled, but the
+other way around: `SELECT` is granted to `anon` and `authenticated`
+(the news pool is public, user-agnostic data) and **no write policy
+exists at all** — the ingest writes with the service role key. These are
+the only tables in this repo with no `user_id` column, by design; see
+[../NEWS_DIGEST.md](../NEWS_DIGEST.md).
 
 A `fp_teams` table also exists (originally created as `teams` by
 `supabase/migrations/20250907113000_add_teams_table.sql` and constrained

@@ -1,4 +1,5 @@
 import type { Player, Team } from './types';
+import { buildSearchText, normalizeNewsName, type NewsItem } from './news';
 
 /**
  * Deterministic, time-driven fake data for "demo mode" — a way to
@@ -508,4 +509,112 @@ export function generateDemoTeams(
   annotateShareCounts(teams);
 
   return teams;
+}
+
+/**
+ * Headline templates the demo feed cycles through. Each is filled with a
+ * player drawn from the demo rosters, so every item in the demo digest
+ * lands on a player the demo board actually shows.
+ */
+const DEMO_NEWS_TEMPLATES: { headline: string; body: string }[] = [
+  {
+    headline: 'Practices in full Wednesday',
+    body: '{name} ({team}) was a full participant in Wednesday’s practice and carries no injury designation into the weekend.',
+  },
+  {
+    headline: 'Expected to see expanded role',
+    body: 'The coaching staff said {name} will take on a larger snap share this week, calling him one of the offense’s most reliable options.',
+  },
+  {
+    headline: 'Questionable with an ankle injury',
+    body: '{name} is listed as questionable after turning an ankle late in last week’s game. He is expected to test it out pregame.',
+  },
+  {
+    headline: 'Leads the team in targets again',
+    body: '{name} saw a team-high target share for the third straight week, continuing to work as the clear focal point of the {team} passing game.',
+  },
+  {
+    headline: 'Draws a favorable matchup',
+    body: 'Opposing defenses have surrendered the most fantasy points to {name}’s position over the last month, setting up a strong spot this week.',
+  },
+  {
+    headline: 'Limited in Thursday’s session',
+    body: '{name} was limited Thursday for rest purposes. The team is not expected to restrict his workload on Sunday.',
+  },
+];
+
+/**
+ * Deterministic fake player news for demo mode — the digest's equivalent
+ * of {@link generateDemoTeams}.
+ *
+ * Items are generated for players on the demo rosters and timestamped
+ * relative to `nowMs`, so the news digest fills in with plausible,
+ * recently-dated stories without an ingest ever running. Like the rest of
+ * demo mode, the same `nowMs` always yields the same feed.
+ *
+ * The return type is structurally the `NewsItem` the real ingest stores,
+ * so both paths render through the same digest builder.
+ *
+ * @param nowMs - The current time in epoch milliseconds.
+ * @param options.teams - Demo teams to draw players from. Generated from
+ *   `nowMs` when omitted.
+ * @param options.count - How many items to generate. Default 24.
+ * @returns Annotated news items, newest first.
+ */
+export function generateDemoNewsItems(
+  nowMs: number,
+  options: { teams?: Team[]; count?: number } = {},
+): NewsItem[] {
+  const teams = options.teams ?? generateDemoTeams(nowMs);
+  const count = options.count ?? 24;
+
+  // One entry per distinct player across the demo rosters, in a stable
+  // order so the same `nowMs` always picks the same players.
+  const pool: Player[] = [];
+  const seen = new Set<string>();
+  for (const team of teams) {
+    for (const player of team.players) {
+      if (!seen.has(player.name)) {
+        seen.add(player.name);
+        pool.push(player);
+      }
+    }
+  }
+
+  if (pool.length === 0) {
+    return [];
+  }
+
+  // Anchor the timestamps to the hour so the feed is stable within a
+  // render but still advances as the day does.
+  const anchorMs = Math.floor(nowMs / (60 * 60 * 1000)) * (60 * 60 * 1000);
+
+  const items: NewsItem[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const player = pool[(i * 7) % pool.length];
+    const template = DEMO_NEWS_TEMPLATES[i % DEMO_NEWS_TEMPLATES.length];
+    const publishedAt = new Date(anchorMs - i * 47 * 60 * 1000).toISOString();
+    const description = template.body
+      .replace(/\{name\}/g, player.name)
+      .replace(/\{team\}/g, player.realTeam);
+    const title = `${player.name} - ${player.position} - ${player.realTeam}: ${template.headline}`;
+
+    items.push({
+      guid: `demo-news-${i}-${publishedAt}`,
+      title,
+      link: null,
+      description,
+      publishedAt,
+      author: 'Roster Loom Demo',
+      categories: ['NFL'],
+      playerName: player.name,
+      playerKey: normalizeNewsName(player.name),
+      position: player.position,
+      nflTeam: player.realTeam,
+      headline: template.headline,
+      searchText: buildSearchText(title, description),
+    });
+  }
+
+  return items;
 }
