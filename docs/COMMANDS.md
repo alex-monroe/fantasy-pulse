@@ -69,6 +69,19 @@ npx supabase gen types typescript --linked > apps/web/src/lib/database.types.ts
 After changing schema, regenerate the schema reference at
 [references/database-schema.md](references/database-schema.md).
 
+## News digest
+
+The news pool refreshes itself when a page render finds it stale, so
+there is usually nothing to run. To force an ingest:
+
+```bash
+curl -X POST http://localhost:9002/api/news/ingest \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+Needs `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. See
+[NEWS_DIGEST.md](NEWS_DIGEST.md).
+
 ## Git + PRs
 
 ```bash

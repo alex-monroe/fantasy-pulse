@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A representative shape of the feed at
+  https://www.rotowire.com/rss/news.php?sport=NFL, kept here the way
+  provider modules keep an `*.example.json` snapshot: as a reference for
+  what the parser in `packages/core/src/news.ts` is reading.
+
+  NOTE: this is hand-written to the documented RSS 2.0 shape, not a
+  captured live response — outbound access to rotowire.com was blocked in
+  the environment this feature was built in. Replace it with a real
+  capture the first time someone runs an ingest against the live feed:
+
+    curl -s "https://www.rotowire.com/rss/news.php?sport=NFL" \
+      | head -c 8000 > apps/web/src/lib/news/rotowire-feed.example.xml
+
+  The parser does not depend on this file; it handles RSS 2.0 and Atom,
+  falls back to a body-text scan when a headline does not match the
+  "Name - POS - TEAM:" shape below, and drops anything it cannot read.
+-->
+<rss version="2.0">
+  <channel>
+    <title>RotoWire NFL News</title>
+    <link>https://www.rotowire.com/football/</link>
+    <description>The latest NFL player news from RotoWire.</description>
+    <language>en-us</language>
+    <item>
+      <title><![CDATA[Jonathan Taylor - RB - IND: Practices fully Wednesday]]></title>
+      <link>https://www.rotowire.com/football/news/taylor-practices-fully-12345</link>
+      <description><![CDATA[<p>Taylor (ankle) was a full participant in Wednesday's practice.</p>]]></description>
+      <pubDate>Wed, 09 Sep 2026 18:30:00 -0400</pubDate>
+      <guid isPermaLink="false">12345</guid>
+      <category>NFL</category>
+    </item>
+    <item>
+      <title><![CDATA[Tyreek Hill - WR - MIA: Questionable for Sunday]]></title>
+      <link>https://www.rotowire.com/football/news/hill-questionable-12346</link>
+      <description><![CDATA[Hill (wrist) is listed as questionable and is expected to test it pregame.]]></description>
+      <pubDate>Wed, 09 Sep 2026 19:05:00 -0400</pubDate>
+      <guid isPermaLink="false">12346</guid>
+      <category>NFL</category>
+    </item>
+    <item>
+      <title><![CDATA[Tyler Goodson - RB - IND: In line to start]]></title>
+      <link>https://www.rotowire.com/football/news/goodson-starts-12347</link>
+      <description><![CDATA[Goodson is set to start with Jonathan Taylor sidelined.]]></description>
+      <pubDate>Wed, 09 Sep 2026 19:40:00 -0400</pubDate>
+      <guid isPermaLink="false">12347</guid>
+      <category>NFL</category>
+    </item>
+  </channel>
+</rss>

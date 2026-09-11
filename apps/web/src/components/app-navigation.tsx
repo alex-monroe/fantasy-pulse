@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
   { href: '/matchup-report', label: 'Matchup Report' },
+  { href: '/news-digest', label: 'News Digest' },
   { href: '/integrations', label: 'Integrations' },
   { href: '/mcp', label: 'MCP Server' },
 ];

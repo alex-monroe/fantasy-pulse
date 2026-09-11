@@ -36,8 +36,8 @@ mobile app shares this code, so anything that doesn't run in both
 environments belongs in an app, not the package.
 
 Currently shared: shared types (`types.ts`), Sleeper helpers
-(`sleeper.ts`), `fetchJson`, and mock data fixtures. Import as
-`@roster-loom/core`.
+(`sleeper.ts`), `fetchJson`, news feed parsing and roster matching
+(`news.ts`), and mock data fixtures. Import as `@roster-loom/core`.
 
 ## `apps/web/src/app/` — Next.js App Router
 
@@ -49,9 +49,10 @@ Currently shared: shared types (`types.ts`), Sleeper helpers
 | `globals.css`                 | Tailwind base layer + CSS variables                    |
 | `actions.ts`                  | Cross-provider server actions (team building, scoring) |
 | `actions.test.ts`             | Jest tests for `actions.ts`                            |
-| `(dashboard)/`                | Authenticated route group (matchup report, MCP tokens) |
+| `(dashboard)/`                | Authenticated route group (matchup report, news digest, MCP tokens) |
 | `api/auth/<provider>/route.ts`| OAuth callbacks                                        |
 | `api/teams/`                  | Team-related route handlers                            |
+| `api/news/ingest/`            | Cron-triggered news ingest (see [NEWS_DIGEST.md](NEWS_DIGEST.md)) |
 | `api/mcp/route.ts`            | Hosted MCP server endpoint (see [MCP.md](MCP.md))      |
 | `integrations/<provider>/`    | One folder per fantasy provider (see below)            |
 | `login/`, `register/`         | Auth pages                                             |
@@ -98,16 +99,27 @@ Component tests are colocated as `<name>.test.tsx` next to the implementation.
                         `tools.ts` (definitions + handlers), `views.ts`
                         (pure `Team[]` transforms), `tokens.ts` (access
                         tokens). See [MCP.md](MCP.md).
+- `news/`               the news digest's server half: `source.ts` (feed
+                        config), `ingest.ts` (fetch + upsert), `digest.ts`
+                        (read the pool, match it to a user's teams). The
+                        pure parsing and matching live in
+                        `packages/core/src/news.ts`. See
+                        [NEWS_DIGEST.md](NEWS_DIGEST.md).
 
-Shared logic — `types.ts`, `sleeper.ts`, `fetch-json.ts`, `mock-data.ts` —
-now lives in `packages/core/src/` and is imported as `@roster-loom/core`.
+Shared logic — `types.ts`, `sleeper.ts`, `fetch-json.ts`, `news.ts`,
+`mock-data.ts` — now lives in `packages/core/src/` and is imported as
+`@roster-loom/core`.
 
 ## `apps/web/src/utils/`
 
 - `logger.ts`               pino-based structured logger
 - `performance-logger.ts`   `startTimer` / `logDuration` for external calls
-- `supabase/server.ts`      server-side Supabase client (App Router)
+- `supabase/server.ts`      server-side Supabase client (App Router, cookies)
 - `supabase/client.ts`      browser Supabase client
+- `supabase/api.ts`         bearer-token client for non-browser callers
+- `supabase/service.ts`     service-role client — bypasses RLS, server-only,
+                            for writes that belong to the instance rather
+                            than a user (see [NEWS_DIGEST.md](NEWS_DIGEST.md))
 
 Anything that touches an external API should be timed with
 `performance-logger.ts` — this is the convention recent commits have been

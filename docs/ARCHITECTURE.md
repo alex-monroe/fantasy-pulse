@@ -32,7 +32,7 @@ apps/web/                     # Next.js app (Vercel deploys this)
 │   │   └── globals.css
 │   ├── components/           # App-specific + shadcn UI primitives (`components/ui`)
 │   ├── hooks/                # React hooks (`use-mobile`, `use-toast`)
-│   ├── lib/                  # Web-only: env, `cn`, doc-map test
+│   ├── lib/                  # Web-only: env, `cn`, doc-map test, `news/`
 │   ├── utils/                # logger, performance-logger, supabase clients
 │   ├── ai/                   # Generative AI helpers (currently `dev.ts`)
 │   └── middleware.ts         # Supabase session refresh middleware
@@ -43,6 +43,7 @@ packages/core/                # @roster-loom/core — shared with the mobile app
     ├── types.ts              # Shared TS types (Team, Player, Sleeper*)
     ├── sleeper.ts            # `mapSleeperPlayer` and related helpers
     ├── fetch-json.ts         # Typed JSON fetch with caching/retry
+    ├── news.ts               # Feed parsing + news-to-roster matching
     └── mock-data.ts          # Fixtures for tests and dev
 
 supabase/migrations/          # SQL migrations (source of truth for schema)
@@ -69,8 +70,27 @@ Every provider follows the same shape: an `actions.ts` (server), a `page.tsx`
 `*.example.json` snapshot for the most useful API response.
 
 `getTeams()` is the single seam every consumer sits behind: the web
-render, the mobile app (via `/api/teams/refresh`), demo mode, and the
-[MCP server](MCP.md) (via `/api/mcp`) all read the same `Team[]`.
+render, the mobile app (via `/api/teams/refresh`), demo mode, the
+[MCP server](MCP.md) (via `/api/mcp`), and the
+[news digest](NEWS_DIGEST.md) all read the same `Team[]`.
+
+## Data flow: news digest
+
+```
+cron / stale page render
+      → /api/news/ingest → ingestNews()
+        → Rotowire RSS → parseNewsFeed → upsert fp_news_items   (shared, user-agnostic)
+
+User → /news-digest
+      → getTeams()            (the user's rosters)
+      → loadRecentNews()      (a bounded window of the shared pool)
+        → buildNewsDigest()   (pure match, in @roster-loom/core)
+      → PlayerNewsCard grid
+```
+
+The split matters: the feed is the same for everybody, so it is fetched
+once for the whole instance rather than per user, and the only per-user
+work is an in-memory match. See [NEWS_DIGEST.md](NEWS_DIGEST.md).
 
 ## Provider integration pattern
 
@@ -100,7 +120,15 @@ repo's tables on the shared OttoneuDB project):
 - `fp_teams` — teams pulled from each league
 - `fp_notes` — free-form user notes
 - `fp_mcp_tokens` — hashed personal access tokens for the [MCP
-  server](MCP.md); the only table here with RLS enabled
+  server](MCP.md)
+- `fp_news_items` / `fp_news_ingests` — the shared player-news pool and
+  its ingest bookkeeping (see [NEWS_DIGEST.md](NEWS_DIGEST.md)). Unlike
+  every other table here these rows are not per-user: one public feed,
+  ingested once, matched to each user's rosters at read time.
+
+RLS is enabled on `fp_mcp_tokens` (credential material — a user may only
+see their own rows) and on the two `fp_news_` tables (world-readable,
+writable only by the service role).
 
 Server-side Supabase access goes through `apps/web/src/utils/supabase/server.ts`;
 client-side through `apps/web/src/utils/supabase/client.ts`. `middleware.ts`
