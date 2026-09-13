@@ -71,8 +71,12 @@ After changing schema, regenerate the schema reference at
 
 ## News digest
 
-The news pool refreshes itself when a page render finds it stale, so
-there is usually nothing to run. To force an ingest:
+The pool is refreshed every 15 minutes by the `News Ingest` GitHub
+Actions workflow, and a page render refreshes it too when it finds it
+stale, so there is usually nothing to run.
+
+To force a run against a deployment, use **Actions → News Ingest → Run
+workflow** on GitHub. To force one locally:
 
 ```bash
 curl -X POST http://localhost:9002/api/news/ingest \
