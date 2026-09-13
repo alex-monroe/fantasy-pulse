@@ -25,6 +25,7 @@ matchup data with cross-team player-share indicators.
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 - **News digest:** [docs/NEWS_DIGEST.md](docs/NEWS_DIGEST.md) — feed ingest + roster matching
 - **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
+- **Chrome extension:** [browser-extension/README.md](browser-extension/README.md) — ESPN cookie helper
 - **MCP server:** [docs/MCP.md](docs/MCP.md) — hosted AI-assistant access
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
@@ -38,6 +39,7 @@ CONTRIBUTING.md                    # Human contributor pointer (mostly defers he
 apps/web/                          # Next.js web app
 apps/mobile/                       # Expo / React Native app
 packages/core/                     # @roster-loom/core — shared logic + types
+browser-extension/                 # Chrome MV3 ESPN cookie helper (outside npm workspaces)
 supabase/                          # Migrations (shared OttoneuDB)
 docs/
 ├── ARCHITECTURE.md                # System design, tech stack, data flow

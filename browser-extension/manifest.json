@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Roster Loom Connector",
+  "version": "1.0.0",
+  "description": "Copies your own ESPN fantasy session values (espn_s2, SWID) to the clipboard so you can connect a private league to Roster Loom.",
+  "homepage_url": "https://www.rosterloom.com",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Roster Loom Connector",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": ["cookies"],
+  "host_permissions": ["https://*.espn.com/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

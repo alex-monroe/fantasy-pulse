@@ -28,6 +28,7 @@ token reuse, caching) matters more than feature volume.
 - **News digest:** [docs/NEWS_DIGEST.md](docs/NEWS_DIGEST.md)
 - **Demo mode:** [docs/DEMO_MODE.md](docs/DEMO_MODE.md)
 - **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
+- **Chrome extension:** [browser-extension/README.md](browser-extension/README.md) — ESPN cookie helper
 - **MCP server:** [docs/MCP.md](docs/MCP.md)
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
@@ -56,6 +57,7 @@ CONTRIBUTING.md                    # Human contributor pointer
 apps/web/                          # Next.js web app (was the repo root pre-monorepo)
 apps/mobile/                       # Expo / React Native app
 packages/core/                     # @roster-loom/core — shared logic + types
+browser-extension/                 # Chrome MV3 ESPN cookie helper (outside npm workspaces)
 supabase/                          # Migrations (shared OttoneuDB)
 docs/
 ├── ARCHITECTURE.md                # System design, tech stack, data flow
