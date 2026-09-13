@@ -23,6 +23,12 @@ is behind bot detection — so the user has to copy them by hand:
 3. Copy the values of `espn_s2` and `SWID` (including the curly braces).
 4. Paste both into the connect form on `/integrations/espn`.
 
+The Chrome extension in [`browser-extension/`](../../../../../../browser-extension/README.md)
+does steps 2 and 3 for the user — it reads the same two cookies and copies
+them to the clipboard, so they only have to be signed in to ESPN. The
+DevTools path above still works and stays the documented fallback for
+Firefox, Safari, and anyone who doesn't want to install anything.
+
 ## Credential lifetime
 
 There's no fixed expiration and no refresh endpoint. In practice:
