@@ -21,18 +21,12 @@ fantasy-pulse/
 ├── packages/
 │   └── core/            # @roster-loom/core — shared logic + types
 │       └── src/
-├── browser-extension/   # Chrome MV3 extension: copies ESPN cookies for the
-│                        # ESPN integration. Zero deps, no build step, and
-│                        # deliberately outside the apps/* and packages/*
-│                        # workspace globs so it never touches the lockfile.
-│                        # Tested with `node --test`, not Jest.
 ├── supabase/            # Migrations (shared OttoneuDB; not app-specific)
 ├── docs/                # This directory
 └── package.json         # Workspace root
 ```
 
 Mobile-specific guide: [MOBILE.md](MOBILE.md).
-Extension guide: [../browser-extension/README.md](../browser-extension/README.md).
 
 ### What goes in `packages/core/` {#what-goes-in-packagescore}
 
