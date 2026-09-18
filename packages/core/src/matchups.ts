@@ -1,3 +1,4 @@
+import { projectMatchup, type MatchupProjection } from './matchup-projection';
 import { getGamePhase } from './player-status';
 import type { GroupedPlayer, Player, Team } from './types';
 
@@ -493,6 +494,11 @@ export interface MatchupSummary {
   counts: RosterGameCounts;
   /** Game-phase counts across the opponent's starters. */
   opponentCounts: RosterGameCounts;
+  /**
+   * Both rosters projected forward to a final score, and the win
+   * probability that follows from the gap between them.
+   */
+  projection: MatchupProjection;
 }
 
 const countStarterGamePhases = (players: Player[]): RosterGameCounts => {
@@ -519,7 +525,8 @@ const countStarterGamePhases = (players: Player[]): RosterGameCounts => {
 /**
  * Reduces one league matchup to the handful of numbers the scoreboard
  * renders: both scores, who is ahead and by how much, the split used for
- * the tug-of-war bar, and how much football each side has left.
+ * the tug-of-war bar, how much football each side has left, and where
+ * both rosters are projected to finish.
  *
  * @param team - The user's team, with its opponent attached.
  * @returns The summary for that matchup.
@@ -540,6 +547,7 @@ export const summarizeMatchup = (team: Team): MatchupSummary => {
     scoreShare: combined > 0 ? score / combined : 0.5,
     counts: countStarterGamePhases(team.players ?? []),
     opponentCounts: countStarterGamePhases(team.opponent?.players ?? []),
+    projection: projectMatchup(team),
   };
 };
 
@@ -557,12 +565,29 @@ export interface WeekOverview {
   playersLive: number;
   /** Distinct starters of the user's who have not kicked off yet. */
   playersYetToPlay: number;
+  /** Matchups projected to finish as wins. */
+  projectedLeading: number;
+  /** Matchups projected to finish as losses. */
+  projectedTrailing: number;
+  /** Matchups projected to finish level. */
+  projectedTied: number;
+  /**
+   * Wins expected across the week: the win probabilities added up. Sits
+   * between the record the user has right now and the record they're
+   * projected for, and reads as a fraction on purpose — three coin
+   * flips are 1.5 wins, not 3 and not 0.
+   */
+  expectedWins: number;
+  /** Matchups that carried enough projection data to contribute above. */
+  projectedMatchups: number;
 }
 
 /**
  * Rolls every matchup up into the one-line "how is my Sunday going"
- * summary shown above the board. Players are deduplicated across leagues
- * so someone rostered in six leagues counts once.
+ * summary shown above the board: the record right now, the record the
+ * projections point at, and how many wins those projections expect.
+ * Players are deduplicated across leagues so someone rostered in six
+ * leagues counts once.
  *
  * @param teams - The user's teams with their opponents.
  * @returns The week-wide overview.
@@ -575,19 +600,37 @@ export const summarizeWeek = (teams: Team[]): WeekOverview => {
     total: teams.length,
     playersLive: 0,
     playersYetToPlay: 0,
+    projectedLeading: 0,
+    projectedTrailing: 0,
+    projectedTied: 0,
+    expectedWins: 0,
+    projectedMatchups: 0,
   };
 
   const livePlayers = new Set<string>();
   const pendingPlayers = new Set<string>();
 
   teams.forEach((team) => {
-    const { isLeading, isTied } = summarizeMatchup(team);
+    const { isLeading, isTied, projection } = summarizeMatchup(team);
     if (isTied) {
       overview.tied += 1;
     } else if (isLeading) {
       overview.leading += 1;
     } else {
       overview.trailing += 1;
+    }
+
+    if (projection.hasProjections) {
+      overview.projectedMatchups += 1;
+      overview.expectedWins += projection.winProbability;
+
+      if (Math.abs(projection.differential) < 0.05) {
+        overview.projectedTied += 1;
+      } else if (projection.differential > 0) {
+        overview.projectedLeading += 1;
+      } else {
+        overview.projectedTrailing += 1;
+      }
     }
 
     (team.players ?? []).forEach((player) => {

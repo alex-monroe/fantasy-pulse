@@ -37,7 +37,9 @@ environments belongs in an app, not the package.
 
 Currently shared: shared types (`types.ts`), Sleeper helpers
 (`sleeper.ts`), `fetchJson`, news feed parsing and roster matching
-(`news.ts`), and mock data fixtures. Import as `@roster-loom/core`.
+(`news.ts`), matchup grouping and summaries (`matchups.ts`), projected
+final scores and win probabilities (`matchup-projection.ts`), and mock
+data fixtures. Import as `@roster-loom/core`.
 
 ## `apps/web/src/app/` — Next.js App Router
 
