@@ -58,6 +58,20 @@ type SleeperIdResolver = (playerName: string) => string | null;
 
 const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
 
+// Positions a fantasy roster can hold in the leagues this app aggregates.
+// Sleeper's pool also carries IDP and special-teams players, who only ever
+// show up here as a same-name collision with a rosterable player.
+const FANTASY_ROSTER_POSITIONS = new Set([
+  'QB',
+  'RB',
+  'FB',
+  'WR',
+  'TE',
+  'K',
+  'DEF',
+  'DST',
+]);
+
 const TEAM_ABBREVIATION_ALIASES: Record<string, string[]> = {
   WSH: ['WAS'],
   JAX: ['JAC'],
@@ -286,6 +300,74 @@ function isStrongNameMatch({
   return false;
 }
 
+/**
+ * Scores how likely a Sleeper player is to be the one a fantasy roster means
+ * when it lists a given name. Sleeper's player pool covers everyone it has
+ * ever tracked, so common names collide (a rostered WR and a long-retired
+ * linebacker can share one), and the loser of that collision would hand the
+ * roster the wrong position, headshot and projection.
+ * @param player The candidate Sleeper player.
+ * @returns A score; higher means the more plausible candidate.
+ */
+function scoreSleeperNameCandidate(player: SleeperPlayer | undefined): number {
+  if (!player) {
+    return -1;
+  }
+
+  // `active` is absent on some records; only an explicit `false` is a demerit.
+  const isActive = player.active !== false;
+  let score = 0;
+
+  if (isActive && player.team) {
+    score += 4;
+  }
+  if (isActive) {
+    score += 2;
+  }
+  if (FANTASY_ROSTER_POSITIONS.has((player.position ?? '').toUpperCase())) {
+    score += 1;
+  }
+
+  return score;
+}
+
+/**
+ * Sleeper's relevance rank, normalized so a missing value sorts last.
+ */
+function sleeperSearchRank(player: SleeperPlayer | undefined): number {
+  const rank = player?.search_rank;
+  return typeof rank === 'number' && Number.isFinite(rank)
+    ? rank
+    : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Decides which of two same-named Sleeper players the name map should keep.
+ * @param candidate The player being considered.
+ * @param incumbent The player already holding the name.
+ * @returns True when `candidate` is the better match.
+ */
+function isBetterSleeperNameMatch(
+  candidate: SleeperPlayer | undefined,
+  incumbent: SleeperPlayer | undefined
+): boolean {
+  if (!incumbent) {
+    return true;
+  }
+  if (!candidate) {
+    return false;
+  }
+
+  const candidateScore = scoreSleeperNameCandidate(candidate);
+  const incumbentScore = scoreSleeperNameCandidate(incumbent);
+  if (candidateScore !== incumbentScore) {
+    return candidateScore > incumbentScore;
+  }
+
+  // Ties go to the incumbent, so the map stays stable across refreshes.
+  return sleeperSearchRank(candidate) < sleeperSearchRank(incumbent);
+}
+
 function createSleeperIdResolver(
   playerNameMap: { [key: string]: string }
 ): SleeperIdResolver {
@@ -405,6 +487,21 @@ async function loadSleeperPlayersResources(): Promise<SleeperPlayersResources> {
   const playerIds = Object.keys(playersData);
   const totalPlayers = playerIds.length;
 
+  // Two players can normalize to the same name, so the map keeps the better
+  // candidate instead of whichever one Sleeper happened to list last.
+  const claimName = (key: string, playerId: string) => {
+    const incumbentId = playerNameMap[key];
+    if (
+      incumbentId &&
+      incumbentId !== playerId &&
+      !isBetterSleeperNameMatch(playersData[playerId], playersData[incumbentId])
+    ) {
+      return;
+    }
+
+    playerNameMap[key] = playerId;
+  };
+
   const addPlayerName = (name: string | null | undefined, playerId: string) => {
     if (!name) {
       return;
@@ -415,11 +512,11 @@ async function loadSleeperPlayersResources(): Promise<SleeperPlayersResources> {
       return;
     }
 
-    playerNameMap[normalizedName] = playerId;
+    claimName(normalizedName, playerId);
 
     const sanitizedName = sanitizePlayerName(name);
     if (sanitizedName && sanitizedName !== normalizedName) {
-      playerNameMap[sanitizedName] = playerId;
+      claimName(sanitizedName, playerId);
     }
   };
 

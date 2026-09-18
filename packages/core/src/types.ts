@@ -217,7 +217,15 @@ export interface SleeperPlayer {
   first_name?: string;
   last_name?: string;
   position?: string;
-  team?: string;
+  team?: string | null;
+  /** Whether Sleeper still considers the player an active NFL player. */
+  active?: boolean | null;
+  /**
+   * Sleeper's own relevance ranking (lower is more relevant). Retired and
+   * never-rostered players get a very large value, so it breaks ties between
+   * players who share a name.
+   */
+  search_rank?: number | null;
 }
 
 /**
