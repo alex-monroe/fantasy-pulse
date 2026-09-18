@@ -1,10 +1,12 @@
 import type { GroupedPlayer, Team } from '@roster-loom/core';
 import {
   assignTeamColors,
+  formatWinProbability,
   getTeamKey,
   groupMatchupPlayers,
   groupPlayersByPosition,
   PLAYER_POSITIONS,
+  projectMatchup,
 } from '@roster-loom/core';
 import { useMemo } from 'react';
 import {
@@ -104,6 +106,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function MatchupScore({ team, color }: { team: Team; color: string }) {
   const winning = team.totalScore >= team.opponent.totalScore;
+  const projection = useMemo(() => projectMatchup(team), [team]);
+  const projectedToWin = projection.differential > 0;
+  // A dead-even projection is neither good news nor bad; don't color it as either.
+  const projectedTied = Math.abs(projection.differential) < 0.05;
+
   return (
     <View style={styles.matchupCard}>
       <View style={[styles.dot, { backgroundColor: color }]} />
@@ -112,6 +119,11 @@ function MatchupScore({ team, color }: { team: Team; color: string }) {
           <ThemedText style={styles.matchupName} numberOfLines={1}>
             {team.name}
           </ThemedText>
+          {projection.hasProjections && (
+            <ThemedText style={styles.matchupProjection}>
+              {projection.team.projected.toFixed(1)}
+            </ThemedText>
+          )}
           <ThemedText
             type="defaultSemiBold"
             style={[styles.matchupScore, winning ? styles.winning : undefined]}
@@ -123,10 +135,28 @@ function MatchupScore({ team, color }: { team: Team; color: string }) {
           <ThemedText style={[styles.matchupName, styles.subtle]} numberOfLines={1}>
             {team.opponent.name}
           </ThemedText>
+          {projection.hasProjections && (
+            <ThemedText style={styles.matchupProjection}>
+              {projection.opponent.projected.toFixed(1)}
+            </ThemedText>
+          )}
           <ThemedText type="defaultSemiBold" style={[styles.matchupScore, styles.subtle]}>
             {team.opponent.totalScore.toFixed(1)}
           </ThemedText>
         </View>
+        {projection.hasProjections && (
+          <View style={styles.matchupRow}>
+            <ThemedText style={styles.matchupProjectionLabel}>Win prob</ThemedText>
+            <ThemedText
+              style={[
+                styles.matchupWinProbability,
+                projectedTied ? undefined : projectedToWin ? styles.winning : styles.losing,
+              ]}
+            >
+              {formatWinProbability(projection.winProbability, projection.settled)}
+            </ThemedText>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -193,9 +223,13 @@ const styles = StyleSheet.create({
   matchupNames: { flex: 1, minWidth: 0, gap: 1 },
   matchupRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 },
   matchupName: { flexShrink: 1, fontSize: 12 },
-  matchupScore: { fontSize: 15 },
+  matchupScore: { fontSize: 15, minWidth: 44, textAlign: 'right' },
+  matchupProjection: { fontSize: 11, opacity: 0.6, minWidth: 36, textAlign: 'right' },
+  matchupProjectionLabel: { fontSize: 10, fontWeight: '700', opacity: 0.55, textTransform: 'uppercase' },
+  matchupWinProbability: { fontSize: 12, fontWeight: '700' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   winning: { color: '#0a7d2f' },
+  losing: { color: '#c0392b' },
   positionGroup: { marginBottom: 6, gap: 4 },
   positionLabel: { fontSize: 11, fontWeight: '700', opacity: 0.7, marginHorizontal: 4 },
   signOut: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 4 },

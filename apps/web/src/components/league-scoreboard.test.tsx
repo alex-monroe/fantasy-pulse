@@ -27,13 +27,14 @@ const makeTeam = (
   opponentName: string,
   opponentScore: number,
   players: Player[] = [],
+  opponentPlayers: Player[] = [],
 ): Team => ({
   id,
   name,
   league: { provider: 'demo', providerLeagueId: `l${id}`, name: `${name} League` },
   totalScore: score,
   players,
-  opponent: { name: opponentName, totalScore: opponentScore, players: [] },
+  opponent: { name: opponentName, totalScore: opponentScore, players: opponentPlayers },
 })
 
 const renderScoreboard = (teams: Team[], onToggleCollapsed = jest.fn(), collapsed = false) => {
@@ -135,5 +136,100 @@ describe('LeagueScoreboard', () => {
   it('renders nothing without any teams', () => {
     const { container } = renderScoreboard([])
     expect(container).toBeEmptyDOMElement()
+  })
+
+  describe('projections', () => {
+    const projected = (name: string, projectedPoints: number, overrides: Partial<Player> = {}) =>
+      makePlayer({ name, projectedPoints, ...overrides })
+
+    it('shows a projected final for both sides of the matchup', () => {
+      renderScoreboard([
+        makeTeam(
+          1,
+          'My Squad',
+          80,
+          'Their Squad',
+          70,
+          [projected('Mine', 20)],
+          [projected('Theirs', 15)],
+        ),
+      ])
+
+      const tile = screen.getByTestId('matchup-tile')
+      expect(within(tile).getByTestId('matchup-team-projection')).toHaveTextContent('100.0')
+      expect(within(tile).getByTestId('matchup-opponent-projection')).toHaveTextContent('85.0')
+      // The live scores stay put alongside them.
+      expect(within(tile).getByTestId('matchup-team-score')).toHaveTextContent('80.0')
+      expect(within(tile).getByTestId('matchup-opponent-score')).toHaveTextContent('70.0')
+    })
+
+    it('reads out a win probability for the projected leader', () => {
+      renderScoreboard([
+        makeTeam(
+          1,
+          'My Squad',
+          80,
+          'Their Squad',
+          70,
+          [projected('Mine', 20)],
+          [projected('Theirs', 15)],
+        ),
+      ])
+
+      const winProbability = screen.getByTestId('matchup-win-probability')
+      expect(winProbability.textContent).toMatch(/^(\d{1,3}%|>99%|<1%)$/)
+      expect(Number.parseInt(winProbability.textContent ?? '', 10)).toBeGreaterThan(50)
+    })
+
+    it('calls a decided matchup 100%', () => {
+      renderScoreboard([
+        makeTeam(
+          1,
+          'My Squad',
+          120,
+          'Their Squad',
+          90,
+          [projected('Mine', 20, { gameStatus: 'final' })],
+          [projected('Theirs', 15, { gameStatus: 'final' })],
+        ),
+      ])
+
+      expect(screen.getByTestId('matchup-win-probability')).toHaveTextContent('100%')
+    })
+
+    it('leaves the projection off entirely when there is none to show', () => {
+      renderScoreboard([makeTeam(1, 'My Squad', 124.5, 'Their Squad', 111.2)])
+
+      expect(screen.queryByTestId('matchup-team-projection')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('matchup-win-probability')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('week-projected-record')).not.toBeInTheDocument()
+    })
+
+    it('flags starters whose points are missing from the projection', () => {
+      renderScoreboard([
+        makeTeam(
+          1,
+          'My Squad',
+          80,
+          'Their Squad',
+          70,
+          [projected('Mine', 20), makePlayer({ name: 'Unknown' })],
+          [projected('Theirs', 15)],
+        ),
+      ])
+
+      expect(screen.getByText(/1 unprojected/)).toBeInTheDocument()
+    })
+
+    it('summarizes the projected record and expected wins for the week', () => {
+      renderScoreboard([
+        makeTeam(1, 'Ahead', 80, 'Opp', 50, [projected('A', 20)], [projected('B', 5)]),
+        makeTeam(2, 'Behind', 40, 'Opp', 80, [projected('C', 5)], [projected('D', 20)]),
+      ])
+
+      const record = screen.getByTestId('week-projected-record')
+      expect(record).toHaveTextContent('Proj 1–1')
+      expect(record).toHaveTextContent(/exp wins/)
+    })
   })
 })

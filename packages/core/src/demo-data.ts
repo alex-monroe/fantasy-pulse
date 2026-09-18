@@ -315,6 +315,21 @@ function scoreForFraction(seed: string, projection: number, fraction: number): n
   return Math.round(score * 10) / 10;
 }
 
+/**
+ * The pregame projection shown against a demo player, as a deterministic
+ * tilt on their position's baseline.
+ *
+ * Seeded independently of the variance {@link scoreForFraction} applies
+ * to their eventual score, on purpose: a projection that landed exactly
+ * on the outcome would make every demo win probability a foregone
+ * conclusion, where real projections are only ever close.
+ */
+function projectionForPlayer(seed: string, projection: number): number {
+  // +/-20% around the position baseline, stable across polls.
+  const tilt = 0.8 + seededUnit(seed, 99) * 0.4;
+  return Math.round(projection * tilt * 10) / 10;
+}
+
 function headshotUrl(pool: PoolPlayer): string {
   if (pool.sleeperId) {
     return `https://sleepercdn.com/content/nfl/players/thumb/${pool.sleeperId}.jpg`;
@@ -411,6 +426,7 @@ function toPlayer(
     gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
     imageUrl: headshotUrl(pool),
     onBench,
+    projectedPoints: projectionForPlayer(seed, projection),
   };
 }
 
