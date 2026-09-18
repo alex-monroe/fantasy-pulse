@@ -1,5 +1,11 @@
 import * as actions from './actions';
-const { getTeams, buildSleeperTeams, buildYahooTeams, invalidateSleeperPlayersCache } = actions;
+const {
+  getTeams,
+  buildSleeperTeams,
+  buildYahooTeams,
+  getSleeperPlayersResources,
+  invalidateSleeperPlayersCache,
+} = actions;
 import { mapSleeperPlayer } from '@roster-loom/core';
 import { SleeperRoster, SleeperMatchup, SleeperUser, SleeperPlayer } from '@roster-loom/core';
 import { createClient } from '@/utils/supabase/server';
@@ -237,6 +243,109 @@ describe('actions', () => {
       });
 
       expect(result?.projectedPoints).toBeUndefined();
+    });
+  });
+
+  describe('getSleeperPlayersResources', () => {
+    const mockPlayersFetch = (players: Record<string, unknown>) => {
+      (fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(players),
+      });
+    };
+
+    // Sleeper keys its pool by numeric player id, and JS iterates those keys
+    // in ascending numeric order, so each collision below lists the wrong
+    // player under the higher id: he is seen last and would win a
+    // last-write-wins map.
+    it('keeps the rostered player when a retired namesake is seen later', async () => {
+      mockPlayersFetch({
+        '6794': {
+          full_name: 'Justin Jefferson',
+          first_name: 'Justin',
+          last_name: 'Jefferson',
+          position: 'WR',
+          team: 'MIN',
+          active: true,
+          search_rank: 4,
+        },
+        '9999999': {
+          full_name: 'Justin Jefferson',
+          first_name: 'Justin',
+          last_name: 'Jefferson',
+          position: 'LB',
+          team: null,
+          active: false,
+          search_rank: 9999999,
+        },
+      });
+
+      const { playerNameMap } = await getSleeperPlayersResources({
+        forceRefresh: true,
+      });
+
+      expect(playerNameMap['justin jefferson']).toBe('6794');
+    });
+
+    it('prefers the fantasy-rosterable player over an active defender', async () => {
+      mockPlayersFetch({
+        '10': {
+          full_name: 'Sample Name',
+          position: 'WR',
+          team: 'MIN',
+          active: true,
+        },
+        '20': {
+          full_name: 'Sample Name',
+          position: 'LB',
+          team: 'SEA',
+          active: true,
+        },
+      });
+
+      const { playerNameMap } = await getSleeperPlayersResources({
+        forceRefresh: true,
+      });
+
+      expect(playerNameMap['sample name']).toBe('10');
+    });
+
+    it('breaks ties between equally plausible players on search rank', async () => {
+      mockPlayersFetch({
+        '30': {
+          full_name: 'Mike Williams',
+          position: 'WR',
+          team: 'PIT',
+          active: true,
+          search_rank: 60,
+        },
+        '40': {
+          full_name: 'Mike Williams',
+          position: 'WR',
+          team: 'NYJ',
+          active: true,
+          search_rank: 600,
+        },
+      });
+
+      const { playerNameMap } = await getSleeperPlayersResources({
+        forceRefresh: true,
+      });
+
+      expect(playerNameMap['mike williams']).toBe('30');
+    });
+
+    it('still maps players whose records omit activity metadata', async () => {
+      mockPlayersFetch({
+        '1': { full_name: 'Player One', position: 'QB', team: 'TEAMA' },
+      });
+
+      const { playerNameMap } = await getSleeperPlayersResources({
+        forceRefresh: true,
+      });
+
+      expect(playerNameMap['player one']).toBe('1');
     });
   });
 
