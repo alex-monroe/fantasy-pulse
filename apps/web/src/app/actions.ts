@@ -90,6 +90,15 @@ const SLEEPER_PLAYERS_CACHE_TTL_MS = 5 * 60 * 1000;
  */
 const DEFAULT_NON_SLEEPER_PROJECTION_SCORING: SleeperStockScoringMode = 'half_ppr';
 
+/**
+ * A season's weekly projections, already loaded once for the whole request,
+ * so per-league work can reuse them instead of refetching.
+ */
+type SharedSleeperProjections = {
+  season: string;
+  byPlayerId: Map<string, SleeperProjection>;
+};
+
 type SleeperPlayersResources = {
   playersData: Record<string, SleeperPlayer>;
   playerNameMap: { [key: string]: string };
@@ -369,7 +378,26 @@ function isBetterSleeperNameMatch(
   return sleeperSearchRank(candidate) < sleeperSearchRank(incumbent);
 }
 
+// The name map is built once per players-cache generation, but every
+// integration in a request used to re-normalize all of it (tens of thousands
+// of entries) to build its own resolver. Keyed by map identity, so a refreshed
+// players cache naturally gets a fresh resolver.
+const sleeperIdResolverCache = new WeakMap<object, SleeperIdResolver>();
+
 function createSleeperIdResolver(
+  playerNameMap: { [key: string]: string }
+): SleeperIdResolver {
+  const cached = sleeperIdResolverCache.get(playerNameMap);
+  if (cached) {
+    return cached;
+  }
+
+  const resolver = buildSleeperIdResolver(playerNameMap);
+  sleeperIdResolverCache.set(playerNameMap, resolver);
+  return resolver;
+}
+
+function buildSleeperIdResolver(
   playerNameMap: { [key: string]: string }
 ): SleeperIdResolver {
   const normalizedMap = new Map<string, string>();
@@ -549,8 +577,10 @@ export async function getSleeperPlayersResources({
   const now = Date.now();
 
   if (!forceRefresh && sleeperPlayersCachePromise && now < sleeperPlayersCacheExpiresAt) {
+    logger.debug({ cache: 'hit' }, 'Sleeper players cache');
     return sleeperPlayersCachePromise;
   }
+  logger.info({ cache: 'miss', forceRefresh }, 'Sleeper players cache');
 
   const loadPromise = loadSleeperPlayersResources()
     .then((result) => {
@@ -586,7 +616,8 @@ export async function invalidateSleeperPlayersCache() {
 export async function buildSleeperTeams(
   integration: { id: number; provider_user_id: string; user_id?: string },
   week: number,
-  playerResources?: SleeperPlayersResources
+  playerResources?: SleeperPlayersResources,
+  sharedProjections?: SharedSleeperProjections
 ): Promise<Team[]> {
   const { playersData } =
     playerResources ?? (await getSleeperPlayersResources());
@@ -619,23 +650,38 @@ export async function buildSleeperTeams(
     ).values()
   );
 
-  for (const league of uniqueLeagues) {
-    const [rosters, matchups, leagueUsers, scoringSettingsRes, projectionsRes] =
-      await Promise.all([
-        fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
-          (response) => response.json() as Promise<SleeperRoster[]>
-        ),
-        fetch(
-          `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
-        ).then((response) => response.json() as Promise<SleeperMatchup[]>),
-        fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
-          (response) => response.json() as Promise<SleeperUser[]>
-        ),
-        getLeagueScoringSettings(league.league_id),
-        league.season
+  // Every league's requests are independent, so start them all up front
+  // instead of paying one round-trip batch per league.
+  const leagueFetches = uniqueLeagues.map((league) =>
+    Promise.all([
+      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`).then(
+        (response) => response.json() as Promise<SleeperRoster[]>
+      ),
+      fetch(
+        `https://api.sleeper.app/v1/league/${league.league_id}/matchups/${week}`
+      ).then((response) => response.json() as Promise<SleeperMatchup[]>),
+      fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`).then(
+        (response) => response.json() as Promise<SleeperUser[]>
+      ),
+      getLeagueScoringSettings(league.league_id),
+      // Reuse the request-wide projections when they cover this league's
+      // season; only fall back to a fetch for a league from another season.
+      sharedProjections && league.season === sharedProjections.season
+        ? Promise.resolve({
+            projections: Array.from(sharedProjections.byPlayerId.values()),
+          })
+        : league.season
           ? getWeeklyProjections(league.season, week)
           : Promise.resolve({ projections: [] as SleeperProjection[] }),
-      ]);
+    ])
+  );
+  // A rejection in a league we haven't reached yet must not go unhandled while
+  // an earlier league is being processed.
+  leagueFetches.forEach((promise) => promise.catch(() => undefined));
+
+  for (const [leagueIndex, league] of uniqueLeagues.entries()) {
+    const [rosters, matchups, leagueUsers, scoringSettingsRes, projectionsRes] =
+      await leagueFetches[leagueIndex];
 
     if (
       !Array.isArray(rosters) ||
@@ -1614,9 +1660,16 @@ export async function getTeams(
     return { error: integrationsError.message };
   }
 
-  const weekStart = startTimer();
-  const week = await getCurrentNflWeek();
-  logDuration('getTeams: resolve current NFL week', weekStart, { week });
+  // The week, the players pool and the NFL state don't depend on each other,
+  // so resolve them together rather than one round trip after another.
+  const setupStart = startTimer();
+  const [week, sleeperPlayerResources, nflStateResult] = await Promise.all([
+    getCurrentNflWeek(),
+    getSleeperPlayersResources(),
+    getNflState(),
+  ]);
+  logDuration('getTeams: resolve week, players and NFL state', setupStart, { week });
+  const { playersData, playerNameMap } = sleeperPlayerResources;
 
   const scoreboardPromise = (async () => {
     const scoreboardStart = startTimer();
@@ -1658,22 +1711,25 @@ export async function getTeams(
     }
   })();
 
-  const sleeperPlayerResources = await getSleeperPlayersResources();
-  const { playersData, playerNameMap } = sleeperPlayerResources;
-
-  // Fetched once and shared across every non-Sleeper integration: unlike
-  // Sleeper leagues (scored against their own real scoring_settings in
-  // buildSleeperTeams), Yahoo/Ottoneu/ESPN players are matched to this by
+  // Fetched once and shared across every integration: Sleeper leagues reuse it
+  // for their own season, and Yahoo/Ottoneu/ESPN players are matched to it by
   // name and scored with a stock Sleeper profile — see
   // DEFAULT_NON_SLEEPER_PROJECTION_SCORING.
   const sleeperProjectionsByPlayerId = new Map<string, SleeperProjection>();
+  let sharedProjections: SharedSleeperProjections | undefined;
   const projectionsStart = startTimer();
   try {
-    const { state: nflState } = await getNflState();
+    const nflState = 'state' in nflStateResult ? nflStateResult.state : undefined;
     if (nflState?.season) {
       const { projections } = await getWeeklyProjections(nflState.season, week);
       for (const projection of projections ?? []) {
         sleeperProjectionsByPlayerId.set(projection.player_id, projection);
+      }
+      if (projections) {
+        sharedProjections = {
+          season: nflState.season,
+          byPlayerId: sleeperProjectionsByPlayerId,
+        };
       }
     }
     logDuration('getTeams: load shared Sleeper projections', projectionsStart, {
@@ -1697,7 +1753,8 @@ export async function getTeams(
       builderPromise = teamBuilders.buildSleeperTeams(
         integration,
         week,
-        sleeperPlayerResources
+        sleeperPlayerResources,
+        sharedProjections
       );
     } else if (integration.provider === 'yahoo') {
       builderPromise = (async () => {
