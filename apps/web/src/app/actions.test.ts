@@ -1,3 +1,4 @@
+import logger from "@/utils/logger";
 import * as actions from './actions';
 const {
   getTeams,
@@ -32,6 +33,16 @@ import {
   getEspnMatchup,
 } from '@/app/integrations/espn/actions';
 
+jest.mock('@/utils/logger', () => {
+  const logger: Record<string, any> = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  };
+  logger.child = jest.fn(() => logger);
+  return { __esModule: true, default: logger };
+});
 jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
 }));
@@ -811,9 +822,13 @@ describe('actions', () => {
       const result = await buildYahooTeams({ id: 'int-2' }, playerNameMap, 1);
 
       expect(result).toHaveLength(1);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Could not fetch user player scores for team user-team-key',
-        expect.any(Error)
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'yahoo',
+          teamKey: 'user-team-key',
+          err: expect.any(Error),
+        }),
+        'Yahoo: could not fetch user player scores'
       );
     });
   });
@@ -1092,9 +1107,13 @@ describe('actions', () => {
         });
 
       await getTeams();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Could not fetch user player scores for team user-team-key',
-        'User scores fetch error'
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'yahoo',
+          teamKey: 'user-team-key',
+          error: 'User scores fetch error',
+        }),
+        'Yahoo: could not fetch user player scores'
       );
     });
 
@@ -1140,9 +1159,13 @@ describe('actions', () => {
         });
 
       await getTeams();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Could not fetch opponent player scores for team opp-team-key',
-        'Opponent scores fetch error'
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'yahoo',
+          teamKey: 'opp-team-key',
+          error: 'Opponent scores fetch error',
+        }),
+        'Yahoo: could not fetch opponent player scores'
       );
     });
 

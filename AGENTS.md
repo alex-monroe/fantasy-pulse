@@ -25,6 +25,7 @@ matchup data with cross-team player-share indicators.
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — branch + PR rules
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 - **News digest:** [docs/NEWS_DIGEST.md](docs/NEWS_DIGEST.md) — feed ingest + roster matching
+- **Debugging user reports:** [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) — logs, error references
 - **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
 - **MCP server:** [docs/MCP.md](docs/MCP.md) — hosted AI-assistant access
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
@@ -48,6 +49,7 @@ docs/
 ├── GIT_WORKFLOW.md                # Branch + PR rules
 ├── AUTH.md                        # Sign-in, registration, password reset flow
 ├── MOBILE.md                      # Mobile app quickstart (Expo Go, env, layout)
+├── OBSERVABILITY.md               # Structured logs, debugging user reports
 ├── NEWS_DIGEST.md                 # Player news: feed ingest, matching, cron
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport
 ├── adding-integrations.md         # How to add a new fantasy provider

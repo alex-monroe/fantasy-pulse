@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTeams } from '@/app/actions';
 import { createApiClient } from '@/utils/supabase/api';
 import { logDuration, startTimer } from '@/utils/performance-logger';
+import logger from '@/utils/logger';
 import { DEMO_COOKIE, DEMO_HEADER, resolveDemoMode } from '@/lib/demo-mode';
 
 export const dynamic = 'force-dynamic';
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ teams: result.teams });
   } catch (error) {
-    console.error('Failed to refresh teams', error);
+    logger.error({ userId: bearerUserId, err: error }, 'Failed to refresh teams');
     logDuration('refresh teams endpoint total', overallStart, {
       status: 'unhandled-error',
       error: error instanceof Error ? error.message : String(error),

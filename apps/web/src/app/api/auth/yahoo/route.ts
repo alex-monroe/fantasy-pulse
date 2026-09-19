@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import logger from '@/utils/logger';
 
 /**
  * Handles the OAuth callback from Yahoo.
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   const client_id = process.env.YAHOO_CLIENT_ID;
   const client_secret = process.env.YAHOO_CLIENT_SECRET;
   if (!client_id || !client_secret) {
-    console.error('YAHOO_CLIENT_ID or YAHOO_CLIENT_SECRET is not set');
+    logger.error({ userId: user.id }, 'Yahoo OAuth: YAHOO_CLIENT_ID or YAHOO_CLIENT_SECRET is not set');
     return NextResponse.json({ error: 'Internal Server Error: Missing client configuration.' }, { status: 500 });
   }
   const redirect_uri = `${origin}/api/auth/yahoo`;
@@ -53,7 +54,10 @@ export async function GET(request: Request) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Failed to fetch token:', data);
+      logger.error(
+        { userId: user.id, httpStatus: response.status, yahooError: data?.error, yahooErrorDescription: data?.error_description },
+        'Yahoo OAuth: token exchange failed'
+      );
       return NextResponse.json({ error: 'Failed to fetch token from Yahoo' }, { status: 500 });
     }
 
@@ -78,13 +82,13 @@ export async function GET(request: Request) {
       });
 
     if (insertError) {
-      console.error('Error inserting user integration:', insertError);
+      logger.error({ userId: user.id, err: insertError }, 'Yahoo OAuth: could not save integration');
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
     return NextResponse.redirect(`${origin}/integrations/yahoo`);
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    logger.error({ userId: user.id, err: error }, 'Yahoo OAuth: callback failed');
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }
