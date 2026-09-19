@@ -84,8 +84,11 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - api/mcp and .well-known (bearer-token / OAuth discovery endpoints that
+     *   never use the session cookie, so the Supabase round trip is wasted)
+     * - api/news (cron-triggered ingest)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/mcp|api/news|\\.well-known).*)',
   ],
 }

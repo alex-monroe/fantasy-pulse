@@ -611,6 +611,36 @@ describe('actions', () => {
       // No projection row for player 2 -> no projectedPoints field.
       expect(result[0].opponent.players[0].projectedPoints).toBeUndefined();
     });
+
+    it('reuses request-wide projections for a same-season league instead of refetching', async () => {
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1', season: '2025' }],
+        error: null,
+      });
+      (getLeagueScoringSettings as jest.Mock).mockResolvedValue({
+        scoringSettings: { rec: 0.5, rec_yd: 0.1 },
+      });
+
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} },
+        {
+          season: '2025',
+          byPlayerId: new Map([
+            ['1', { player_id: '1', week: 1, season: '2025', stats: { rec: 4, rec_yd: 60 } } as any],
+          ]),
+        }
+      );
+
+      expect(getWeeklyProjections).not.toHaveBeenCalled();
+      expect(result[0].players[0].projectedPoints).toBe(4 * 0.5 + 60 * 0.1);
+    });
   });
 
   describe('buildYahooTeams', () => {
@@ -954,8 +984,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }) // nflStateResponse
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }) // playersResponse
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) }) // rostersResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) }) // matchupsResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) }); // leagueUsersResponse
@@ -983,8 +1013,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) }) // nflStateResponse
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) }); // playersResponse
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) }) // scoreboardResponse
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -1044,8 +1074,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [],
@@ -1069,8 +1099,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
 
       (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: null,
@@ -1090,8 +1120,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: null,
@@ -1112,8 +1142,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -1139,8 +1169,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
@@ -1191,8 +1221,8 @@ describe('actions', () => {
 
       (fetch as jest.Mock)
         .mockResolvedValueOnce({ json: () => Promise.resolve({ week: 1 }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPlayersData) });
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockScoreboard) })
 
       (getYahooUserTeams as jest.Mock).mockResolvedValue({
         teams: [{ id: 'team-1', team_key: 'yahoo-team-1', league_id: 'yahoo-league-1' }],
