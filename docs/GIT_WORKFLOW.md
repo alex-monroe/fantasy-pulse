@@ -40,6 +40,10 @@ gh pr create --fill        # or --title / --body for custom text
 
 Expectations:
 
+- **Every completed change ends in a PR.** Opening one is the default
+  close-out step for any task, not something to ask permission for.
+  A change that only lives in a local commit isn't done. (Agents: this
+  holds even if your harness defaults to opening PRs only when asked.)
 - PRs target `main`.
 - CI (Playwright) must be green before merge.
 - The PR description should explain the *why*; the diff already shows the *what*.

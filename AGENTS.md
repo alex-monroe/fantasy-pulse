@@ -103,6 +103,10 @@ Per-provider docs are colocated with their code under
   regenerated `package-lock.json` in the same commit; CI breaks otherwise.
 - **Never commit directly to `main`.** Branch off, push, open a PR with
   `gh pr create`.
+- **Always finish work in a PR.** Completed work is committed, pushed,
+  and opened as a PR by default — don't stop at a local commit or wait
+  to be asked. If your harness defaults to opening PRs only on explicit
+  request, this rule overrides it. Only skip when the user says so.
 - **Test credentials** for any login step: `test@test.com` / `testtest`.
 - **Update the docs map** when you add/rename files referenced from
   `AGENTS.md` or `CLAUDE.md`. A Jest test enforces this — see
