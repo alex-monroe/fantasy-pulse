@@ -122,6 +122,8 @@ repo's tables on the shared OttoneuDB project):
 - `fp_notes` — free-form user notes
 - `fp_mcp_tokens` — hashed personal access tokens for the [MCP
   server](MCP.md)
+- `fp_sleeper_players` — single-row shared Sleeper player pool (public read,
+  service-role write), refreshed daily
 - `fp_news_items` / `fp_news_ingests` — the shared player-news pool and
   its ingest bookkeeping (see [NEWS_DIGEST.md](NEWS_DIGEST.md)). Unlike
   every other table here these rows are not per-user: one public feed,
@@ -148,6 +150,11 @@ load. Recent commits (see `git log`) have focused on:
   to skip a settled snapshot; connecting or removing an integration calls
   `invalidateTeamsSnapshots()`. Per server instance, so it bounds duplicate
   work rather than eliminating it.
+- The Sleeper player pool (~15MB from Sleeper) is ingested once a day into
+  `fp_sleeper_players` (slimmed to the ~1.6MB the app reads) by the `Sleeper
+  Players Ingest` workflow → `/api/sleeper-players/ingest`. Instances read that
+  row instead of downloading Sleeper's payload, and fall back to Sleeper
+  directly if the stored pool is missing or older than 72h.
 - `performance-logger.ts` wrapping every external call so we can spot
   regressions in CI/observability
 

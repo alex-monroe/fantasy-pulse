@@ -46,6 +46,10 @@ import {
 } from '@roster-loom/core';
 import { isDemoModeEnv } from '@/lib/demo-mode';
 import { getTeamsSnapshotCache } from '@/lib/teams-cache';
+import {
+  loadStoredSleeperPlayers,
+  SLEEPER_PLAYERS_URL,
+} from '@/lib/sleeper-players/pool';
 import { findBestMatch } from 'string-similarity';
 import { JSDOM } from 'jsdom';
 
@@ -495,9 +499,25 @@ export async function getCurrentNflWeek() {
   return nflState.week;
 }
 
-async function loadSleeperPlayersResources(): Promise<SleeperPlayersResources> {
+/**
+ * Loads Sleeper's player pool, preferring the slimmed copy the scheduled
+ * ingest keeps in Supabase (~1.6MB) over Sleeper's own ~15MB payload. Falls
+ * back to Sleeper directly when nothing usable is stored, so a deployment
+ * without the ingest wired up behaves exactly as before.
+ */
+async function loadSleeperPlayersData(): Promise<Record<string, SleeperPlayer>> {
+  const stored = await loadStoredSleeperPlayers();
+  if (stored) {
+    return stored.players;
+  }
+
+  logger.warn(
+    { source: 'sleeper-direct' },
+    'Sleeper players: no usable stored pool, fetching from Sleeper'
+  );
+
   const playersFetchStart = startTimer();
-  const playersResponse = await fetch('https://api.sleeper.app/v1/players/nfl');
+  const playersResponse = await fetch(SLEEPER_PLAYERS_URL, { cache: 'no-store' });
   logDuration('getTeams: fetch Sleeper players', playersFetchStart, {
     status: playersResponse.status,
     ok: playersResponse.ok,
@@ -507,10 +527,13 @@ async function loadSleeperPlayersResources(): Promise<SleeperPlayersResources> {
   const playersJson = await playersResponse.json();
   logDuration('getTeams: parse Sleeper players response', playersParseStart);
 
-  const playersData =
-    playersJson && typeof playersJson === 'object'
-      ? (playersJson as Record<string, SleeperPlayer>)
-      : ({} as Record<string, SleeperPlayer>);
+  return playersJson && typeof playersJson === 'object'
+    ? (playersJson as Record<string, SleeperPlayer>)
+    : ({} as Record<string, SleeperPlayer>);
+}
+
+async function loadSleeperPlayersResources(): Promise<SleeperPlayersResources> {
+  const playersData = await loadSleeperPlayersData();
 
   const playerNameMap: { [key: string]: string } = {};
   const playerMapBuildStart = startTimer();

@@ -131,3 +131,16 @@ Note: constraint and index names (e.g. `leagues_pkey`,
 names — `ALTER TABLE ... RENAME TO` does not rename embedded
 constraints, and the names are stable identifiers Postgres uses
 internally. Future constraints should use the `fp_` prefix.
+
+## fp_sleeper_players
+
+Shared (not per-user) Sleeper player pool. One row, `id = 'nfl'`; refreshed
+daily by `/api/sleeper-players/ingest`. RLS: public `SELECT`, writes only via
+the service role.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `text` PK | Pool id, `'nfl'` |
+| `players` | `jsonb` | `{ [sleeperPlayerId]: { full_name, first_name, last_name, position, team, active, search_rank } }` |
+| `player_count` | `integer` | Number of players in `players` |
+| `fetched_at` | `timestamptz` | When the pool was last ingested |
