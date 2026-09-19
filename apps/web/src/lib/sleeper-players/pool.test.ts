@@ -7,6 +7,15 @@ import {
 
 jest.mock('@/utils/supabase/service', () => ({ createServiceRoleClient: jest.fn() }));
 
+const syncSleeperPlayerLinks = jest.fn();
+jest.mock('./links', () => ({
+  syncSleeperPlayerLinks: (...args: unknown[]) => syncSleeperPlayerLinks(...args),
+}));
+
+beforeEach(() => {
+  syncSleeperPlayerLinks.mockReset().mockResolvedValue(700);
+});
+
 const bigPool = () =>
   Object.fromEntries(
     Array.from({ length: 1200 }, (_, i) => [
@@ -46,10 +55,26 @@ describe('ingestSleeperPlayers', () => {
 
     const result = await ingestSleeperPlayers({ fetchImpl: fetchImpl as any, client });
 
-    expect(result).toEqual({ playerCount: 1200 });
+    expect(result).toEqual({ playerCount: 1200, linkedCount: 700, linkError: undefined });
     const row = upsert.mock.calls[0][0];
     expect(row).toMatchObject({ id: 'nfl', player_count: 1200 });
     expect(row.players['0']).toEqual({ full_name: 'P 0', position: 'WR', team: 'SEA' });
+  });
+
+  it('still succeeds, and reports it, when linking fails', async () => {
+    const { client, upsert } = supabaseWith({});
+    syncSleeperPlayerLinks.mockRejectedValue(new Error('relation does not exist'));
+    const fetchImpl = jest.fn().mockResolvedValue({ ok: true, json: async () => bigPool() });
+
+    const result = await ingestSleeperPlayers({ fetchImpl: fetchImpl as any, client });
+
+    expect(upsert).toHaveBeenCalled();
+    expect(result).toEqual({
+      playerCount: 1200,
+      linkedCount: undefined,
+      linkError: 'relation does not exist',
+    });
+    expect(result.error).toBeUndefined();
   });
 
   it('refuses to overwrite the pool with an implausibly small payload', async () => {

@@ -124,6 +124,8 @@ repo's tables on the shared OttoneuDB project):
   server](MCP.md)
 - `fp_sleeper_players` — single-row shared Sleeper player pool (public read,
   service-role write), refreshed daily
+- `fp_sleeper_player_links` — Sleeper id → `players.id` crosswalk (no FK on
+  purpose: `players` belongs to the sibling repo)
 - `fp_news_items` / `fp_news_ingests` — the shared player-news pool and
   its ingest bookkeeping (see [NEWS_DIGEST.md](NEWS_DIGEST.md)). Unlike
   every other table here these rows are not per-user: one public feed,
@@ -154,7 +156,11 @@ load. Recent commits (see `git log`) have focused on:
   `fp_sleeper_players` (slimmed to the ~1.6MB the app reads) by the `Sleeper
   Players Ingest` workflow → `/api/sleeper-players/ingest`. Instances read that
   row instead of downloading Sleeper's payload, and fall back to Sleeper
-  directly if the stored pool is missing or older than 72h.
+  directly if the stored pool is missing or older than 72h. The same run links
+  Sleeper ids to the canonical `players` table via `fp_sleeper_player_links`
+  (name + position, unambiguous matches only, current rows) so Sleeper rosters
+  can be joined to Ottoneu prices/projections in SQL. `players` cannot replace
+  the pool itself: it has no Sleeper ids, defenses, IDP or retired players.
 - `performance-logger.ts` wrapping every external call so we can spot
   regressions in CI/observability
 

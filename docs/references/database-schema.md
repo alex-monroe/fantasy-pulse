@@ -144,3 +144,17 @@ the service role.
 | `players` | `jsonb` | `{ [sleeperPlayerId]: { full_name, first_name, last_name, position, team, active, search_rank } }` |
 | `player_count` | `integer` | Number of players in `players` |
 | `fetched_at` | `timestamptz` | When the pool was last ingested |
+
+## fp_sleeper_player_links
+
+Crosswalk from a Sleeper player id to the canonical `players` row. Rebuilt daily
+by the same ingest as `fp_sleeper_players`. `player_id` is intentionally **not**
+a foreign key (`players` is owned by the sibling repo; an FK would break a bulk
+reload of it). RLS: public `SELECT`, writes only via the service role.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `sleeper_id` | `text` PK | Sleeper player id |
+| `player_id` | `uuid` | `players.id` (soft reference), indexed |
+| `match_method` | `text` | `name_position` or `name_position_active` |
+| `linked_at` | `timestamptz` | Run that wrote the link; older rows are pruned |

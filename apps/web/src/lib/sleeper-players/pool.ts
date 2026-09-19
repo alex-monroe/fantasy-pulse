@@ -11,6 +11,7 @@ import type { SleeperPlayer } from '@roster-loom/core';
 
 import { createServiceRoleClient } from '@/utils/supabase/service';
 import { logDuration, startTimer } from '@/utils/performance-logger';
+import { syncSleeperPlayerLinks } from './links';
 
 export const SLEEPER_PLAYERS_URL = 'https://api.sleeper.app/v1/players/nfl';
 export const SLEEPER_PLAYER_POOL_ID = 'nfl';
@@ -68,6 +69,10 @@ export function slimSleeperPlayers(raw: unknown): Record<string, SleeperPlayer> 
 
 export type SleeperPoolIngestResult = {
   playerCount: number;
+  /** Sleeper ids linked to `public.players` rows this run. */
+  linkedCount?: number;
+  /** Set when linking failed; the pool itself was still stored. */
+  linkError?: string;
   error?: string;
 };
 
@@ -111,8 +116,23 @@ export async function ingestSleeperPlayers({
       throw new Error(`Could not store the player pool: ${error.message}`);
     }
 
-    logDuration('sleeper players ingest', start, { success: true, playerCount });
-    return { playerCount };
+    // Linking is additive: the pool is already stored, so a failure here (say
+    // the links table isn't migrated yet) is reported but doesn't fail the run.
+    let linkedCount: number | undefined;
+    let linkError: string | undefined;
+    try {
+      linkedCount = await syncSleeperPlayerLinks(supabase, players);
+    } catch (error) {
+      linkError = error instanceof Error ? error.message : String(error);
+    }
+
+    logDuration('sleeper players ingest', start, {
+      success: true,
+      playerCount,
+      linkedCount,
+      linkError,
+    });
+    return { playerCount, linkedCount, linkError };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logDuration('sleeper players ingest', start, { success: false, errorMessage: message });
