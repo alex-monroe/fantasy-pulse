@@ -58,6 +58,7 @@ data fixtures. Import as `@roster-loom/core`.
 | `api/mcp/route.ts`            | Hosted MCP server endpoint (see [MCP.md](MCP.md))      |
 | `integrations/<provider>/`    | One folder per fantasy provider (see below)            |
 | `login/`, `register/`         | Auth pages                                             |
+| `forgot-password/`, `reset-password/`, `auth/callback/` | Password reset flow — see [AUTH.md](AUTH.md) |
 
 ## `apps/web/src/app/integrations/<provider>/` — provider modules
 
