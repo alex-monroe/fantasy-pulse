@@ -53,7 +53,7 @@ Ottoneu data is scraped from public pages.
 
 | Variable            | Where used | Notes |
 | ------------------- | ---------- | ----- |
-| `CRON_SECRET`       | Web server + GitHub Actions | Bearer token `/api/news/ingest` requires. Set the same value on the deployment and as a repository Actions secret (the `News Ingest` workflow sends it). **Unset means the endpoint is disabled (503), not open.** |
+| `CRON_SECRET`       | Web server + GitHub Actions | Bearer token `/api/news/ingest` and `/api/sleeper-players/ingest` require. Set the same value on the deployment and as a repository Actions secret (the `News Ingest` and `Sleeper Players Ingest` workflows send it). **Unset means the endpoint is disabled (503), not open.** |
 | `ROTOWIRE_RSS_URL`  | Web server | Overrides the news feed URL. Defaults to Rotowire's public NFL news RSS. |
 
 Ingesting also needs `SUPABASE_SERVICE_ROLE_KEY` (above): `fp_news_items`

@@ -1,0 +1,75 @@
+# Refreshes the shared Sleeper player pool in Supabase (see
+# docs/ARCHITECTURE.md, "Performance discipline").
+#
+# Sleeper's /v1/players/nfl is ~15MB and asks to be fetched at most once a
+# day, so this runs daily rather than on the news ingest's 15-minute cadence.
+# The job is a thin trigger for /api/sleeper-players/ingest, which owns the
+# fetch, slimming and upsert. If a run is missed the app keeps using the last
+# stored pool for up to 72 hours before falling back to fetching Sleeper itself.
+name: Sleeper Players Ingest
+
+on:
+  schedule:
+    # 09:15 UTC: after Sleeper's overnight player updates, off the hour.
+    - cron: '15 9 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sleeper-players-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Trigger Sleeper players ingest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call the ingest endpoint
+        env:
+          # Must match CRON_SECRET on the deployment (shared with News Ingest).
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://fantasy-pulse.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET is not set on this repository."
+            exit 1
+          fi
+
+          body_file="$(mktemp)"
+
+          # Idempotent (single-row upsert), so retries are safe.
+          if ! status=$(curl -sS -X POST "${APP_BASE_URL%/}/api/sleeper-players/ingest" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H 'accept: application/json' \
+            --max-time 120 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            -o "$body_file" \
+            -w '%{http_code}' \
+            | tail -n1); then
+            echo "::error::Could not reach ${APP_BASE_URL%/}/api/sleeper-players/ingest"
+            exit 1
+          fi
+
+          body=$(cat "$body_file")
+          echo "HTTP $status"
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Sleeper players ingest failed with HTTP $status"
+            exit 1
+          fi
+
+          {
+            echo "### Sleeper players ingest"
+            echo ""
+            echo '```json'
+            echo "$body"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

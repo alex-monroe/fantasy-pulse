@@ -1,4 +1,5 @@
 import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
+import { loadStoredSleeperPlayers } from '@/lib/sleeper-players/pool';
 import logger from "@/utils/logger";
 import * as actions from './actions';
 const {
@@ -77,6 +78,11 @@ jest.mock('@/app/integrations/espn/actions', () => ({
 
 global.fetch = jest.fn();
 
+jest.mock('@/lib/sleeper-players/pool', () => ({
+  SLEEPER_PLAYERS_URL: 'https://api.sleeper.app/v1/players/nfl',
+  loadStoredSleeperPlayers: jest.fn(),
+}));
+
 describe('actions', () => {
   const mockSupabase = {
     auth: {
@@ -141,6 +147,7 @@ describe('actions', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     invalidateTeamsSnapshots();
+    (loadStoredSleeperPlayers as jest.Mock).mockReset().mockResolvedValue(null);
     (fetch as jest.Mock).mockReset();
 
     (createClient as jest.Mock).mockReturnValue(mockSupabase);
@@ -267,6 +274,31 @@ describe('actions', () => {
         json: () => Promise.resolve(players),
       });
     };
+
+    it('uses the stored pool without fetching Sleeper when one is available', async () => {
+      (loadStoredSleeperPlayers as jest.Mock).mockResolvedValue({
+        players: { '1': { full_name: 'Stored Player', position: 'WR', team: 'SEA', active: true } },
+        fetchedAt: '2026-09-19T09:00:00Z',
+      });
+
+      const { playersData, playerNameMap } = await getSleeperPlayersResources({
+        forceRefresh: true,
+      });
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(playersData['1'].full_name).toBe('Stored Player');
+      expect(playerNameMap['stored player']).toBe('1');
+    });
+
+    it('falls back to fetching Sleeper when no usable stored pool exists', async () => {
+      mockPlayersFetch({ '2': { full_name: 'Live Player', position: 'RB', team: 'DAL', active: true } });
+
+      const { playerNameMap } = await getSleeperPlayersResources({ forceRefresh: true });
+
+      expect(loadStoredSleeperPlayers).toHaveBeenCalled();
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(playerNameMap['live player']).toBe('2');
+    });
 
     // Sleeper keys its pool by numeric player id, and JS iterates those keys
     // in ascending numeric order, so each collision below lists the wrong

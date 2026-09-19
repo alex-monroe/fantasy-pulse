@@ -86,9 +86,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - api/mcp and .well-known (bearer-token / OAuth discovery endpoints that
      *   never use the session cookie, so the Supabase round trip is wasted)
-     * - api/news (cron-triggered ingest)
+     * - api/news, api/sleeper-players (cron-triggered ingests)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/mcp|api/news|\\.well-known).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/mcp|api/news|api/sleeper-players|\\.well-known).*)',
   ],
 }
