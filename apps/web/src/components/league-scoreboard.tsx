@@ -17,11 +17,10 @@ import {
 
 /**
  * One league's matchup, reduced to a tile: who you are, who you're
- * playing, both sides' scores now and where both are projected to
- * finish, and a tug-of-war bar showing the split. The differential is
- * the number you actually read on a Sunday, so it gets the color; the
- * win probability underneath is what the projected gap is worth with
- * however much football is left.
+ * playing, and both sides' scores now and where both are projected to
+ * finish. The differential is the number you actually read on a Sunday,
+ * so it gets the color; the win probability underneath is what the
+ * projected gap is worth with however much football is left.
  */
 function MatchupTile({
   summary,
@@ -34,8 +33,7 @@ function MatchupTile({
   isMyScoreChanged: boolean;
   isOpponentScoreChanged: boolean;
 }) {
-  const { team, score, opponentScore, differential, isLeading, isTied, scoreShare, counts, projection } =
-    summary;
+  const { team, score, opponentScore, differential, isLeading, isTied, counts, projection } = summary;
   const differentialLabel = `${differential > 0 ? '+' : differential < 0 ? '−' : '±'}${Math.abs(differential).toFixed(1)}`;
   const remaining = counts.live + counts.yetToPlay;
   const showProjection = projection.hasProjections;
@@ -120,13 +118,6 @@ function MatchupTile({
             </span>
           </p>
         </div>
-      </div>
-
-      <div className="mt-2 flex h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-        <div
-          className={cn('h-full rounded-full', isLeading ? 'bg-primary' : 'bg-muted-foreground/50')}
-          style={{ width: `${Math.round(scoreShare * 100)}%` }}
-        />
       </div>
 
       {showProjection && (
