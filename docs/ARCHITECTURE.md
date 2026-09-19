@@ -26,7 +26,8 @@ apps/web/                     # Next.js app (Vercel deploys this)
 │   │   ├── (dashboard)/      # Authenticated dashboard route group
 │   │   ├── api/              # Route handlers (OAuth callbacks, teams API)
 │   │   ├── integrations/     # One folder per provider (sleeper, yahoo, ottoneu)
-│   │   ├── login/  register/
+│   │   ├── login/  register/  forgot-password/  reset-password/
+│   │   ├── auth/callback/    # Turns an emailed auth token into a session
 │   │   ├── actions.ts        # Cross-provider server actions (team building, scoring)
 │   │   ├── layout.tsx  page.tsx  loading.tsx
 │   │   └── globals.css

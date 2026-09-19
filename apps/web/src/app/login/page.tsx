@@ -4,10 +4,19 @@ import { useState, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AppNavigation } from '@/components/app-navigation';
+
+/**
+ * Messages for the error codes /auth/callback can redirect here with.
+ */
+const LINK_ERRORS: Record<string, string> = {
+  invalid_link:
+    'That link is invalid or has expired. Request a new password reset link below.',
+};
 
 /**
  * The login page for the application.
@@ -24,8 +33,11 @@ export default function LoginPage() {
   // back on the consent screen after they sign in, instead of losing
   // the in-progress OAuth request. Only ever a same-origin relative
   // path — never followed if it isn't one.
-  const next = searchParams.get('next');
-  const redirectTo = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const redirectTo = safeRedirectPath(searchParams.get('next'));
+
+  // /auth/callback sends failed email links back here. It passes a code
+  // rather than a message so the text on this page stays ours.
+  const linkError = LINK_ERRORS[searchParams.get('error') ?? ''] ?? null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,8 +70,15 @@ export default function LoginPage() {
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {(error || linkError) && (
+            <p className="text-sm text-red-500">{error ?? linkError}</p>
+          )}
           <Button type="submit" className="w-full">Sign In</Button>
+          <p className="text-center text-sm">
+            <Link href="/forgot-password" className="underline">
+              Forgot your password?
+            </Link>
+          </p>
           <p className="text-center text-sm">
             Need an account?{' '}
             <Link href="/register" className="underline">

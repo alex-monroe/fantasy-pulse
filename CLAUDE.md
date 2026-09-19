@@ -23,6 +23,7 @@ token reuse, caching) matters more than feature volume.
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md)
 - **Testing:** [docs/TESTING.md](docs/TESTING.md)
+- **Auth:** [docs/AUTH.md](docs/AUTH.md)
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 - **News digest:** [docs/NEWS_DIGEST.md](docs/NEWS_DIGEST.md)
@@ -63,6 +64,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── AUTH.md                        # Sign-in, registration, password reset flow
 ├── DEMO_MODE.md                   # Fake-data mode for out-of-season testing
 ├── NEWS_DIGEST.md                 # Player news: feed ingest, matching, cron
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport

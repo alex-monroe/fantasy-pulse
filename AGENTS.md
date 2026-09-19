@@ -21,6 +21,7 @@ matchup data with cross-team player-share indicators.
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data flow, provider pattern
 - **Code layout:** [docs/CODE_ORGANIZATION.md](docs/CODE_ORGANIZATION.md) — where things live, module rules
 - **Testing:** [docs/TESTING.md](docs/TESTING.md) — Jest setup, why E2E is off-limits
+- **Auth:** [docs/AUTH.md](docs/AUTH.md) — sign-in, registration, password reset
 - **Git workflow:** [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — branch + PR rules
 - **Add a provider:** [docs/adding-integrations.md](docs/adding-integrations.md)
 - **News digest:** [docs/NEWS_DIGEST.md](docs/NEWS_DIGEST.md) — feed ingest + roster matching
@@ -45,6 +46,7 @@ docs/
 ├── CODE_ORGANIZATION.md           # File layout, module boundaries, conventions
 ├── TESTING.md                     # Jest setup, E2E policy, CI signals
 ├── GIT_WORKFLOW.md                # Branch + PR rules
+├── AUTH.md                        # Sign-in, registration, password reset flow
 ├── MOBILE.md                      # Mobile app quickstart (Expo Go, env, layout)
 ├── NEWS_DIGEST.md                 # Player news: feed ingest, matching, cron
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport

@@ -22,6 +22,10 @@ Pull project credentials from the
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Browser + server Supabase clients       | Public — RLS-protected. |
 | `SUPABASE_SERVICE_ROLE_KEY`      | Server-only privileged operations       | **Never expose to the browser.** Bypasses RLS. |
 
+Password reset emails need the app's origin on the project's redirect
+URL allowlist — that's dashboard configuration rather than an env var.
+See [../AUTH.md](../AUTH.md).
+
 ## Yahoo OAuth
 
 | Variable             | Purpose                                              |
