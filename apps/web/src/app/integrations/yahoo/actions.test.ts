@@ -46,7 +46,7 @@ const rosterExample = {
 
 jest.mock('@roster-loom/core', () => ({ fetchJson: jest.fn() }));
 jest.mock('@/utils/supabase/server', () => ({ createClient: jest.fn() }));
-jest.mock('@/utils/logger', () => ({ info: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+jest.mock('@/utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 jest.mock('@/app/actions', () => ({ getCurrentNflWeek: jest.fn().mockResolvedValue(2) }));
 
 describe('yahoo actions', () => {
@@ -87,6 +87,54 @@ describe('yahoo actions', () => {
     fetchJson.mockResolvedValue({ error: 'bad' });
     const result = await actions.getYahooAccessToken(1);
     expect(result).toEqual({ error: 'Failed to refresh Yahoo token: bad' });
+  });
+
+  describe('getYahooUserTeams', () => {
+    const validToken = () =>
+      mockSupabase.from().single.mockResolvedValueOnce({
+        data: {
+          access_token: 'token',
+          refresh_token: 'refresh',
+          expires_at: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
+        },
+        error: null,
+      });
+
+    it('warns with the response shape when Yahoo lists no games for the user', async () => {
+      validToken();
+      fetchJson.mockResolvedValue({
+        data: { fantasy_content: { users: { 0: { user: [{}, { games: { count: 0 } }] } } } },
+        status: 200,
+      });
+      const logger = (await import('@/utils/logger')).default as any;
+
+      const result = await actions.getYahooUserTeams(7, undefined, 'app-user');
+
+      expect(result).toEqual({ teams: [], accessToken: 'token' });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'app-user',
+          integrationId: 7,
+          gamesCount: 0,
+          responseKeys: ['users'],
+        }),
+        'Yahoo: no teams in API response'
+      );
+    });
+
+    it('logs the HTTP status when the teams request fails', async () => {
+      validToken();
+      fetchJson.mockResolvedValue({ error: 'token_expired', status: 401 });
+      const logger = (await import('@/utils/logger')).default as any;
+
+      const result = await actions.getYahooUserTeams(7, undefined, 'app-user');
+
+      expect(result.error).toContain('token_expired');
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'app-user', integrationId: 7, httpStatus: 401 }),
+        'Yahoo API Error fetching teams'
+      );
+    });
   });
 
   it('parses player scores correctly', async () => {

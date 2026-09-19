@@ -606,6 +606,9 @@ export async function buildSleeperTeams(
   }
 
   const teams: Team[] = [];
+  // Why each league that Sleeper listed did not become a team. Emitted as one
+  // line below so "only some of my leagues show up" is a single search.
+  const skipped: { leagueId: string; leagueName: string | null; reason: string }[] = [];
 
   // Sleeper can list the same league_id more than once (e.g. when the user
   // manages two rosters in it), which would otherwise produce duplicate
@@ -639,10 +642,11 @@ export async function buildSleeperTeams(
       !Array.isArray(matchups) ||
       !Array.isArray(leagueUsers)
     ) {
-      logger.warn(
-        { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', leagueId: league.league_id },
-        'Sleeper: league skipped, unexpected API response'
-      );
+      skipped.push({
+        leagueId: league.league_id,
+        leagueName: league.name ?? null,
+        reason: 'unexpected API response (rosters, matchups or users was not a list)',
+      });
       continue;
     }
 
@@ -661,10 +665,11 @@ export async function buildSleeperTeams(
       (roster) => roster.owner_id === integration.provider_user_id
     );
     if (!userRoster) {
-      logger.warn(
-        { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', leagueId: league.league_id, sleeperUserId: integration.provider_user_id },
-        'Sleeper: league skipped, user has no roster in it'
-      );
+      skipped.push({
+        leagueId: league.league_id,
+        leagueName: league.name ?? null,
+        reason: 'no roster owned by this Sleeper user (co-owners are not matched)',
+      });
       continue;
     }
 
@@ -672,10 +677,11 @@ export async function buildSleeperTeams(
       (matchup) => matchup.roster_id === userRoster.roster_id
     );
     if (!userMatchup) {
-      logger.warn(
-        { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', leagueId: league.league_id, week },
-        'Sleeper: league skipped, no matchup found for the current week'
-      );
+      skipped.push({
+        leagueId: league.league_id,
+        leagueName: league.name ?? null,
+        reason: `no matchup for roster ${userRoster.roster_id} in week ${week}`,
+      });
       continue;
     }
 
@@ -752,6 +758,22 @@ export async function buildSleeperTeams(
         players: opponentPlayers,
       },
     });
+  }
+
+  if (skipped.length > 0) {
+    logger.warn(
+      {
+        userId: integration.user_id,
+        integrationId: integration.id,
+        provider: 'sleeper',
+        sleeperUserId: integration.provider_user_id,
+        week,
+        leaguesListed: uniqueLeagues.length,
+        teamsBuilt: teams.length,
+        skipped,
+      },
+      'Sleeper: some leagues did not produce a team'
+    );
   }
 
   return teams;

@@ -94,7 +94,7 @@ export async function getYahooAccessToken(
     const refreshStart = startTimer();
 
     try {
-      const { data, error } = await fetchJson<any>('https://api.login.yahoo.com/oauth2/get_token', {
+      const { data, error, status } = await fetchJson<any>('https://api.login.yahoo.com/oauth2/get_token', {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${basicAuth}`,
@@ -113,7 +113,12 @@ export async function getYahooAccessToken(
       });
 
       if (error || !data) {
-        logger.error({ error }, 'Yahoo token refresh error');
+        // `invalid_grant` here means Yahoo revoked the refresh token, so the
+        // user has to reconnect; retrying will not help.
+        logger.error(
+          { userId: resolvedUserId, integrationId, httpStatus: status, error },
+          'Yahoo token refresh error'
+        );
         return { error: `Failed to refresh Yahoo token: ${error}` };
       }
 
@@ -290,7 +295,7 @@ export async function getYahooUserTeams(
   const fetchStart = startTimer();
 
   try {
-    const { data, error } = await fetchJson<any>(url, {
+    const { data, error, status } = await fetchJson<any>(url, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Accept': 'application/json',
@@ -303,14 +308,28 @@ export async function getYahooUserTeams(
     });
 
     if (error) {
-      logger.error({ error }, 'Yahoo API Error fetching teams');
+      logger.error({ userId, integrationId, httpStatus: status, error }, 'Yahoo API Error fetching teams');
       return { error: `Failed to fetch teams from Yahoo: ${error}` };
     }
     logger.debug({ data }, 'Yahoo API response for teams');
     const teamsFromYahoo = data.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.teams;
 
     if (!teamsFromYahoo) {
-      logger.info('No teams found in Yahoo API response.');
+      // Token worked but Yahoo listed no teams: the "login works, no teams"
+      // report. `game_keys=nfl` resolves to the current season's game, so a
+      // league that hasn't renewed for this season shows up as gamesCount 0.
+      const games = data.fantasy_content?.users?.[0]?.user?.[1]?.games;
+      logger.warn(
+        {
+          userId,
+          integrationId,
+          httpStatus: status,
+          responseKeys: Object.keys(data.fantasy_content ?? {}),
+          gamesCount: games?.count ?? null,
+          gameKeys: games ? Object.keys(games).filter((key) => key !== 'count') : null,
+        },
+        'Yahoo: no teams in API response'
+      );
       return { teams: [], accessToken: access_token };
     }
 
@@ -341,6 +360,10 @@ export async function getYahooUserTeams(
       return { teams: upsertedTeams, accessToken: access_token };
     }
 
+    logger.warn(
+      { userId, integrationId, teamEntries: Object.keys(teamsFromYahoo).length },
+      'Yahoo: response had a teams object but no usable teams'
+    );
     return { teams: [], accessToken: access_token };
   } catch (error) {
     logYahooApiDuration('fetch user teams', fetchStart, {

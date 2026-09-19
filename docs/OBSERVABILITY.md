@@ -15,12 +15,32 @@ as Warning/Error and can be filtered by level), the rest to stdout.
 | Message | Meaning |
 | --- | --- |
 | `getTeams: integration produced no teams` | Connected, but nothing rendered. Look at the lines just before it for the reason. |
-| `Sleeper: league skipped, user has no roster in it` | Sleeper user id no longer owns a roster in that league. |
-| `Sleeper: league skipped, no matchup found for the current week` | Sleeper returned no matchup for the week (bye, offseason, playoffs). |
-| `Sleeper: league skipped, unexpected API response` | Sleeper returned a non-array (rate limit or outage). |
-| `Yahoo: could not fetch access token` / `getTeams: Yahoo returned no teams` | Token refresh failed. The user probably needs to reconnect. |
+| `Sleeper: some leagues did not produce a team` | One line per render listing `leaguesListed`, `teamsBuilt` and a `skipped` array with each missing league's id, name and reason. See below. |
+| `Yahoo token refresh error` | Refresh failed; `error` and `httpStatus` say why. `invalid_grant` means Yahoo revoked the token and the user must reconnect. |
+| `Yahoo: no teams in API response` | Login and token are fine but Yahoo listed no teams. See below. |
+| `Yahoo: response had a teams object but no usable teams` | Yahoo returned a teams object with nothing parseable in it. |
+| `Yahoo API Error fetching teams` | Yahoo rejected the request; check `httpStatus`. |
 | `Ottoneu: failed to fetch ... page` | Ottoneu page fetch or scrape failed; `err` has the cause. |
 | `Unhandled server error` | A render, route or server action threw. |
+
+## Common cases
+
+**Only some of a user's Sleeper leagues show up.** Search the user id for
+`Sleeper: some leagues did not produce a team` and read `skipped`:
+
+- `no roster owned by this Sleeper user`: the user is a co-owner or was
+  removed. Matching is on `owner_id` only, so co-owned rosters are skipped.
+- `no matchup for roster N in week W`: bye week, playoffs or offseason.
+- `unexpected API response`: Sleeper rate-limited or errored for that league.
+- A league missing from both `skipped` and the results was never listed by
+  Sleeper for this season (compare `leaguesListed` with what they expect).
+
+**Yahoo connects but finds no teams.** Search the user id for
+`Yahoo: no teams in API response`. `gamesCount: 0` means Yahoo knows of no
+NFL games for this user this season, typically a league that hasn't renewed
+for the new season. A missing `fantasy_content` in `responseKeys` means
+Yahoo changed its response shape. If instead you see
+`Yahoo token refresh error`, the login is stale and the user should reconnect.
 
 ## Error references
 

@@ -467,6 +467,71 @@ describe('actions', () => {
       expect(result).toEqual([]);
     });
 
+    it('logs one warning naming each league that did not produce a team', async () => {
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
+        leagues: [
+          { id: 1, league_id: 'league-ok', name: 'Works' },
+          { id: 2, league_id: 'league-co-owned', name: 'Co-owned' },
+        ],
+        error: null,
+      });
+
+      const coOwnedRosters = [
+        { owner_id: 'someone-else', roster_id: 1, players: [], starters: [] },
+      ];
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(coOwnedRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      const result = await buildSleeperTeams(
+        { id: 1, user_id: 'app-user', provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+
+      expect(result).toHaveLength(1);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'app-user',
+          provider: 'sleeper',
+          leaguesListed: 2,
+          teamsBuilt: 1,
+          skipped: [
+            expect.objectContaining({
+              leagueId: 'league-co-owned',
+              leagueName: 'Co-owned',
+              reason: expect.stringContaining('no roster'),
+            }),
+          ],
+        }),
+        'Sleeper: some leagues did not produce a team'
+      );
+    });
+
+    it('does not warn when every league produces a team', async () => {
+      (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
+        leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
+        error: null,
+      });
+      (fetch as jest.Mock)
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockRosters) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockMatchups) })
+        .mockResolvedValueOnce({ json: () => Promise.resolve(mockLeagueUsers) });
+
+      await buildSleeperTeams(
+        { id: 1, provider_user_id: 'sleeper-user-1' },
+        1,
+        { playersData: mockPlayersData, playerNameMap: {} }
+      );
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
     it('omits players without Sleeper player data', async () => {
       (getCurrentSleeperLeagues as jest.Mock).mockResolvedValue({
         leagues: [{ id: 1, league_id: 'sleeper-league-1' }],
