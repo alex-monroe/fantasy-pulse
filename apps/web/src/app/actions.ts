@@ -45,6 +45,7 @@ import {
   SleeperStockScoringMode,
 } from '@roster-loom/core';
 import { isDemoModeEnv } from '@/lib/demo-mode';
+import { getTeamsSnapshotCache } from '@/lib/teams-cache';
 import { findBestMatch } from 'string-similarity';
 import { JSDOM } from 'jsdom';
 
@@ -1609,7 +1610,7 @@ export async function getTeamBuilders() {
 export async function getTeams(
   client?: SupabaseClient,
   userId?: string,
-  options?: { demo?: boolean }
+  options?: { demo?: boolean; fresh?: boolean }
 ) {
   const overallStart = startTimer();
   console.log('[performance] getTeams invoked');
@@ -1641,6 +1642,23 @@ export async function getTeams(
     });
     return { teams };
   }
+
+  // Callers land here in bursts (page navigation, MCP tool calls), so share
+  // one build per user across them. `fresh` (the manual refresh) skips a
+  // settled snapshot but still joins a build that is already running.
+  return getTeamsSnapshotCache().get(
+    resolvedUserId,
+    () => buildTeamsForUser(supabase, resolvedUserId!, overallStart),
+    { fresh: options?.fresh }
+  );
+}
+
+async function buildTeamsForUser(
+  supabase: SupabaseClient,
+  resolvedUserId: string,
+  overallStart: ReturnType<typeof startTimer>
+): Promise<{ teams: Team[] } | { error: string }> {
+  const log = logger.child({ userId: resolvedUserId });
 
   const integrationsStart = startTimer();
   const { data: integrations, error: integrationsError } = await supabase

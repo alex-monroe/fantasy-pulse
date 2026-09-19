@@ -8,6 +8,7 @@ import logger from '@/utils/logger';
 import { fetchJson } from '@roster-loom/core';
 import { getEnv } from '@/lib/env';
 import { logDuration, startTimer } from '@/utils/performance-logger';
+import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -200,6 +201,7 @@ export async function removeYahooIntegration(integrationId: number) {
     return { error: `Failed to delete integration: ${deleteIntegrationError.message}` };
   }
 
+  invalidateTeamsSnapshots();
   return { success: true };
 }
 
