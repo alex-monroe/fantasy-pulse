@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { JSDOM } from 'jsdom';
 import logger from '@/utils/logger';
+import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 
 function normalizeTeamName(name: string) {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -330,6 +331,7 @@ export async function connectOttoneu(
     return { error: leagueError.message };
   }
 
+  invalidateTeamsSnapshots();
   return { teamName, leagueName, matchup };
 }
 
@@ -358,6 +360,7 @@ export async function removeOttoneuIntegration(integrationId: number) {
     return { error: `Failed to delete integration: ${deleteIntegrationError.message}` };
   }
 
+  invalidateTeamsSnapshots();
   return { success: true };
 }
 

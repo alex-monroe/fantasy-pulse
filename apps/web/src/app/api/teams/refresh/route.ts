@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   });
 
   try {
-    const result = await getTeams(bearerClient, bearerUserId, { demo });
+    const result = await getTeams(bearerClient, bearerUserId, { demo, fresh: true });
 
     if ('error' in result) {
       const status = result.error === 'You must be logged in.' ? 401 : 500;

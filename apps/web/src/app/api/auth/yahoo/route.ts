@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import logger from '@/utils/logger';
+import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 
 /**
  * Handles the OAuth callback from Yahoo.
@@ -86,6 +87,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
+    invalidateTeamsSnapshots();
     return NextResponse.redirect(`${origin}/integrations/yahoo`);
   } catch (error) {
     logger.error({ userId: user.id, err: error }, 'Yahoo OAuth: callback failed');

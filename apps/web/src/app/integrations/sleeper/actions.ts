@@ -14,6 +14,7 @@ import {
   SleeperProjection,
   SleeperNflState,
 } from '@roster-loom/core';
+import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 
 // api.sleeper.app hosts Sleeper's documented, stable endpoints (leagues,
 // rosters, users, players). api.sleeper.com hosts /projections and /stats,
@@ -63,6 +64,7 @@ export async function connectSleeper(username: string) {
       return { error: insertError.message };
     }
 
+    invalidateTeamsSnapshots();
     return { user: sleeperUser };
   } catch (error) {
     logger.error({ err: error, operation: 'sleeper.connectSleeper' }, 'Sleeper: connectSleeper failed');
@@ -98,6 +100,7 @@ export async function removeSleeperIntegration(integrationId: number) {
     return { error: `Failed to delete integration: ${deleteIntegrationError.message}` };
   }
 
+  invalidateTeamsSnapshots();
   return { success: true };
 }
 

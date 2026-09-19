@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import logger from '@/utils/logger';
 import { fetchJson } from '@roster-loom/core';
 import { logDuration, startTimer } from '@/utils/performance-logger';
+import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 
 // fantasy.espn.com/apis/v3/... now 302-redirects to an HTML login page
 // instead of returning JSON errors, regardless of credential validity —
@@ -343,6 +344,7 @@ export async function connectEspn(leagueId: string, espnS2: string, swid: string
     return { error: teamError.message };
   }
 
+  invalidateTeamsSnapshots();
   return {
     integration,
     team: { teamId: String(ownedTeam.id), name: espnTeamName(ownedTeam) },
@@ -381,6 +383,7 @@ export async function removeEspnIntegration(integrationId: number) {
     return { error: `Failed to delete integration: ${deleteIntegrationError.message}` };
   }
 
+  invalidateTeamsSnapshots();
   return { success: true };
 }
 

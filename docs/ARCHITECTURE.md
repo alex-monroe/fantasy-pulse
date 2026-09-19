@@ -143,6 +143,11 @@ load. Recent commits (see `git log`) have focused on:
 - `Promise.all` fan-out in `apps/web/src/app/actions.ts`
 - Reusing Yahoo access tokens across a single request
 - Caching Sleeper player data (TTL in `actions.ts`)
+- A 15s per-user snapshot cache with in-flight coalescing around `getTeams()`
+  (`apps/web/src/lib/teams-cache.ts`). The manual refresh passes `fresh: true`
+  to skip a settled snapshot; connecting or removing an integration calls
+  `invalidateTeamsSnapshots()`. Per server instance, so it bounds duplicate
+  work rather than eliminating it.
 - `performance-logger.ts` wrapping every external call so we can spot
   regressions in CI/observability
 
