@@ -3,6 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { JSDOM } from 'jsdom';
+import logger from '@/utils/logger';
 
 function normalizeTeamName(name: string) {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -139,7 +140,8 @@ async function fetchLeagueTeams(
     }
 
     return { baseUrl, teams: dedupedTeams };
-  } catch {
+  } catch (error) {
+    logger.error({ err: error, leagueUrl, operation: 'ottoneu.fetchLeagueTeams' }, 'Ottoneu: failed to fetch league page');
     return { error: 'Failed to fetch league page.' };
   }
 }
@@ -271,7 +273,8 @@ export async function getOttoneuTeamInfo(teamUrl: string) {
       }
     }
     return result;
-  } catch {
+  } catch (error) {
+    logger.error({ err: error, teamUrl, operation: 'ottoneu.getOttoneuTeamInfo' }, 'Ottoneu: failed to fetch team page');
     return { error: 'Failed to fetch team page.' };
   }
 }

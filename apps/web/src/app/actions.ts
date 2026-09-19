@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { logDuration, startTimer } from '@/utils/performance-logger';
+import logger from '@/utils/logger';
 import {
   getCurrentSleeperLeagues,
   getLeagueScoringSettings,
@@ -583,7 +584,7 @@ export async function invalidateSleeperPlayersCache() {
  * @returns A list of teams from Sleeper.
  */
 export async function buildSleeperTeams(
-  integration: { id: number; provider_user_id: string },
+  integration: { id: number; provider_user_id: string; user_id?: string },
   week: number,
   playerResources?: SleeperPlayersResources
 ): Promise<Team[]> {
@@ -597,6 +598,10 @@ export async function buildSleeperTeams(
     integration.provider_user_id
   );
   if (leaguesError || !leagues) {
+    logger.error(
+      { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', sleeperUserId: integration.provider_user_id, error: leaguesError },
+      'Sleeper: could not load leagues'
+    );
     return [];
   }
 
@@ -634,6 +639,10 @@ export async function buildSleeperTeams(
       !Array.isArray(matchups) ||
       !Array.isArray(leagueUsers)
     ) {
+      logger.warn(
+        { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', leagueId: league.league_id },
+        'Sleeper: league skipped, unexpected API response'
+      );
       continue;
     }
 
@@ -651,12 +660,24 @@ export async function buildSleeperTeams(
     const userRoster = rosters.find(
       (roster) => roster.owner_id === integration.provider_user_id
     );
-    if (!userRoster) continue;
+    if (!userRoster) {
+      logger.warn(
+        { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', leagueId: league.league_id, sleeperUserId: integration.provider_user_id },
+        'Sleeper: league skipped, user has no roster in it'
+      );
+      continue;
+    }
 
     const userMatchup = matchups.find(
       (matchup) => matchup.roster_id === userRoster.roster_id
     );
-    if (!userMatchup) continue;
+    if (!userMatchup) {
+      logger.warn(
+        { userId: integration.user_id, integrationId: integration.id, provider: 'sleeper', leagueId: league.league_id, week },
+        'Sleeper: league skipped, no matchup found for the current week'
+      );
+      continue;
+    }
 
     const opponentMatchup = matchups.find(
       (matchup) =>
@@ -874,9 +895,9 @@ export async function buildYahooTeams(
       await getYahooAccessToken(integration.id, client, integration.user_id);
 
     if (accessTokenError || !freshToken) {
-      console.error(
-        `Could not fetch Yahoo access token for integration ${integration.id}`,
-        accessTokenError || 'Unknown error'
+      logger.error(
+        { ...{ userId: integration.user_id, integrationId: integration.id, provider: 'yahoo' }, error: accessTokenError || 'Unknown error' },
+        'Yahoo: could not fetch access token'
       );
       return [];
     }
@@ -987,15 +1008,15 @@ export async function buildYahooTeams(
     if (userScoresResult.status === 'fulfilled') {
       userPlayerScores = userScoresResult.value.players;
       if (userScoresResult.value.error) {
-        console.error(
-          `Could not fetch user player scores for team ${userTeam.team_key}`,
-          userScoresResult.value.error
+        logger.error(
+          { ...{ userId: integration.user_id, integrationId: integration.id, provider: 'yahoo' }, teamKey: userTeam.team_key, error: userScoresResult.value.error },
+          'Yahoo: could not fetch user player scores'
         );
       }
     } else {
-      console.error(
-        `Could not fetch user player scores for team ${userTeam.team_key}`,
-        userScoresResult.reason || 'Unknown error'
+      logger.error(
+        { ...{ userId: integration.user_id, integrationId: integration.id, provider: 'yahoo' }, teamKey: userTeam.team_key, err: userScoresResult.reason },
+        'Yahoo: could not fetch user player scores'
       );
     }
 
@@ -1003,15 +1024,15 @@ export async function buildYahooTeams(
     if (opponentScoresResult.status === 'fulfilled') {
       opponentPlayerScores = opponentScoresResult.value.players;
       if (opponentScoresResult.value.error) {
-        console.error(
-          `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
-          opponentScoresResult.value.error
+        logger.error(
+          { ...{ userId: integration.user_id, integrationId: integration.id, provider: 'yahoo' }, teamKey: opponentTeam.team_key, error: opponentScoresResult.value.error },
+          'Yahoo: could not fetch opponent player scores'
         );
       }
     } else {
-      console.error(
-        `Could not fetch opponent player scores for team ${opponentTeam.team_key}`,
-        opponentScoresResult.reason || 'Unknown error'
+      logger.error(
+        { ...{ userId: integration.user_id, integrationId: integration.id, provider: 'yahoo' }, teamKey: opponentTeam.team_key, err: opponentScoresResult.reason },
+        'Yahoo: could not fetch opponent player scores'
       );
     }
 
@@ -1364,7 +1385,10 @@ export async function buildOttoneuTeams(
         });
       }
     } catch (e) {
-      console.error('Failed to fetch Ottoneu matchup page', e);
+      logger.error(
+        { userId: integration.user_id, integrationId: integration.id, provider: 'ottoneu', leagueId: league.league_id, err: e },
+        'Ottoneu: failed to fetch matchup page'
+      );
     }
   } else {
     try {
@@ -1376,7 +1400,10 @@ export async function buildOttoneuTeams(
         projectionScoringMode
       );
     } catch (e) {
-      console.error('Failed to fetch Ottoneu roster page', e);
+      logger.error(
+        { userId: integration.user_id, integrationId: integration.id, provider: 'ottoneu', leagueId: league.league_id, err: e },
+        'Ottoneu: failed to fetch roster page'
+      );
     }
   }
 
@@ -1532,6 +1559,7 @@ export async function getTeams(
     }
     resolvedUserId = user.id;
   }
+  const log = logger.child({ userId: resolvedUserId });
 
   // Demo mode: return deterministic, self-updating fake data instead of
   // hitting any provider. Placed after auth so the login gate still
@@ -1556,6 +1584,7 @@ export async function getTeams(
   });
 
   if (integrationsError) {
+    log.error({ err: integrationsError }, 'getTeams: could not load integrations');
     logDuration('getTeams total', overallStart, {
       result: 'integrations-error',
       message: integrationsError.message,
@@ -1602,7 +1631,7 @@ export async function getTeams(
         week,
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-      console.error('Failed to fetch NFL scoreboard', error);
+      logger.error({ err: error, week }, 'Failed to fetch NFL scoreboard');
       return null;
     }
   })();
@@ -1657,6 +1686,10 @@ export async function getTeams(
         } = await getYahooUserTeams(integration.id, supabase, integration.user_id);
 
         if (yahooTeamsError || !yahooTeams) {
+          log.warn(
+            { provider: 'yahoo', integrationId: integration.id, error: yahooTeamsError },
+            'getTeams: Yahoo returned no teams'
+          );
           return [] as Team[];
         }
 
@@ -1702,6 +1735,11 @@ export async function getTeams(
           teamCount: teams.length,
           integrationId,
         });
+        // A connected integration that yields no teams is the usual shape of
+        // "my league isn't showing up", so make it findable.
+        if (teams.length === 0) {
+          log.warn({ provider, integrationId }, 'getTeams: integration produced no teams');
+        }
         return teams;
       })
       .catch((error) => {
@@ -1710,7 +1748,7 @@ export async function getTeams(
           error: error instanceof Error ? error.message : String(error),
           integrationId,
         });
-        console.error('Failed to build teams', error);
+        log.error({ provider, integrationId, err: error }, 'getTeams: failed to build teams');
         return [] as Team[];
       });
   });

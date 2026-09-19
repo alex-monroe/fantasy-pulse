@@ -15,7 +15,7 @@ High-level design of Roster Loom (a.k.a. fantasy-pulse).
 | E2E tests        | Playwright 1.55 (CI-only; see [TESTING.md](TESTING.md))        |
 | Lint             | ESLint via `next lint` (`next/core-web-vitals`)                |
 | Hosting          | Vercel (per-PR previews)                                       |
-| Observability    | Vercel Speed Insights, `pino` logs, `performance-logger` utility |
+| Observability    | Vercel Speed Insights, structured `pino` logs, `performance-logger` utility (see [OBSERVABILITY.md](OBSERVABILITY.md)) |
 
 ## Top-level layout
 

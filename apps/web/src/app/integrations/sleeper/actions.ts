@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { fetchJson } from '@roster-loom/core';
+import logger from '@/utils/logger';
 import {
   SleeperLeague,
   SleeperMatchup,
@@ -64,6 +65,7 @@ export async function connectSleeper(username: string) {
 
     return { user: sleeperUser };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.connectSleeper' }, 'Sleeper: connectSleeper failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -167,6 +169,7 @@ export async function getCurrentSleeperLeagues(userId: string) {
 
     return { leagues: leagues ?? [] };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getCurrentSleeperLeagues' }, 'Sleeper: getCurrentSleeperLeagues failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -203,6 +206,7 @@ export async function getSleeperLeagues(userId: string, integrationId: number) {
 
     return { leagues };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getSleeperLeagues' }, 'Sleeper: getSleeperLeagues failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -224,6 +228,7 @@ export async function getMatchups(leagueId: string, week: string) {
     }
     return { matchups };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getMatchups' }, 'Sleeper: getMatchups failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -243,6 +248,7 @@ export async function getRosters(leagueId: string) {
     }
     return { rosters };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getRosters' }, 'Sleeper: getRosters failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -262,6 +268,7 @@ export async function getUsersInLeague(leagueId: string) {
     }
     return { users };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getUsersInLeague' }, 'Sleeper: getUsersInLeague failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -285,6 +292,7 @@ export async function getNflState() {
     }
     return { state };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getNflState' }, 'Sleeper: getNflState failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -307,6 +315,7 @@ export async function getLeagueScoringSettings(leagueId: string) {
     }
     return { scoringSettings: league?.scoring_settings ?? {} };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getLeagueScoringSettings' }, 'Sleeper: getLeagueScoringSettings failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -383,6 +392,7 @@ export async function getWeeklyProjections(
     const projections = validateProjectionRows(rows, 'projections');
     return { projections };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getWeeklyProjections' }, 'Sleeper: getWeeklyProjections failed');
     return { error: error instanceof Error ? error.message : 'An unexpected error occurred' };
   }
 }
@@ -401,6 +411,7 @@ export async function getNflPlayers() {
     }
     return { players };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getNflPlayers' }, 'Sleeper: getNflPlayers failed');
     return { error: 'An unexpected error occurred' };
   }
 }
@@ -465,6 +476,7 @@ export async function getLeagueMatchups(leagueId: string, week: string) {
 
     return { matchups: enrichedMatchups };
   } catch (error) {
+    logger.error({ err: error, operation: 'sleeper.getLeagueMatchups' }, 'Sleeper: getLeagueMatchups failed');
     return { error: 'An unexpected error occurred while fetching league matchups' };
   }
 }
