@@ -37,7 +37,7 @@ environments belongs in an app, not the package.
 
 Currently shared: shared types (`types.ts`), Sleeper helpers
 (`sleeper.ts`), `fetchJson`, news feed parsing and roster matching
-(`news.ts`), matchup grouping and summaries (`matchups.ts`), projected
+(`news.ts`), matchup grouping and summaries (`matchups.ts`), the TV viewing guide (`viewing-guide.ts`), projected
 final scores and win probabilities (`matchup-projection.ts`), and mock
 data fixtures. Import as `@roster-loom/core`.
 
@@ -51,7 +51,7 @@ data fixtures. Import as `@roster-loom/core`.
 | `globals.css`                 | Tailwind base layer + CSS variables                    |
 | `actions.ts`                  | Cross-provider server actions (team building, scoring) |
 | `actions.test.ts`             | Jest tests for `actions.ts`                            |
-| `(dashboard)/`                | Authenticated route group (matchup report, news digest, MCP tokens) |
+| `(dashboard)/`                | Authenticated route group (matchup report, viewing guide, news digest, MCP tokens) |
 | `api/auth/<provider>/route.ts`| OAuth callbacks                                        |
 | `api/teams/`                  | Team-related route handlers                            |
 | `api/news/ingest/`            | Cron-triggered news ingest (see [NEWS_DIGEST.md](NEWS_DIGEST.md)) |
