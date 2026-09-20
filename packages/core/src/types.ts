@@ -48,6 +48,10 @@ export type Player = {
   gameQuarter: string | null;
   /** The current game clock for games in progress. */
   gameClock: string | null;
+  /** Identifies the player's NFL game; both teams' players share it. */
+  gameId?: string;
+  /** The player's NFL game as "AWAY @ HOME", e.g. "KC @ BUF". */
+  gameLabel?: string;
   /** The number of user's teams the player is on. */
   onUserTeams: number;
   /** The number of opponent's teams the player is on. */

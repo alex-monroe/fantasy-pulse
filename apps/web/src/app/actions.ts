@@ -113,6 +113,10 @@ type TeamGameInfo = {
   startDate: string | null;
   quarter: string | null;
   clock: string | null;
+  /** Stable id of the NFL game, shared by both teams' players. */
+  gameId: string | null;
+  /** Away-at-home label, e.g. "KC @ BUF". */
+  gameLabel: string | null;
 };
 
 function formatScoreboardPeriod(period: unknown): string | null {
@@ -190,16 +194,25 @@ function buildTeamGameInfoMap(scoreboard: any): Map<string, TeamGameInfo> {
       }
     }
 
+    const competitors = Array.isArray(competition?.competitors)
+      ? competition.competitors
+      : [];
+
+    const abbrFor = (side: string) => {
+      const abbr = competitors.find((c: any) => c?.homeAway === side)?.team?.abbreviation;
+      return typeof abbr === 'string' ? abbr.toUpperCase() : null;
+    };
+    const away = abbrFor('away');
+    const home = abbrFor('home');
+
     const info: TeamGameInfo = {
       status,
       startDate,
       quarter,
       clock,
+      gameId: typeof event?.id === 'string' ? event.id : null,
+      gameLabel: away && home ? `${away} @ ${home}` : null,
     };
-
-    const competitors = Array.isArray(competition?.competitors)
-      ? competition.competitors
-      : [];
 
     for (const competitor of competitors) {
       const abbr = competitor?.team?.abbreviation;
@@ -1900,6 +1913,8 @@ async function buildTeamsForUser(
         gameStartTime: gameInfo.startDate,
         gameQuarter: gameInfo.quarter,
         gameClock: gameInfo.clock,
+        gameId: gameInfo.gameId ?? undefined,
+        gameLabel: gameInfo.gameLabel ?? undefined,
       };
     });
   };
