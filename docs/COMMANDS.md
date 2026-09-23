@@ -9,7 +9,7 @@ directly from `apps/web/` if you prefer.
 ## Setup
 
 ```bash
-nvm use                                    # picks Node 20 from .nvmrc
+nvm use                                    # picks Node 24 from .nvmrc
 npm install                                # installs all workspaces
 cp apps/web/.env.example apps/web/.env.local   # fill in Supabase + Yahoo credentials
 ```

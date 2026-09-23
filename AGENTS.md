@@ -12,7 +12,7 @@ matchup data with cross-team player-share indicators.
 - **Tech stack:** Next.js 15.3.6 (App Router) · React 18 · TypeScript 5 · Tailwind 3 · Supabase (Postgres + Auth) · Jest 29 · Playwright 1.55
 - **Monorepo:** npm workspaces. Web app at `apps/web/`; mobile app at `apps/mobile/` (Expo / React Native); shared code at `packages/core/` (`@roster-loom/core`). See [docs/MOBILE.md](docs/MOBILE.md) for the mobile quickstart.
 - **Package manager:** **npm** (lockfile is committed; CI requires it in sync)
-- **Node:** **20.x** (from `.nvmrc` and `engines`)
+- **Node:** **24.x** (from `.nvmrc` and `engines`)
 - **Dev port:** **9002** (not 3000)
 
 ## Quick Reference

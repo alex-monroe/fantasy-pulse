@@ -8,7 +8,7 @@ First-run guide for getting it on a real phone.
 - **Expo Go** on your phone — install from the App Store (iOS) or Play
   Store (Android). Free, no account needed for local development.
 - Same Wi-Fi network as the dev machine, or use the `--tunnel` flag.
-- Node 20.x (`nvm use` from the repo root).
+- Node 24.x (`nvm use` from the repo root).
 
 ## Env vars
 
