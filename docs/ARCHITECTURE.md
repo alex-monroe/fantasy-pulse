@@ -8,7 +8,7 @@ High-level design of Roster Loom (a.k.a. fantasy-pulse).
 | ---------------- | -------------------------------------------------------------- |
 | Framework        | Next.js **15.3.6** (App Router, Turbopack dev)                 |
 | Language         | TypeScript 5                                                   |
-| Runtime          | Node **20.x** (`engines` + `.nvmrc`)                           |
+| Runtime          | Node **24.x** (`engines` + `.nvmrc`)                           |
 | UI               | React 18, Tailwind CSS 3, shadcn/Radix UI                      |
 | Auth + DB        | Supabase (Postgres + Auth, SSR via `@supabase/ssr`)            |
 | Unit tests       | Jest 29 + Testing Library (jsdom env)                          |

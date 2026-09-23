@@ -28,7 +28,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '24.x'
           cache: 'npm'
 
       - name: Set up EAS CLI
@@ -36,7 +36,7 @@ jobs:
         with:
           # Pinned to match apps/mobile/package.json's eas-cli devDependency
           # rather than floating on `latest` — eas-cli 23 requires Node 22+,
-          # which broke this job outright since the workflow runs Node 20.x.
+          # which broke this job outright since the workflow ran Node 20.x.
           eas-version: ^16.0.0
           token: ${{ secrets.EXPO_TOKEN }}
 

@@ -14,7 +14,7 @@ token reuse, caching) matters more than feature volume.
 - **Tech stack:** Next.js 15.3.6 (App Router, Turbopack) · React 18 · TypeScript 5 · Tailwind 3 · Supabase · Jest 29 · Playwright 1.55
 - **Monorepo:** npm workspaces. Web app at `apps/web/`; mobile app at `apps/mobile/` (Expo / React Native); shared logic (Sleeper helpers, types, `fetchJson`) at `packages/core/` published as `@roster-loom/core`. Mobile quickstart in [docs/MOBILE.md](docs/MOBILE.md).
 - **Package manager:** `npm` — never use `pnpm` or `yarn` in this repo
-- **Node:** `nvm use` will pick **20.x** from `.nvmrc`
+- **Node:** `nvm use` will pick **24.x** from `.nvmrc`
 - **Dev port:** **9002** (Playwright + Yahoo redirect URI assume it)
 
 ## Quick Reference
