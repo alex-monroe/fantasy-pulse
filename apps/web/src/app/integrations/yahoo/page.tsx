@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getYahooIntegration, getLeagues, removeYahooIntegration, getYahooLeagues, getYahooRoster, getYahooUserTeams, getTeams } from './actions';
+import { getYahooClientId, getYahooIntegration, getLeagues, removeYahooIntegration, getYahooLeagues, getYahooRoster, getYahooUserTeams, getTeams } from './actions';
 import { AppNavigation } from '@/components/app-navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,8 +34,8 @@ export default function YahooPage() {
     checkIntegration();
   }, []);
 
-  const handleConnect = () => {
-    const client_id = 'dj0yJmk9UVNWVnFlVjhJVEFsJmQ9WVdrOWVtMDRjRkJEYVd3bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWU0';
+  const handleConnect = async () => {
+    const client_id = await getYahooClientId();
     const redirect_uri = `${window.location.origin}/api/auth/yahoo`;
     const scope = 'openid fspt-r';
     const response_type = 'code';

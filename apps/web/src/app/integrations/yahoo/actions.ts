@@ -9,6 +9,7 @@ import { fetchJson } from '@roster-loom/core';
 import { getEnv } from '@/lib/env';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
+import { yahooGet } from '@/lib/yahoo-fetch';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -151,6 +152,15 @@ export async function getYahooAccessToken(
 
   // Token is still valid
   return { access_token: integration.access_token };
+}
+
+/**
+ * Returns the public OAuth client ID for the Yahoo developer app, so the
+ * connect button and the server-side token exchange always use the same
+ * credentials (both read `YAHOO_CLIENT_ID`).
+ */
+export async function getYahooClientId(): Promise<string> {
+  return getEnv().YAHOO_CLIENT_ID;
 }
 
 /**
@@ -297,12 +307,7 @@ export async function getYahooUserTeams(
   const fetchStart = startTimer();
 
   try {
-    const { data, error, status } = await fetchJson<any>(url, {
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Accept': 'application/json',
-      },
-    });
+    const { data, error, status } = await yahooGet<any>(url, access_token);
 
     logYahooApiDuration('fetch user teams', fetchStart, {
       integrationId,
@@ -449,12 +454,7 @@ export async function getYahooLeagues(integrationId: number) {
   const fetchStart = startTimer();
 
   try {
-    const { data, error } = await fetchJson<any>(url, {
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Accept': 'application/json',
-      },
-    });
+    const { data, error } = await yahooGet<any>(url, access_token);
 
     logYahooApiDuration('fetch leagues', fetchStart, {
       integrationId,
@@ -558,12 +558,7 @@ export async function getYahooRoster(
   const fetchStart = startTimer();
 
   try {
-    const { data, error } = await fetchJson<any>(url, {
-      headers: {
-        'Authorization': `Bearer ${resolvedAccessToken}`,
-        'Accept': 'application/json',
-      },
-    });
+    const { data, error } = await yahooGet<any>(url, resolvedAccessToken);
 
     logYahooApiDuration('fetch roster', fetchStart, {
       integrationId,
@@ -672,12 +667,7 @@ export async function getYahooMatchups(
   const fetchStart = startTimer();
 
   try {
-    const { data, error } = await fetchJson<any>(url, {
-      headers: {
-        'Authorization': `Bearer ${resolvedAccessToken}`,
-        'Accept': 'application/json',
-      },
-    });
+    const { data, error } = await yahooGet<any>(url, resolvedAccessToken);
 
     logYahooApiDuration('fetch matchups', fetchStart, {
       integrationId,
@@ -769,13 +759,7 @@ export async function getYahooPlayerScores(
   const fetchStart = startTimer();
 
   try {
-    const { data, error } = await fetchJson<any>(url, {
-      headers: {
-        'Authorization': `Bearer ${resolvedAccessToken}`,
-        'Accept': 'application/json',
-      },
-      disableCache: true,
-    });
+    const { data, error } = await yahooGet<any>(url, resolvedAccessToken);
 
     logYahooApiDuration('fetch player scores', fetchStart, {
       integrationId,
