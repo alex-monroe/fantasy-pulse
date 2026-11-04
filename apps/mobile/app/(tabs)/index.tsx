@@ -88,6 +88,8 @@ export default function OverviewScreen() {
 
       <View style={styles.signOut}>
         <Button title="Sign out" onPress={() => supabase.auth.signOut()} />
+        {/* Yahoo Fantasy attribution (sports.yahoo.com/developer); keep the wording as-is. */}
+        <ThemedText style={styles.attribution}>Fantasy data provided by Yahoo Fantasy.</ThemedText>
       </View>
     </ThemedView>
   );
@@ -201,6 +203,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 8 },
   header: { paddingHorizontal: 16, paddingVertical: 6 },
   subtle: { opacity: 0.6, fontSize: 13 },
+  attribution: { opacity: 0.5, fontSize: 11, textAlign: 'center', marginTop: 4 },
   error: { color: '#c0392b', paddingHorizontal: 16, marginTop: 12 },
   loading: { marginTop: 24 },
   empty: { marginTop: 24, marginHorizontal: 16, opacity: 0.7 },

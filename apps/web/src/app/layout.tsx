@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+import { DataAttributionFooter } from "@/components/data-attribution-footer";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
       </head>
       <body className={cn("font-body antialiased min-h-screen")}>
         {children}
+        <DataAttributionFooter />
         <Toaster />
         <SpeedInsights />
       </body>
