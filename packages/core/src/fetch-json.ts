@@ -36,7 +36,18 @@ export async function fetchJson<T>(
     }
 
     if (!res.ok) {
-      const message = json?.error_description || json?.message || json?.error || res.statusText || 'Failed to fetch';
+      // Some APIs (notably Yahoo Fantasy) nest the error as an object, e.g.
+      // { error: { description: '...' } }; unwrap it so callers never end up
+      // interpolating "[object Object]" into user-facing messages.
+      const nested = json?.error && typeof json.error === 'object' ? json.error : null;
+      const message =
+        json?.error_description ||
+        json?.message ||
+        nested?.description ||
+        nested?.message ||
+        (typeof json?.error === 'string' ? json.error : null) ||
+        res.statusText ||
+        'Failed to fetch';
       return { error: message, status: res.status };
     }
 

@@ -18,6 +18,34 @@ describe('fetchJson', () => {
     expect(result).toEqual({ error: 'fail' });
   });
 
+  it('unwraps nested error objects like Yahoo returns', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      json: () =>
+        Promise.resolve({
+          error: { 'xml:lang': 'en-us', description: 'This application is not authorized to perform this action.' },
+        }),
+    });
+    const result = await fetchJson('/test');
+    expect(result).toEqual({
+      error: 'This application is not authorized to perform this action.',
+      status: 403,
+    });
+  });
+
+  it('falls back to statusText when a nested error has no description', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Server Error',
+      json: () => Promise.resolve({ error: { code: 1 } }),
+    });
+    const result = await fetchJson('/test');
+    expect(result.error).toBe('Server Error');
+  });
+
   it('disables caching when disableCache is true', async () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
 
