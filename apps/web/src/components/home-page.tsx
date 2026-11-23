@@ -8,6 +8,7 @@ import {
   Player,
   GroupedPlayer,
   MATCHUP_COLORS,
+  LIVE_REFRESH_MS,
   assignTeamColors,
   createPlayerAggregationKey,
   getTeamKey,
@@ -362,7 +363,7 @@ export default function HomePage({ teams, user, demo = false }: { teams: Team[],
     router.replace('/login');
   };
 
-  const handleRefresh = async () => {
+  const handleRefresh = async ({ live = false }: { live?: boolean } = {}) => {
     if (isRefreshingRef.current) {
       return;
     }
@@ -371,7 +372,9 @@ export default function HomePage({ teams, user, demo = false }: { teams: Team[],
     setRefreshError(null);
 
     try {
-      const response = await fetch('/api/teams/refresh', { method: 'POST' });
+      const response = await fetch(live ? '/api/teams/refresh?live=1' : '/api/teams/refresh', {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         let message = 'Failed to refresh scores.';
@@ -398,26 +401,40 @@ export default function HomePage({ teams, user, demo = false }: { teams: Team[],
     }
   };
 
-  // In demo mode, poll the same refresh path every 30s so scores and game
-  // clocks visibly advance — mirroring a live Sunday — and exercise the
-  // score-change animations.
+  // Poll while something is moving: in demo mode (fake scores advance), and
+  // while the shared play-by-play feed is live (ottoneu-db's loop is
+  // running). Live polls ask for `?live=1`, which reuses a recent provider
+  // snapshot and lays the newest plays over it. Polling pauses while the
+  // tab is hidden and catches up the moment it's shown again.
   const handleRefreshRef = useRef(handleRefresh);
   handleRefreshRef.current = handleRefresh;
+  const feedLive = useMemo(() => currentTeams.some((team) => team.live?.feedLive), [currentTeams]);
+  const shouldPoll = demo || feedLive;
   useEffect(() => {
-    if (!demo) {
+    if (!shouldPoll) {
       return;
     }
-    const intervalId = window.setInterval(() => {
-      void handleRefreshRef.current();
-    }, 30000);
-    return () => window.clearInterval(intervalId);
-  }, [demo]);
+    const poll = () => {
+      if (document.visibilityState === 'visible') {
+        void handleRefreshRef.current({ live: !demo });
+      }
+    };
+    const intervalId = window.setInterval(poll, LIVE_REFRESH_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') poll();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [shouldPoll, demo]);
 
   return (
     <AppContent
       onSignOut={handleSignOut}
       teams={currentTeams}
-      onRefresh={handleRefresh}
+      onRefresh={() => handleRefresh()}
       isRefreshing={isRefreshing}
       refreshError={refreshError}
     />

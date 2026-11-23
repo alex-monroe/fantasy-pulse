@@ -46,6 +46,7 @@ import {
 } from '@roster-loom/core';
 import { isDemoModeEnv } from '@/lib/demo-mode';
 import { getTeamsSnapshotCache } from '@/lib/teams-cache';
+import { overlayLiveFeed } from '@/lib/live-feed/load';
 import {
   loadStoredSleeperPlayers,
   SLEEPER_PLAYERS_URL,
@@ -84,6 +85,14 @@ const TEAM_ABBREVIATION_ALIASES: Record<string, string[]> = {
 };
 
 const SLEEPER_PLAYERS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * How old a provider roster snapshot a live-page poll will accept. The
+ * shared play-by-play feed is laid over it fresh on every poll, so the
+ * scores, clocks and odds keep moving; this only bounds how stale the
+ * providers' own numbers (lineups, official totals) can get.
+ */
+const LIVE_POLL_ROSTER_MAX_AGE_MS = 60 * 1000;
 
 /**
  * Scoring profile used to turn a Sleeper projection into a point total for
@@ -832,6 +841,8 @@ export async function buildSleeperTeams(
         name: league.name || `Sleeper league ${league.league_id}`,
         season: league.season ?? null,
         totalRosters: league.total_rosters ?? null,
+        // Lets the shared live feed score this league's plays exactly.
+        ...(scoringSettings ? { scoringSettings } : {}),
       },
       totalScore: userMatchup.points,
       players: userPlayers,
@@ -1646,7 +1657,17 @@ export async function getTeamBuilders() {
 export async function getTeams(
   client?: SupabaseClient,
   userId?: string,
-  options?: { demo?: boolean; fresh?: boolean }
+  options?: {
+    demo?: boolean;
+    fresh?: boolean;
+    /**
+     * A live-page poll: reuse a roster snapshot up to
+     * LIVE_POLL_ROSTER_MAX_AGE_MS old (the play-by-play overlay is still
+     * fresh on top of it) so open pages don't hit every provider twice a
+     * minute.
+     */
+    livePoll?: boolean;
+  }
 ) {
   const overallStart = startTimer();
   console.log('[performance] getTeams invoked');
@@ -1682,18 +1703,38 @@ export async function getTeams(
   // Callers land here in bursts (page navigation, MCP tool calls), so share
   // one build per user across them. `fresh` (the manual refresh) skips a
   // settled snapshot but still joins a build that is already running.
-  return getTeamsSnapshotCache().get(
+  const snapshot: Awaited<ReturnType<typeof buildTeamsForUser>> = await getTeamsSnapshotCache().get(
     resolvedUserId,
     () => buildTeamsForUser(supabase, resolvedUserId!, overallStart),
-    { fresh: options?.fresh }
+    options?.livePoll
+      ? { maxAgeMs: LIVE_POLL_ROSTER_MAX_AGE_MS }
+      : { fresh: options?.fresh }
   );
+  if ('error' in snapshot) {
+    return snapshot;
+  }
+
+  // The shared play-by-play feed is laid over *after* the snapshot cache:
+  // it is cheap (one shared DB read, cached per instance) and moves every
+  // minute, so a cached roster still gets the newest plays.
+  const sleeperPool = await getSleeperPlayersResources()
+    .then((resources) => resources.playersData)
+    .catch(() => undefined);
+  const teams = await overlayLiveFeed(snapshot.teams, {
+    season: snapshot.season,
+    week: snapshot.week,
+    sleeperPool,
+  });
+  return { teams };
 }
 
 async function buildTeamsForUser(
   supabase: SupabaseClient,
   resolvedUserId: string,
   overallStart: ReturnType<typeof startTimer>
-): Promise<{ teams: Team[] } | { error: string }> {
+): Promise<
+  { teams: Team[]; season: number | null; week: number | null } | { error: string }
+> {
   const log = logger.child({ userId: resolvedUserId });
 
   const integrationsStart = startTimer();
@@ -1772,8 +1813,8 @@ async function buildTeamsForUser(
   const sleeperProjectionsByPlayerId = new Map<string, SleeperProjection>();
   let sharedProjections: SharedSleeperProjections | undefined;
   const projectionsStart = startTimer();
+  const nflState = 'state' in nflStateResult ? nflStateResult.state : undefined;
   try {
-    const nflState = 'state' in nflStateResult ? nflStateResult.state : undefined;
     if (nflState?.season) {
       const { projections } = await getWeeklyProjections(nflState.season, week);
       for (const projection of projections ?? []) {
@@ -1962,5 +2003,11 @@ async function buildTeamsForUser(
     hasScoreboardData: Boolean(scoreboardData),
   });
 
-  return { teams: teamsWithGameInfo };
+  const feedSeason = Number.parseInt(String(nflState?.season ?? ''), 10);
+  const feedWeek = Number.parseInt(String(week ?? ''), 10);
+  return {
+    teams: teamsWithGameInfo,
+    season: Number.isFinite(feedSeason) ? feedSeason : null,
+    week: Number.isFinite(feedWeek) ? feedWeek : null,
+  };
 }

@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ScoreWorm } from '@/components/score-worm';
 import { cn } from '@/lib/utils';
 import {
   formatWinProbability,
@@ -41,6 +42,11 @@ function MatchupTile({
   const isProjectedToWin = projection.differential > 0;
   // A dead-even projection is neither good news nor bad; don't color it as either.
   const isProjectedTied = Math.abs(projection.differential) < 0.05;
+  // While the shared play-by-play feed is live and has this league's real
+  // scoring, the headline scores are its; the provider's official ones sit
+  // beneath them, as on ottoneu-db's live game pages.
+  const live = team.live;
+  const official = live?.headlineFromFeed ? live.official : null;
 
   return (
     <div
@@ -97,6 +103,15 @@ function MatchupTile({
             )}
           >
             <span className={cn('inline-block', isMyScoreChanged && 'score-celebrate')}>{score.toFixed(1)}</span>
+            {official && (
+              <span
+                data-testid="matchup-team-official"
+                className="block text-[9px] font-medium leading-tight text-muted-foreground"
+                title="The provider's own (official) score"
+              >
+                {`Off. ${official.team.toFixed(1)}`}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-baseline gap-1.5 text-muted-foreground">
@@ -116,6 +131,15 @@ function MatchupTile({
             <span className={cn('inline-block', isOpponentScoreChanged && 'score-celebrate')}>
               {opponentScore.toFixed(1)}
             </span>
+            {official && (
+              <span
+                data-testid="matchup-opponent-official"
+                className="block text-[9px] font-medium leading-tight"
+                title="The provider's own (official) score"
+              >
+                {`Off. ${official.opponent.toFixed(1)}`}
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -156,7 +180,30 @@ function MatchupTile({
         </div>
       )}
 
+      {live && live.worm.length > 1 && (
+        <ScoreWorm
+          worm={live.worm}
+          teamName={team.name}
+          opponentName={team.opponent?.name ?? 'Opponent'}
+          approximate={live.scoring === 'stock'}
+        />
+      )}
+
       <p className="mt-1.5 text-[10px] leading-none text-muted-foreground">
+        {live?.feedLive && (
+          <span
+            data-testid="matchup-live-feed"
+            className="mr-1 inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-emerald-400"
+            title={
+              live.scoring === 'exact'
+                ? 'Scored play by play with this league’s settings'
+                : 'Play-by-play clock and odds; scores are the provider’s'
+            }
+          >
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden="true" />
+            PBP
+          </span>
+        )}
         {counts.live > 0 && <span className="font-medium text-emerald-400">{counts.live} live</span>}
         {counts.live > 0 && remaining > counts.live && ' · '}
         {counts.yetToPlay > 0 && `${counts.yetToPlay} to play`}

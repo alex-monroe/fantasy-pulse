@@ -233,3 +233,40 @@ describe('LeagueScoreboard', () => {
     })
   })
 })
+
+describe('LeagueScoreboard with the live play-by-play feed', () => {
+  const worm = [
+    { at: '2026-11-22T18:00:00Z', team: 0, opponent: 0, note: 'Kickoff', teamProgress: 0, opponentProgress: 0, teamRemaining: 100, opponentRemaining: 98, winProbability: 0.53 },
+    { at: '2026-11-22T18:10:00Z', team: 10.5, opponent: 0, note: 'J. Chase +10.50', teamProgress: 0.1, opponentProgress: 0.1, teamRemaining: 92, opponentRemaining: 90, winProbability: 0.71 },
+  ]
+  const liveTeam = (headlineFromFeed: boolean, scoring: 'exact' | 'stock'): Team => ({
+    ...makeTeam(1, 'My Squad', 30.5, 'Their Squad', 21),
+    live: {
+      feedLive: true,
+      scoring,
+      headlineFromFeed,
+      official: { team: 28, opponent: 21 },
+      liveAt: '2026-11-22T18:10:00Z',
+      worm,
+    },
+  })
+
+  it('shows the official score beneath a play-by-play headline', () => {
+    renderScoreboard([liveTeam(true, 'exact')])
+    expect(screen.getByTestId('matchup-team-official')).toHaveTextContent('Off. 28.0')
+    expect(screen.getByTestId('matchup-opponent-official')).toHaveTextContent('Off. 21.0')
+    expect(screen.getByTestId('matchup-live-feed')).toHaveTextContent('PBP')
+  })
+
+  it('shows no second score when the provider’s is the headline', () => {
+    renderScoreboard([liveTeam(false, 'stock')])
+    expect(screen.queryByTestId('matchup-team-official')).not.toBeInTheDocument()
+  })
+
+  it('draws the worm and reads out its latest play', () => {
+    renderScoreboard([liveTeam(true, 'exact')])
+    expect(screen.getByTestId('score-worm')).toBeInTheDocument()
+    expect(screen.getByTestId('score-worm-note')).toHaveTextContent('J. Chase +10.50')
+    expect(screen.getByRole('img', { name: /win probability over 1 scoring plays, now 71%/i })).toBeInTheDocument()
+  })
+})

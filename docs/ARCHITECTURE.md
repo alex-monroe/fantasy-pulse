@@ -75,6 +75,51 @@ render, the mobile app (via `/api/teams/refresh`), demo mode, the
 [MCP server](MCP.md) (via `/api/mcp`), and the
 [news digest](NEWS_DIGEST.md) all read the same `Team[]`.
 
+## Data flow: live play-by-play (shared with ottoneu-db)
+
+During games, scores, game clocks, projections and win probabilities move
+play by play, from the same feed ottoneu-db's live score worm runs on —
+this repo scrapes nothing new for it.
+
+```
+ottoneu-db droplet timer → scripts/live_score_worm.py --loop   (every 60s while games are on)
+  → ESPN play-by-play (nflverse once a game is published)
+  → nfl_live_games / nfl_live_plays / nfl_live_players          (shared DB, owned by ottoneu-db)
+  → live_worm_state.heartbeat_at                                 (is the loop running?)
+
+User → / (home)                    or the open page's 30s poll → /api/teams/refresh?live=1
+  → getTeams()  → per-user provider snapshot (15s; a live poll accepts 60s)
+  → overlayLiveFeed()               apps/web/src/lib/live-feed/load.ts
+      → loadLiveFeed(season, week)  one shared read per instance, cached 15s
+      → applyLiveFeed(team)         @roster-loom/core live-feed.ts (pure)
+```
+
+- **The feed is league-agnostic.** Each play row holds every player's stat
+  line in Sleeper's stat keys, keyed by gsis id; `applyLiveFeed` scores it
+  with the league's own `scoring_settings` (Sleeper: exact) or a stock
+  half-PPR profile (Yahoo, ESPN, Ottoneu, whose settings we can't read).
+  Players are joined by Sleeper's `gsis_id`/`espn_id` (kept in the stored
+  pool), else by name + NFL team + position. Defenses aren't in the feed.
+- **Headline score**, as on ottoneu-db's live pages: while the loop's
+  heartbeat is under 3 minutes old and the matchup isn't settled, a league
+  with exact scoring shows the feed's play-by-play total with the
+  provider's official score beneath it ("Off."); the total is the official
+  one plus what the feed has seen beyond it, so provider-side bonuses and
+  corrections carry through. Otherwise the provider's score is the headline.
+- **Projection and win probability** are ottoneu-db's worm model
+  (`packages/core/src/worm-model.ts`): a starter's expected final is his
+  points plus his projection × the share of his game left (from the feed's
+  game clock, which knows overtime); the uncertainty is ottoneu-db's fitted
+  `WORM_LINEUP_SD` (20.3 for an 8-starter lineup) shared out per starter and
+  scaled by each starter's share of his game still to play.
+- **The worm** (`buildMatchupWorm`, drawn by `components/score-worm.tsx` on
+  each scoreboard tile) is the win probability after every scoring play.
+- **Live pages refresh themselves** every 30s while any team's feed is live,
+  pausing while the tab is hidden. A live poll reuses a provider snapshot up
+  to 60s old, so open pages don't hit Sleeper/Yahoo/ESPN twice a minute.
+- Any feed failure (tables missing, network) reads as "no feed": teams come
+  back exactly as the providers built them.
+
 ## Data flow: news digest
 
 ```
@@ -126,6 +171,9 @@ repo's tables on the shared OttoneuDB project):
   service-role write), refreshed daily
 - `fp_sleeper_player_links` — Sleeper id → `players.id` crosswalk (no FK on
   purpose: `players` belongs to the sibling repo)
+- `nfl_live_games` / `nfl_live_plays` / `nfl_live_players` and
+  `live_worm_state` — **not ours**: ottoneu-db's live NFL feed (its
+  migration 066). Read-only here; see "Data flow: live play-by-play".
 - `fp_news_items` / `fp_news_ingests` — the shared player-news pool and
   its ingest bookkeeping (see [NEWS_DIGEST.md](NEWS_DIGEST.md)). Unlike
   every other table here these rows are not per-user: one public feed,

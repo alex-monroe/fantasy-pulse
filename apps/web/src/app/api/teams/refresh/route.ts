@@ -46,7 +46,14 @@ export async function POST(request: Request) {
   });
 
   try {
-    const result = await getTeams(bearerClient, bearerUserId, { demo, fresh: true });
+    // `?live=1` is the open page's automatic poll during games: it accepts a
+    // slightly older provider snapshot, with the live feed fresh on top.
+    const livePoll = new URL(request.url).searchParams.get('live') === '1';
+    const result = await getTeams(bearerClient, bearerUserId, {
+      demo,
+      fresh: !livePoll,
+      livePoll,
+    });
 
     if ('error' in result) {
       const status = result.error === 'You must be logged in.' ? 401 : 500;
