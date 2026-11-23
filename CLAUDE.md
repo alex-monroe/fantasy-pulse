@@ -47,7 +47,11 @@ token reuse, caching) matters more than feature volume.
 
 `.mcp.json` enables `supabase` and `github` MCP servers (gated by
 `.claude/settings.local.json`). Prefer the MCP tools over shelling
-out for those services when available.
+out for those services when available. **Exception:** the `supabase` MCP
+reaches only the old hosted project. Production moved to the self-hosted
+stack at `db.rosterloom.com` on 2026-11-23 (see
+[docs/SELF_HOSTED_SUPABASE_MIGRATION.md](docs/SELF_HOSTED_SUPABASE_MIGRATION.md)),
+so query production via `ssh sofa` instead.
 
 ## Documentation Map
 
@@ -105,7 +109,7 @@ docs/
 - **Update the docs map** when you add/rename files referenced from
   `AGENTS.md` or `CLAUDE.md`. The Jest test in `apps/web/src/lib/doc-map.test.ts`
   will fail otherwise.
-- **Shared Supabase project (OttoneuDB).** This project is shared with
+- **Shared Supabase database (OttoneuDB, self-hosted at db.rosterloom.com since 2026-11-23).** This database is shared with
   another repo. Every table owned by **this** repo is prefixed `fp_`
   (for fantasy-pulse): `fp_user_integrations`, `fp_leagues`, `fp_teams`,
   `fp_notes` (plus the standard `auth.*` / `storage.*` schemas managed

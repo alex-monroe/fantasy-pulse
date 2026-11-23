@@ -69,20 +69,27 @@ handles both:
 > and the admin resets passwords with `supabase/selfhost/reset-password.sh`.
 > See [SELF_HOSTED_SUPABASE_MIGRATION.md](SELF_HOSTED_SUPABASE_MIGRATION.md).
 
-Auth settings live on the shared **OttoneuDB** project, so changes
-affect the sibling repo's app too — check before editing anything that
-isn't listed here.
+Auth runs on the self-hosted GoTrue at `db.rosterloom.com`, which sofa-db
+shares. Its settings are environment variables in `~/supabase/.env` on the
+droplet (`ssh sofa`). Apply changes with
+`cd ~/supabase && docker compose up -d --wait auth`. Only touch auth
+settings; `JWT_SECRET`, the keys and the compose/Caddy config belong to
+the shared stack.
 
-- **Redirect URLs** (Authentication → URL Configuration) must include
-  every origin that sends reset emails, or Supabase drops `redirectTo`
-  and falls back to the Site URL:
+- **Redirect URLs** (`ADDITIONAL_REDIRECT_URLS`) must include every origin
+  that sends auth emails, or GoTrue drops `redirectTo` and falls back to
+  `SITE_URL` (`https://rosterloom.com`, which redirects to `www`). Current
+  value:
+  - `https://www.rosterloom.com/**`
   - `http://localhost:9002/**` (the dev port — not 3000)
-  - the production origin, e.g. `https://<app>.vercel.app/**`
+- **Email autoconfirm** is on. With no SMTP, it's the only way sign-up
+  works.
 - **Password minimum** is six characters; `/reset-password` checks the
   same minimum client-side so a short password fails instantly instead
   of after a round trip.
-- **Recovery email template** (Authentication → Email Templates →
-  Reset Password), to get the device-independent link:
+- **Recovery email template** (for when SMTP exists). On self-hosted,
+  `GOTRUE_MAILER_TEMPLATES_RECOVERY` points at a hosted HTML file with
+  this link, to get the device-independent link:
 
   ```html
   <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
