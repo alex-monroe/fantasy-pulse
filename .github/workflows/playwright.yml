@@ -9,7 +9,9 @@ on:
 jobs:
   test:
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.55 has no
+    # Chromium build for. Unpin when Playwright is upgraded.
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
