@@ -9,10 +9,15 @@ on:
 jobs:
   test:
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.55 has no
+    # Chromium build for. Unpin when Playwright is upgraded.
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
+      # deploy-pages lists this run's artifacts through the Actions API;
+      # without it the listing comes back empty ("Found 0 artifact(s)").
+      actions: read
       pages: write
       id-token: write
       pull-requests: write
@@ -78,18 +83,18 @@ jobs:
 
     - name: Setup Pages
       if: always()
-      uses: actions/configure-pages@v4
+      uses: actions/configure-pages@v6
 
     - name: Upload report to GitHub Pages
       if: always()
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         path: pages/
 
     - name: Deploy to GitHub Pages
       if: always()
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
 
     - name: Comment with report link
       if: always() && github.event_name == 'pull_request'
