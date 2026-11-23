@@ -5,16 +5,35 @@ Playwright, and `setup.sh` all read from `.env.local`.
 
 ## Supabase
 
-Roster Loom shares the **`OttoneuDB`** Supabase project (ref
-`rbinbcwinchphipvcfqk`). It was migrated from a standalone
-`fantasy-pulse` project in May 2026 to consolidate fantasy-football
-infrastructure under one project; Roster Loom's tables all carry an
-`fp_` prefix (`fp_user_integrations`, `fp_leagues`, `fp_teams`,
-`fp_notes`) so they're visually distinct from OttoneuDB's unrelated
-tables in the `public` schema.
+Roster Loom shares one Postgres with sofa-db (`alex-monroe/ottoneu-db`).
+Since **2026-11-23** that is a **self-hosted Supabase stack** on a
+DigitalOcean droplet, served at `https://db.rosterloom.com`. Its operating
+notes are in `ottoneu-db/deploy/supabase/README.md`, and the move is
+written up in [../SELF_HOSTED_SUPABASE_MIGRATION.md](../SELF_HOSTED_SUPABASE_MIGRATION.md).
 
-Pull project credentials from the
-[OttoneuDB API settings](https://supabase.com/dashboard/project/rbinbcwinchphipvcfqk/settings/api-keys).
+- **Only `/rest/v1` and `/auth/v1` are exposed.** There's no Studio,
+  Storage, Realtime or public Postgres port.
+- **Table names:** Roster Loom's tables all carry an `fp_` prefix. Every
+  other `public` table is sofa-db's.
+- **Hosted project gone:** the old hosted project
+  (`rbinbcwinchphipvcfqk`) is no longer used and is due to be cancelled
+  after 2026-12-07. The Supabase MCP server still points at it, so don't
+  treat it as production.
+
+**Getting the keys:** run `ssh sofa 'cd ~/supabase && sh run.sh secrets'`.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` takes the `sb_publishable_…` key.
+- `SUPABASE_SERVICE_ROLE_KEY` takes the `sb_secret_…` key.
+
+The legacy JWT keys work too. Pipe secret values straight into
+`gh secret set` / `vercel env add` rather than printing them.
+
+**Where they're set:**
+- **Vercel:** project variables, separate for Production and Preview.
+  The `NEXT_PUBLIC_*` ones are Config type, because Vercel refuses
+  `NEXT_PUBLIC_` Secrets.
+- **GitHub repo secrets:** used by Playwright and mobile preview.
+- **EAS "production" environment:** `EXPO_PUBLIC_*`, for TestFlight
+  builds.
 
 | Variable                         | Where used                              | Notes |
 | -------------------------------- | --------------------------------------- | ----- |
@@ -23,8 +42,8 @@ Pull project credentials from the
 | `SUPABASE_SERVICE_ROLE_KEY`      | Server-only privileged operations       | **Never expose to the browser.** Bypasses RLS. |
 | `NEXT_PUBLIC_PASSWORD_RESET_EMAIL` | Shows the emailed password-reset flow | Optional. Only `on` enables it; anything else hides it and points users at the admin. Leave it unset while the self-hosted Supabase has no SMTP ([../SELF_HOSTED_SUPABASE_MIGRATION.md](../SELF_HOSTED_SUPABASE_MIGRATION.md)). |
 
-Password reset emails need the app's origin on the project's redirect
-URL allowlist — that's dashboard configuration rather than an env var.
+Auth redirect URLs are GoTrue configuration, not app env vars. They're
+`ADDITIONAL_REDIRECT_URLS` in `~/supabase/.env` on the droplet.
 See [../AUTH.md](../AUTH.md).
 
 ## Yahoo OAuth

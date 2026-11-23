@@ -1,8 +1,42 @@
 # Moving fantasy-pulse to the self-hosted Supabase
 
-**Status:** plan + rehearsed sync script. Nothing is switched yet.
-**Deadline:** off hosted project `rbinbcwinchphipvcfqk` before **2026-12-07**.
-After that date the owner cancels it ($25/mo).
+**Status: cut over 2026-11-23 06:55–07:10 UTC.** Production runs on
+`db.rosterloom.com`. Hosted project `rbinbcwinchphipvcfqk` gets no
+fantasy-pulse traffic. It stays as the rollback (for both repos) until
+about **2026-12-07**, when the owner cancels it ($25/mo).
+
+### Cutover log (2026-11-23)
+
+- **06:52:** `ADDITIONAL_REDIRECT_URLS` was copied from hosted.
+- **06:55:** `sync-fp-data.sh apply` committed. All 14 tables match hosted
+  (9 users, 47 integrations, 29 leagues, 11 teams, 620 news items, the MCP
+  OAuth rows). The backup is in
+  `~/supabase-migration/fp-sync-20261123T065545Z-apply-5hNQ/`.
+- **Vercel:** Production and Preview `NEXT_PUBLIC_SUPABASE_URL` /
+  `_ANON_KEY` were switched; they're now Config type. The owner set
+  `SUPABASE_SERVICE_ROLE_KEY`. PR #253's merge redeployed prod.
+- **GitHub secrets** were switched from the droplet. The owner set the
+  EAS production values.
+- **Verified on prod:**
+  - the browser bundle uses only `db.rosterloom.com`;
+  - sign-in works (the owner signed in), and the dashboard loads leagues;
+  - team refresh wrote new `fp_teams` rows, and the bumped sequences
+    held;
+  - full MCP OAuth (DCR register → consent → PKCE token → `list_leagues`)
+    works; the test client was deleted;
+  - `/login` shows the admin-reset message;
+  - Playwright passed 8/8 against self-hosted (PR #254 run).
+- **Not verified, blocked by problems that predate the move:**
+  - **Ingest workflows:** `CRON_SECRET` is set on neither Vercel nor
+    GitHub. The endpoints answer 503, and the workflows have failed since
+    at least Nov 21. The owner chose to leave this for now.
+  - **TestFlight build:** `mobile-release.yml` fails at checkout because
+    `RELEASE_PUSH_TOKEN` (a PAT) no longer works. Mobile sign-in on a new
+    build is untested until it's regenerated. Old installs still point at
+    hosted.
+
+**Rolling back** (until hosted is cancelled) is in the last section.
+Writes made on self-hosted since 06:55 would be lost.
 
 ## Why
 
