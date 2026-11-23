@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AppNavigation } from '@/components/app-navigation';
+import { isPasswordResetEmailEnabled, MANUAL_RESET_MESSAGE } from '@/lib/password-reset';
 
 /**
  * Where the emailed link lands. The callback trades the token for a
@@ -22,6 +23,10 @@ const RESET_REDIRECT = '/auth/callback?next=/reset-password';
  * The confirmation is deliberately the same whether or not an account
  * exists for that address — this form would otherwise be a way to find
  * out who has one.
+ *
+ * While email reset is switched off (no SMTP on the self-hosted stack),
+ * the page only tells visitors to ask the admin, so an old bookmark can't
+ * send them waiting for an email that never comes.
  *
  * @returns The forgot-password page.
  */
@@ -60,7 +65,17 @@ export default function ForgotPasswordPage() {
         )}
       />
       <main className="flex flex-1 items-center justify-center p-4">
-        {sent ? (
+        {!isPasswordResetEmailEnabled() ? (
+          <div className="w-full max-w-sm space-y-4 text-center">
+            <h1 className="text-lg font-semibold">Reset your password</h1>
+            <p className="text-sm text-muted-foreground">{MANUAL_RESET_MESSAGE}</p>
+            <p className="text-center text-sm">
+              <Link href="/login" className="underline">
+                Back to sign in
+              </Link>
+            </p>
+          </div>
+        ) : sent ? (
           <div className="w-full max-w-sm space-y-4 text-center">
             <h1 className="text-lg font-semibold">Check your email</h1>
             <p className="text-sm text-muted-foreground">

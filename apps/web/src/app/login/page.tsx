@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { safeRedirectPath } from '@/lib/safe-redirect';
+import { isPasswordResetEmailEnabled, MANUAL_RESET_MESSAGE } from '@/lib/password-reset';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { AppNavigation } from '@/components/app-navigation';
  */
 const LINK_ERRORS: Record<string, string> = {
   invalid_link:
-    'That link is invalid or has expired. Request a new password reset link below.',
+    'That link is invalid or has expired.',
 };
 
 /**
@@ -74,11 +75,15 @@ export default function LoginPage() {
             <p className="text-sm text-red-500">{error ?? linkError}</p>
           )}
           <Button type="submit" className="w-full">Sign In</Button>
-          <p className="text-center text-sm">
-            <Link href="/forgot-password" className="underline">
-              Forgot your password?
-            </Link>
-          </p>
+          {isPasswordResetEmailEnabled() ? (
+            <p className="text-center text-sm">
+              <Link href="/forgot-password" className="underline">
+                Forgot your password?
+              </Link>
+            </p>
+          ) : (
+            <p className="text-center text-sm text-muted-foreground">{MANUAL_RESET_MESSAGE}</p>
+          )}
           <p className="text-center text-sm">
             Need an account?{' '}
             <Link href="/register" className="underline">

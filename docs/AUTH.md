@@ -64,6 +64,11 @@ handles both:
 
 ## Supabase configuration
 
+> **Currently off.** The self-hosted Supabase has no SMTP, so the emailed
+> flow described above is hidden unless `NEXT_PUBLIC_PASSWORD_RESET_EMAIL=on`,
+> and the admin resets passwords with `supabase/selfhost/reset-password.sh`.
+> See [SELF_HOSTED_SUPABASE_MIGRATION.md](SELF_HOSTED_SUPABASE_MIGRATION.md).
+
 Auth settings live on the shared **OttoneuDB** project, so changes
 affect the sibling repo's app too — check before editing anything that
 isn't listed here.

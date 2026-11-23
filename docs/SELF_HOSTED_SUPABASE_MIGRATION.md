@@ -69,39 +69,48 @@ clients keep working once the rows are synced. Only Supabase sessions break.
 
 ## Auth settings: hosted vs self-hosted
 
-Self-hosted values come from `~/supabase/.env` on the droplet:
+Self-hosted values live in `~/supabase/.env` on the droplet. GoTrue is shared
+with sofa-db, but sofa-db has no auth users.
 
-| Setting | Self-hosted now | Needed |
-|---|---|---|
-| `SITE_URL` | `https://rosterloom.com` | The fantasy-pulse production origin. **Owner:** confirm whether it's `www.rosterloom.com` or `fantasy-pulse.vercel.app`. Signup confirmations (with autoconfirm off) and fallback redirects land here. |
-| `ADDITIONAL_REDIRECT_URLS` | empty | Copy from hosted: Authentication → URL Configuration. At minimum: `http://localhost:9002/**`, the production origin `/**`, the Vercel preview pattern, and the mobile scheme `rosterloom://**` if anything uses it. |
-| `ENABLE_EMAIL_AUTOCONFIRM` | `true` | Hosted value TBD. With `true`, sign-up needs no email, which is the only way sign-up works without SMTP. |
-| SMTP | stock `supabase-mail:2500`, `fake_sender` | Decision below. |
-| Password minimum | GoTrue default (6) | 6, the same as hosted and `/reset-password`. |
-| Recovery template | stock (`?code=` PKCE link) | Hosted may use the `{{ .TokenHash }}` template from [AUTH.md](AUTH.md). On self-hosted that needs `GOTRUE_MAILER_TEMPLATES_RECOVERY` pointing at a hosted HTML file. It only matters once SMTP exists. |
+| Setting | Hosted | Self-hosted | Status |
+|---|---|---|---|
+| Redirect URLs | `https://www.rosterloom.com/**`, `http://localhost:9002/**` | same, as `ADDITIONAL_REDIRECT_URLS` | **Done 2026-11-23 06:52 UTC.** `.env` backed up to `.env.bak-20261123T065205Z`; auth restarted healthy. |
+| `SITE_URL` | rosterloom (per owner) | `https://rosterloom.com` | Left as is: the apex 307s to `https://www.rosterloom.com/` and keeps the path. |
+| `ENABLE_EMAIL_AUTOCONFIRM` | — | `true` | Keep. Without SMTP, it's the only way sign-up works. |
+| SMTP | working | none (stock `supabase-mail`) | **Decided:** no SMTP for now; see below. |
+| Password minimum | 6 | GoTrue default (6) | Matches `/reset-password`. |
 
-Hosted's values still need reading from the dashboard. It needs the owner's
-sign-in, and the Supabase MCP has no auth-config tool.
+## Email recovery: decided — hidden, admin resets by hand
 
-## Email recovery: decision needed
+The owner chose this on 2026-11-23.
 
-With no SMTP, `/forgot-password` sends nothing, and it says "check your email"
-anyway. Options:
+- **The app hides the emailed reset flow** unless
+  `NEXT_PUBLIC_PASSWORD_RESET_EMAIL=on`
+  ([`apps/web/src/lib/password-reset.ts`](../apps/web/src/lib/password-reset.ts)).
+  - `/login` shows "ask the admin" in place of "Forgot your password?".
+  - `/forgot-password` and an expired `/reset-password` say the same instead
+    of offering a form that silently sends nothing.
+  - The code path stays in place. To bring it back, add SMTP to GoTrue and
+    set the flag on Vercel.
+- **The admin resets passwords** with
+  [`supabase/selfhost/reset-password.sh`](../supabase/selfhost/reset-password.sh)
+  on the droplet. It goes through GoTrue's admin API, and the service key
+  never appears in argv or output.
 
-1. **Resend SMTP on rosterloom.com (recommended).** The free tier covers this
-   easily.
-   - The owner adds Resend's DNS records at Porkbun.
-   - Set `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`,
-     `SMTP_PASS=<api key>`, `SMTP_ADMIN_EMAIL=no-reply@rosterloom.com` and
-     `SMTP_SENDER_NAME=Roster Loom` in `~/supabase/.env`.
-   - Then run `docker compose up -d --wait auth`.
-   - This keeps the existing flow working with no code change.
-2. **Hide forgot-password** and reset passwords by hand. Use
-   `PUT /auth/v1/admin/users/<id>` with the secret key on the droplet. With
-   9 users this is workable, but it's a manual chore.
-3. **Ship without SMTP, then add it later.** Same as 2 until it's done.
+  ```bash
+  ssh sofa '~/supabase-migration/reset-password.sh user@example.com'
+  ```
 
-Sign-up is fine either way while autoconfirm is on.
+  It prints a one-time temporary password; send it to the user out of band.
+  It was tested on 2026-11-23 against `test@test.com` (reset to its documented
+  password, signed in successfully).
+- **Bringing email back later:** for example, Resend on rosterloom.com.
+  - Add Resend's DNS records at Porkbun.
+  - Set `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`,
+    `SMTP_PASS=<api key>`, `SMTP_ADMIN_EMAIL=no-reply@rosterloom.com` and
+    `SMTP_SENDER_NAME=Roster Loom` in `~/supabase/.env`.
+  - Run `docker compose up -d --wait auth`.
+  - Set `NEXT_PUBLIC_PASSWORD_RESET_EMAIL=on` and redeploy.
 
 ## The sync script
 
@@ -159,8 +168,7 @@ Each step waits for the owner's go-ahead. Expect about 30 minutes of write
 freeze.
 
 0. **Prep.** None of this freezes writes:
-   - Set `ADDITIONAL_REDIRECT_URLS` and `SITE_URL`, plus SMTP if chosen, then
-     run `docker compose up -d --wait auth`.
+   - Redirect URLs are already done.
    - Run `check` and `rehearse` again.
    - Have the owner sign in to Vercel and the EAS dashboard.
    - List each Vercel Supabase variable's **target environments and git
@@ -192,7 +200,8 @@ freeze.
 6. **Unfreeze:** re-enable both workflows and dispatch each one once.
 7. **Smoke test:**
    - sign-up, sign-in and sign-out (web and mobile);
-   - the chosen recovery path;
+   - `/login` shows "ask the admin", and `reset-password.sh` works on a real
+     account;
    - a Yahoo / ESPN / Sleeper / Ottoneu team refresh;
    - the MCP OAuth connect flow plus one tool call;
    - both ingest runs returning 200;

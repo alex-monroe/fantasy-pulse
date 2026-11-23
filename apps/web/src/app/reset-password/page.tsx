@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AppNavigation } from '@/components/app-navigation';
+import { isPasswordResetEmailEnabled, MANUAL_RESET_MESSAGE } from '@/lib/password-reset';
 
 /** OttoneuDB's Supabase project enforces a six-character minimum. */
 const MIN_PASSWORD_LENGTH = 6;
@@ -102,11 +103,16 @@ export default function ResetPasswordPage() {
             <h1 className="text-lg font-semibold">This link has expired</h1>
             <p className="text-sm text-muted-foreground">
               Password reset links are single-use and only work in the browser
-              that asked for them. Request a fresh one to try again.
+              that asked for them.
+              {isPasswordResetEmailEnabled() ? ' Request a fresh one to try again.' : ''}
             </p>
-            <Button asChild className="w-full">
-              <Link href="/forgot-password">Request a new link</Link>
-            </Button>
+            {isPasswordResetEmailEnabled() ? (
+              <Button asChild className="w-full">
+                <Link href="/forgot-password">Request a new link</Link>
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">{MANUAL_RESET_MESSAGE}</p>
+            )}
           </div>
         )}
 

@@ -21,6 +21,7 @@ Pull project credentials from the
 | `NEXT_PUBLIC_SUPABASE_URL`       | Browser + server Supabase clients       | Public — fine to expose. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Browser + server Supabase clients       | Public — RLS-protected. |
 | `SUPABASE_SERVICE_ROLE_KEY`      | Server-only privileged operations       | **Never expose to the browser.** Bypasses RLS. |
+| `NEXT_PUBLIC_PASSWORD_RESET_EMAIL` | Shows the emailed password-reset flow | Optional. Only `on` enables it; anything else hides it and points users at the admin. Leave it unset while the self-hosted Supabase has no SMTP ([../SELF_HOSTED_SUPABASE_MIGRATION.md](../SELF_HOSTED_SUPABASE_MIGRATION.md)). |
 
 Password reset emails need the app's origin on the project's redirect
 URL allowlist — that's dashboard configuration rather than an env var.
