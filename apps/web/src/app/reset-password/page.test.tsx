@@ -89,6 +89,7 @@ describe('ResetPasswordPage', () => {
   });
 
   it('offers a fresh link instead of a form when the session is missing', async () => {
+    process.env.NEXT_PUBLIC_PASSWORD_RESET_EMAIL = 'on';
     render(<ResetPasswordPage />);
     await act(async () => {});
 
@@ -98,6 +99,16 @@ describe('ResetPasswordPage', () => {
       '/forgot-password',
     );
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+    delete process.env.NEXT_PUBLIC_PASSWORD_RESET_EMAIL;
+  });
+
+  it('points to the admin when the session is missing and email reset is off', async () => {
+    render(<ResetPasswordPage />);
+    await act(async () => {});
+
+    expect(screen.getByText('This link has expired')).toBeInTheDocument();
+    expect(screen.getByText(/Ask the Roster Loom admin/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Request a new link' })).not.toBeInTheDocument();
   });
 
   it('shows the form once a session arrives late from the URL fragment', async () => {

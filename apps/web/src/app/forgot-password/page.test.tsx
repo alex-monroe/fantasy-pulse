@@ -22,6 +22,26 @@ async function requestLink(email: string) {
 
 beforeEach(() => {
   resetPasswordForEmail.mockReset().mockResolvedValue({ error: null });
+  process.env.NEXT_PUBLIC_PASSWORD_RESET_EMAIL = 'on';
+});
+
+afterAll(() => {
+  delete process.env.NEXT_PUBLIC_PASSWORD_RESET_EMAIL;
+});
+
+describe('ForgotPasswordPage with email reset off (the default)', () => {
+  beforeEach(() => {
+    delete process.env.NEXT_PUBLIC_PASSWORD_RESET_EMAIL;
+  });
+
+  it('points to the admin instead of offering a form that sends nothing', () => {
+    render(<ForgotPasswordPage />);
+
+    expect(screen.getByText(/Ask the Roster Loom admin/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send reset link' })).not.toBeInTheDocument();
+    expect(resetPasswordForEmail).not.toHaveBeenCalled();
+  });
 });
 
 describe('ForgotPasswordPage', () => {

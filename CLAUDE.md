@@ -31,6 +31,7 @@ token reuse, caching) matters more than feature volume.
 - **Demo mode:** [docs/DEMO_MODE.md](docs/DEMO_MODE.md)
 - **Mobile app:** [docs/MOBILE.md](docs/MOBILE.md)
 - **MCP server:** [docs/MCP.md](docs/MCP.md)
+- **Self-hosted Supabase move:** [docs/SELF_HOSTED_SUPABASE_MIGRATION.md](docs/SELF_HOSTED_SUPABASE_MIGRATION.md)
 - **DB schema:** [docs/references/database-schema.md](docs/references/database-schema.md)
 - **Env vars:** [docs/references/environment.md](docs/references/environment.md)
 
@@ -70,6 +71,7 @@ docs/
 ├── OBSERVABILITY.md               # Structured logs, debugging user reports
 ├── NEWS_DIGEST.md                 # Player news: feed ingest, matching, cron
 ├── MCP.md                         # Hosted MCP server: tools, tokens, transport
+├── SELF_HOSTED_SUPABASE_MIGRATION.md # Plan + runbook: hosted → db.rosterloom.com
 ├── adding-integrations.md         # How to add a new fantasy provider
 ├── blueprint.md                   # Original product brief
 └── references/
