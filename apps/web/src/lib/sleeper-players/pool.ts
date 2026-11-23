@@ -2,7 +2,7 @@
  * The shared Sleeper player pool: ingest into Supabase, read back out.
  *
  * `/v1/players/nfl` is ~15MB and identical for everyone, but the app reads
- * only seven fields of it. Rather than every server instance downloading and
+ * only nine fields of it. Rather than every server instance downloading and
  * parsing the full payload on cold start, a scheduled run stores the slimmed
  * pool in `fp_sleeper_players` and instances read that instead.
  */
@@ -34,6 +34,8 @@ const KEPT_FIELDS = [
   'team',
   'active',
   'search_rank',
+  'gsis_id',
+  'espn_id',
 ] as const satisfies readonly (keyof SleeperPlayer)[];
 
 /**

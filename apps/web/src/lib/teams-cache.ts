@@ -15,6 +15,8 @@ type Entry<T> = {
   promise: Promise<T>;
   /** Epoch ms after which the entry stops satisfying new callers. */
   expiresAt: number;
+  /** Epoch ms the load settled at; Infinity while in flight. */
+  settledAt: number;
 };
 
 export type CoalescingCacheOptions<T> = {
@@ -29,7 +31,15 @@ export type CoalescingCache<T> = {
   get(
     key: string,
     load: () => Promise<T>,
-    options?: { fresh?: boolean }
+    options?: {
+      fresh?: boolean;
+      /**
+       * Accept a settled value up to this old instead of the TTL — for
+       * callers that poll and can live with an older value (the live
+       * feed overlay refreshes on top of it).
+       */
+      maxAgeMs?: number;
+    }
   ): Promise<T>;
   clear(): void;
   size(): number;
@@ -53,7 +63,7 @@ export function createCoalescingCache<T>({
   };
 
   return {
-    get(key, load, { fresh = false } = {}) {
+    get(key, load, { fresh = false, maxAgeMs } = {}) {
       const existing = entries.get(key);
 
       // While a load is in flight its expiresAt is Infinity, so everyone
@@ -61,7 +71,12 @@ export function createCoalescingCache<T>({
       // the build already underway.
       if (existing) {
         const inFlight = existing.expiresAt === Number.POSITIVE_INFINITY;
-        if (inFlight || (!fresh && existing.expiresAt > now())) {
+        const current = now();
+        const young =
+          maxAgeMs !== undefined
+            ? current - existing.settledAt < maxAgeMs
+            : existing.expiresAt > current;
+        if (inFlight || (!fresh && young)) {
           return existing.promise;
         }
       }
@@ -80,12 +95,14 @@ export function createCoalescingCache<T>({
       const entry: Entry<T> = {
         promise: undefined as unknown as Promise<T>,
         expiresAt: Number.POSITIVE_INFINITY,
+        settledAt: Number.POSITIVE_INFINITY,
       };
       entry.promise = load().then(
         (value) => {
           if (entries.get(key) === entry) {
             if (shouldCache(value)) {
-              entry.expiresAt = now() + ttlMs;
+              entry.settledAt = now();
+              entry.expiresAt = entry.settledAt + ttlMs;
             } else {
               entries.delete(key);
             }

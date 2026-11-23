@@ -4,55 +4,7 @@ import {
   getLiveProjectedPoints,
 } from './player-status';
 import type { Player, Team } from './types';
-
-/**
- * How noisy a week of fantasy scoring is for each position, expressed as
- * a coefficient of variation against the player's projection: a receiver
- * projected for 12 lands roughly 8 points either side of it in a typical
- * week, a quarterback projected for 20 lands within 8.
- *
- * These are rules of thumb from published weekly-scoring spreads, not
- * fitted values — they exist to make the win probability move at a
- * sensible speed, not to be the last word on any one player.
- */
-const POSITION_VOLATILITY: Record<string, number> = {
-  QB: 0.4,
-  RB: 0.55,
-  WR: 0.65,
-  TE: 0.7,
-  K: 0.55,
-  DEF: 0.75,
-  DST: 0.75,
-};
-
-/** Applied to any position the table above doesn't name (FLEX slots, oddities). */
-const DEFAULT_VOLATILITY = 0.6;
-
-/**
- * The floor on one starter's spread, in points, for a full game. Without
- * it a starter projected for 1.5 reads as a certainty, when in practice
- * that's exactly the player who hangs 18 on you.
- */
-const MIN_PLAYER_SIGMA = 2.5;
-
-/**
- * The spread assigned to a starter with a game left but no projection.
- * They contribute nothing to the projected total — we have no estimate
- * to add — but they are still football yet to be played, so they widen
- * the distribution and pull the win probability toward a coin flip.
- */
-const UNPROJECTED_PLAYER_SIGMA = 7;
-
-const normalizePosition = (position: string | undefined): string => {
-  const letters = (position ?? '').toUpperCase().replace(/[^A-Z]/g, '');
-  if (letters.startsWith('DEF') || letters === 'DST' || letters === 'DS') {
-    return 'DST';
-  }
-  return letters;
-};
-
-const getPositionVolatility = (position: string | undefined): number =>
-  POSITION_VOLATILITY[normalizePosition(position)] ?? DEFAULT_VOLATILITY;
+import { WORM_STARTER_VARIANCE, normalCdf } from './worm-model';
 
 /**
  * The share of a player's game still to be played, in [0, 1]. Mirrors
@@ -60,6 +12,10 @@ const getPositionVolatility = (position: string | undefined): number =>
  * evenly across the clock — so the two stay consistent.
  */
 const getRemainingShare = (player: Player): number => {
+  // The shared play-by-play feed's game clock, when it knows the game.
+  if (player.live) {
+    return Math.min(1, Math.max(0, player.live.remainingShare));
+  }
   const phase = getGamePhase(player);
   if (phase === 'final') {
     return 0;
@@ -70,26 +26,6 @@ const getRemainingShare = (player: Player): number => {
   }
   // Pregame, or a status we don't recognize: assume the whole game is ahead.
   return 1;
-};
-
-/**
- * The cumulative distribution function of the standard normal, via the
- * Abramowitz & Stegun 7.1.26 error-function approximation (max error
- * ~1.5e-7 — far tighter than anything a fantasy projection deserves).
- */
-const normalCdf = (z: number): number => {
-  const sign = z < 0 ? -1 : 1;
-  const x = Math.abs(z) / Math.SQRT2;
-
-  const t = 1 / (1 + 0.3275911 * x);
-  const erf =
-    1 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t +
-      0.254829592) *
-      t *
-      Math.exp(-x * x);
-
-  return 0.5 * (1 + sign * erf);
 };
 
 /** Where one roster is expected to finish the week. */
@@ -151,22 +87,19 @@ export const projectRoster = (
       return;
     }
 
+    // ottoneu-db's worm model: every starter with football left carries
+    // his share of a lineup's spread, scaled by how much of his game is
+    // still to play — projected or not, he is football yet to be played.
+    variance += WORM_STARTER_VARIANCE * remainingShare;
+
     const liveProjection = getLiveProjectedPoints(player);
     if (liveProjection === null) {
       unprojectedStarters += 1;
-      variance += (UNPROJECTED_PLAYER_SIGMA * remainingShare) ** 2;
       return;
     }
 
-    const playerRemaining = Math.max(0, liveProjection - (player.score ?? 0));
-    remaining += playerRemaining;
+    remaining += Math.max(0, liveProjection - (player.score ?? 0));
     projectedStarters += 1;
-
-    const sigma = Math.max(
-      getPositionVolatility(player.position) * playerRemaining,
-      MIN_PLAYER_SIGMA * remainingShare
-    );
-    variance += sigma ** 2;
   });
 
   return {
@@ -216,8 +149,9 @@ export interface MatchupProjection {
  *
  * The probability models the final margin as a normal distribution
  * centred on the projected margin, with a spread built from how much
- * football is left and how volatile the positions still playing are.
- * Two simplifications worth knowing about: players are treated as
+ * football is left — ottoneu-db's live worm model (`worm-model.ts`): a
+ * calibrated lineup spread shared out per starter and scaled by the share
+ * of each starter's game still to play. Two simplifications worth knowing about: players are treated as
  * scoring independently (a QB/WR stack really moves together), and a
  * starter with no projection contributes uncertainty but no points.
  *

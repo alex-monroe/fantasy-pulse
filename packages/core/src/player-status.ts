@@ -3,7 +3,7 @@ import type { GroupedPlayer, Player } from './types';
 type PlayerLike = Pick<
   Player | GroupedPlayer,
   'gameStatus' | 'gameStartTime' | 'gameQuarter' | 'gameClock'
->;
+> & { live?: Player['live'] };
 
 function formatKickoffTime(gameStartTime: string | null): string | null {
   if (!gameStartTime) {
@@ -67,6 +67,11 @@ export function getGameStatusLabel(player: PlayerLike): string | null {
  *   or the clock can't be parsed.
  */
 export function getGamePercentRemaining(player: PlayerLike): number | null {
+  // The shared play-by-play feed's game clock beats parsing a display
+  // string — it knows overtime, and it moves between scoreboard polls.
+  if (player.live && player.live.remainingShare > 0 && player.live.remainingShare < 1) {
+    return player.live.remainingShare * 100;
+  }
   const status = player.gameStatus?.toLowerCase?.() ?? '';
   if (status !== 'in_progress' && status !== 'in' && status !== 'in-progress') {
     return null;
@@ -133,7 +138,7 @@ export function getLiveProjectedPoints(player: ProjectableGamePlayer): number | 
   }
 
   const status = player.gameStatus?.toLowerCase?.() ?? '';
-  if (status === 'final' || status === 'post') {
+  if (status === 'final' || status === 'post' || (player.live && player.live.remainingShare <= 0)) {
     return null;
   }
 

@@ -8,3 +8,5 @@ export * from './matchup-projection';
 export * from './player-status';
 export * from './news';
 export * from './demo-data';
+export * from './worm-model';
+export * from './live-feed';

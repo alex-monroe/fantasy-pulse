@@ -24,6 +24,20 @@ describe('createCoalescingCache', () => {
     expect(a).toBe(b);
   });
 
+  it('lets a poller accept an older settled value with maxAgeMs', async () => {
+    const cache = make();
+    const load = jest.fn().mockResolvedValue({ teams: [1] });
+
+    await cache.get('u', load);
+    clock = 2500; // past the 1000ms TTL
+    await cache.get('u', load, { maxAgeMs: 3000 });
+    expect(load).toHaveBeenCalledTimes(1);
+
+    clock = 3000;
+    await cache.get('u', load, { maxAgeMs: 3000 });
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
   it('serves a settled value until the TTL lapses, then reloads', async () => {
     const cache = make();
     const load = jest.fn().mockResolvedValue({ teams: [1] });

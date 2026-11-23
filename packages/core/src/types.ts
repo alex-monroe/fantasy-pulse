@@ -75,6 +75,30 @@ export type Player = {
    * settings were available to compute it.
    */
   projectedPoints?: number;
+  /**
+   * Play-by-play overlay from the shared live NFL feed (see
+   * `live-feed.ts`). Present only when the feed knows the player's game.
+   */
+  live?: PlayerLiveState;
+};
+
+/**
+ * What the shared play-by-play feed (ottoneu-db's live loop, published in
+ * `nfl_live_plays`) says about one player right now.
+ */
+export type PlayerLiveState = {
+  /** The player's nflverse gsis id, when he could be matched to the feed. */
+  gsisId: string | null;
+  /** Share of his NFL game still to be played, in [0, 1], from the feed's game clock. */
+  remainingShare: number;
+  /**
+   * His points so far, scored from the feed's plays with his league's
+   * scoring (exact for Sleeper, a stock profile elsewhere). Null when he
+   * could not be matched or the feed doesn't score his position (DST).
+   */
+  points: number | null;
+  /** The provider's own score, kept when `score` was replaced by `points`. */
+  officialScore: number;
 };
 
 /**
@@ -113,6 +137,11 @@ export type LeagueRef = {
   season?: string | null;
   /** How many teams the league has, when known. */
   totalRosters?: number | null;
+  /**
+   * The league's own scoring settings in Sleeper stat keys, when the
+   * provider exposes them (Sleeper does). Used to score live plays exactly.
+   */
+  scoringSettings?: Record<string, number>;
 };
 
 /**
@@ -145,6 +174,47 @@ export type Team = {
     /** The list of players on the opponent's team. */
     players: Player[];
   };
+  /** Live play-by-play overlay for the matchup; see `live-feed.ts`. */
+  live?: TeamLiveState;
+};
+
+/** One point on a matchup's score worm: both sides after a scoring play. */
+export type WormPoint = {
+  /** Wall-clock time of the play (ISO). */
+  at: string;
+  /** The user's side's running total. */
+  team: number;
+  /** The opponent's running total. */
+  opponent: number;
+  /** Who scored, e.g. "J. Chase +9.40", or "Kickoff". */
+  note: string;
+  /** Share of each side's lineup minutes played, in [0, 1]. */
+  teamProgress: number;
+  opponentProgress: number;
+  /** Each side's projected points still to come. */
+  teamRemaining: number;
+  opponentRemaining: number;
+  /** The user's chance of winning after this play, in [0, 1]. */
+  winProbability: number;
+};
+
+/** The live state of a matchup, from the shared play-by-play feed. */
+export type TeamLiveState = {
+  /** Whether the feed's loop is running right now (heartbeat under 3 minutes old). */
+  feedLive: boolean;
+  /** How the feed's plays were scored for this league. */
+  scoring: 'exact' | 'stock';
+  /**
+   * Whether `totalScore` / player scores are the feed's play-by-play
+   * totals (true) or the provider's own (false).
+   */
+  headlineFromFeed: boolean;
+  /** The provider's own totals — the official score the league is decided on. */
+  official: { team: number; opponent: number };
+  /** When the feed last moved (latest play time), ISO. */
+  liveAt: string | null;
+  /** The score worm, play by play; empty before the first score. */
+  worm: WormPoint[];
 };
 
 /**
@@ -230,6 +300,10 @@ export interface SleeperPlayer {
    * players who share a name.
    */
   search_rank?: number | null;
+  /** nflverse gsis id — joins the shared live NFL feed. Often missing. */
+  gsis_id?: string | null;
+  /** ESPN athlete id — joins the live feed via `nfl_live_players.espn_id`. */
+  espn_id?: string | number | null;
 }
 
 /**
