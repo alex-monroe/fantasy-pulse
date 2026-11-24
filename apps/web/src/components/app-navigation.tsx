@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: '/matchup-report', label: 'Matchup Report' },
   { href: '/viewing-guide', label: 'Viewing Guide' },
   { href: '/news-digest', label: 'News Digest' },
+  { href: '/leagues', label: 'Leagues' },
   { href: '/integrations', label: 'Integrations' },
   { href: '/mcp', label: 'MCP Server' },
 ];

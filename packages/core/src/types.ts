@@ -67,6 +67,12 @@ export type Player = {
   };
   /** The URL of the player's image. */
   imageUrl: string;
+  /**
+   * The player's Sleeper id, when he could be matched to Sleeper's pool.
+   * Used to re-score his Sleeper projection once his league's real
+   * scoring is known.
+   */
+  sleeperId?: string;
   /** Whether the player is on the bench. */
   onBench: boolean;
   /**
@@ -138,10 +144,34 @@ export type LeagueRef = {
   /** How many teams the league has, when known. */
   totalRosters?: number | null;
   /**
-   * The league's own scoring settings in Sleeper stat keys, when the
-   * provider exposes them (Sleeper does). Used to score live plays exactly.
+   * The league's own scoring settings in Sleeper stat keys, when we have
+   * them: Sleeper's always, and Yahoo/ESPN/Ottoneu leagues' once read or
+   * confidently inferred (see `league-scoring.ts`). Used to score live
+   * plays and projections exactly.
    */
   scoringSettings?: Record<string, number>;
+  /** Where the league's scoring settings stand. */
+  scoring?: LeagueScoringStatus;
+  /** The user integration the league came through (`fp_user_integrations.id`). */
+  integrationId?: number;
+  /** The user's team in the provider's namespace: Yahoo team key, ESPN team id. */
+  providerTeamId?: string;
+};
+
+/** A summary of a league's scoring settings, for badges and refresh decisions. */
+export type LeagueScoringStatus = {
+  /** Read from the provider, inferred from past weeks, or not known yet. */
+  source: 'unknown' | 'provider' | 'inferred';
+  /** Whether `scoringSettings` is set from these settings. */
+  trusted: boolean;
+  /** Whether it is time to read or infer them again. */
+  stale: boolean;
+  /** When they were last read or inferred (ISO). */
+  checkedAt: string | null;
+  /** For inferred settings: share of past player-weeks reproduced exactly. */
+  matchRate?: number;
+  /** For inferred settings: player-weeks the fit used. */
+  sampleSize?: number;
 };
 
 /**

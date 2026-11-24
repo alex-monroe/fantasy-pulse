@@ -35,8 +35,10 @@
  * - The headline score is the feed's play-by-play total while the loop is
  *   running and the matchup unsettled, with the provider's (official) score
  *   kept beside it; the provider's alone otherwise. This needs the league's
- *   real scoring, so it applies only where we have it (Sleeper). Elsewhere
- *   the provider's score stays the headline and the feed supplies the game
+ *   real scoring, so it applies only where we have it: Sleeper always, and
+ *   Yahoo/ESPN/Ottoneu leagues whose settings were read or confidently
+ *   inferred (`league-scoring.ts`, `scoring-inference.ts`). Elsewhere the
+ *   provider's score stays the headline and the feed supplies the game
  *   clock, the worm (stock-scored) and the win probability.
  */
 
@@ -147,7 +149,7 @@ export function gameRemainingShare(game: Pick<LiveFeedGame, 'state' | 'finished'
 
 /**
  * Stock scoring profiles in Sleeper's stat keys, for leagues whose real
- * settings this app can't read (Yahoo, ESPN, Ottoneu). The same profiles
+ * settings aren't known yet (see `league-scoring.ts`). The same profiles
  * `scoreStockProjection` reads off Sleeper's projections.
  */
 const STOCK_BASE: Record<string, number> = {
@@ -180,8 +182,9 @@ export const STOCK_SCORING_SETTINGS: Record<SleeperStockScoringMode, Record<stri
 };
 
 /**
- * Which scoring to apply to a league's live plays: its own settings when
- * the provider gave them to us, a stock profile otherwise.
+ * Which scoring to apply to a league's live plays: its own settings when we
+ * have them (Sleeper's, or Yahoo/ESPN/Ottoneu settings read or confidently
+ * inferred and attached by the web app), a stock profile otherwise.
  */
 export function liveScoringFor(
   league: LeagueRef | undefined,

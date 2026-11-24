@@ -401,13 +401,40 @@ export default function HomePage({ teams, user, demo = false }: { teams: Team[],
     }
   };
 
+  const handleRefreshRef = useRef(handleRefresh);
+  handleRefreshRef.current = handleRefresh;
+
+  // Some leagues' scoring settings are missing or stale: read (or infer)
+  // them in the background, once per page view, and re-fetch the teams if
+  // anything changed so live plays and projections use the league's rules.
+  const scoringRefreshStarted = useRef(false);
+  const scoringStale = useMemo(
+    () => currentTeams.some((team) => team.league?.scoring?.stale),
+    [currentTeams]
+  );
+  useEffect(() => {
+    if (demo || !scoringStale || scoringRefreshStarted.current) {
+      return;
+    }
+    scoringRefreshStarted.current = true;
+    void (async () => {
+      try {
+        const response = await fetch('/api/leagues/scoring/refresh', { method: 'POST' });
+        const data = response.ok ? await response.json() : null;
+        if (data?.changed) {
+          await handleRefreshRef.current();
+        }
+      } catch (error) {
+        console.error('Failed to refresh league scoring', error);
+      }
+    })();
+  }, [demo, scoringStale]);
+
   // Poll while something is moving: in demo mode (fake scores advance), and
   // while the shared play-by-play feed is live (ottoneu-db's loop is
   // running). Live polls ask for `?live=1`, which reuses a recent provider
   // snapshot and lays the newest plays over it. Polling pauses while the
   // tab is hidden and catches up the moment it's shown again.
-  const handleRefreshRef = useRef(handleRefresh);
-  handleRefreshRef.current = handleRefresh;
   const feedLive = useMemo(() => currentTeams.some((team) => team.live?.feedLive), [currentTeams]);
   const shouldPoll = demo || feedLive;
   useEffect(() => {

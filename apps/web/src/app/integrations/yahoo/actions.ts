@@ -10,6 +10,7 @@ import { getEnv } from '@/lib/env';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 import { yahooGet } from '@/lib/yahoo-fetch';
+import { findYahooSettings, translateYahooScoring } from '@roster-loom/core';
 
 /**
  * Parses the team data from the Yahoo API response.
@@ -816,6 +817,7 @@ export async function getYahooPlayerScores(
           name: playerDetails.name?.full,
           headshot: playerDetails.headshot?.url,
           position_type: playerDetails.position_type,
+          display_position: playerDetails.display_position,
           totalPoints: pointsEntry?.player_points?.total,
         };
       })
@@ -832,4 +834,43 @@ export async function getYahooPlayerScores(
     });
     return { error: 'An unexpected error occurred while fetching player scores from Yahoo.' };
   }
+}
+
+/**
+ * Reads a Yahoo league's scoring rules from `league/{key}/settings` and
+ * translates them into Sleeper stat keys (see `league-scoring.ts`).
+ *
+ * @param integrationId - The Yahoo integration.
+ * @param leagueKey - The league key, e.g. "461.l.12345".
+ * @param client - Supabase client for the token lookup (bearer callers pass theirs).
+ * @param userId - The user, which skips the cookie-session lookup.
+ */
+export async function getYahooLeagueScoring(
+  integrationId: number,
+  leagueKey: string,
+  client?: SupabaseClient,
+  userId?: string
+): Promise<{ settings: Record<string, number>; unmapped: { label: string; value: number }[] } | { error: string }> {
+  const { access_token, error: tokenError } = await getYahooAccessToken(integrationId, client, userId);
+  if (tokenError || !access_token) {
+    return { error: tokenError || 'Failed to get Yahoo access token.' };
+  }
+
+  const url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${leagueKey}/settings?format=json`;
+  const fetchStart = startTimer();
+  const { data, error } = await yahooGet<any>(url, access_token);
+  logYahooApiDuration('fetch league settings', fetchStart, { integrationId, leagueKey, success: !error });
+  if (error || !data) {
+    return { error: `Failed to fetch Yahoo league settings: ${error || 'empty response'}` };
+  }
+
+  const settings = findYahooSettings(data);
+  if (!settings?.stat_modifiers) {
+    return { error: 'Yahoo league settings had no stat modifiers.' };
+  }
+  const translated = translateYahooScoring(settings);
+  if (Object.keys(translated.settings).length === 0) {
+    return { error: 'Yahoo league settings had no scoring rules we could read.' };
+  }
+  return translated;
 }

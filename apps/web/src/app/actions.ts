@@ -11,6 +11,8 @@ import {
   getWeeklyProjections,
   getNflState,
 } from '@/app/integrations/sleeper/actions';
+import { applyLeagueScoring, scoringKeyFor, usesStoredScoring } from '@/lib/league-scoring/decorate';
+import { lastCompletedWeekFor, loadLeagueScoring } from '@/lib/league-scoring/store';
 import {
   getYahooUserTeams,
   getYahooRoster,
@@ -95,12 +97,12 @@ const SLEEPER_PLAYERS_CACHE_TTL_MS = 5 * 60 * 1000;
 const LIVE_POLL_ROSTER_MAX_AGE_MS = 60 * 1000;
 
 /**
- * Scoring profile used to turn a Sleeper projection into a point total for
- * Yahoo/Ottoneu/ESPN players, whose leagues' real scoring settings this app
- * can't read. Sleeper leagues score against their own actual settings
- * instead (see `buildSleeperTeams`). Swap this (or thread a per-league
- * override through the builders below) once per-league scoring selection
- * exists.
+ * Scoring profile the builders use to turn a Sleeper projection into a
+ * point total for Yahoo/Ottoneu/ESPN players. Once a league's real
+ * settings are known (read or confidently inferred, see
+ * `lib/league-scoring`), `applyLeagueScoring` re-scores those projections
+ * with them; this stock profile only stands in until then. Sleeper leagues
+ * always score against their own settings (see `buildSleeperTeams`).
  */
 const DEFAULT_NON_SLEEPER_PROJECTION_SCORING: SleeperStockScoringMode = 'half_ppr';
 
@@ -1054,6 +1056,7 @@ export async function buildYahooTeams(
       onOpponentTeams: 0,
       gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
       imageUrl: imageUrl,
+      ...(sleeperId ? { sleeperId } : {}),
       onBench: player.onBench,
       ...(projectedPoints !== null ? { projectedPoints } : {}),
     };
@@ -1180,6 +1183,8 @@ export async function buildYahooTeams(
       league: {
         provider: 'yahoo',
         providerLeagueId: team.league_id ?? '',
+        integrationId: integration.id,
+        providerTeamId: userTeam.team_key ?? team.team_key,
         name: leagueRow?.name || `Yahoo league ${team.league_id ?? 'unknown'}`,
         season: leagueRow?.season ?? null,
         totalRosters: leagueRow?.total_rosters ?? null,
@@ -1293,6 +1298,7 @@ async function fetchOttoneuRosterPlayers(
         onOpponentTeams: 0,
         gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
         imageUrl: getSleeperHeadshotUrl(sleeperId),
+        ...(sleeperId ? { sleeperId } : {}),
         onBench: false,
         ...(projectedPoints !== null ? { projectedPoints } : {}),
       } satisfies Player;
@@ -1461,6 +1467,7 @@ export async function buildOttoneuTeams(
             onOpponentTeams: 0,
             gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
             imageUrl: getSleeperHeadshotUrl(sleeperId),
+            ...(sleeperId ? { sleeperId } : {}),
             onBench: onBench,
             ...(projectedPoints !== null ? { projectedPoints } : {}),
           };
@@ -1530,6 +1537,7 @@ export async function buildOttoneuTeams(
       league: {
         provider: 'ottoneu',
         providerLeagueId: String(league.league_id),
+        integrationId: integration.id,
         name: league.name || `Ottoneu league ${league.league_id}`,
         season: league.season ?? null,
         totalRosters: league.total_rosters ?? null,
@@ -1595,6 +1603,7 @@ export async function buildEspnTeams(
       onOpponentTeams: 0,
       gameDetails: { score: '', timeRemaining: '', fieldPosition: '' },
       imageUrl: getSleeperHeadshotUrl(sleeperId),
+      ...(sleeperId ? { sleeperId } : {}),
       onBench: p.onBench,
       ...(projectedPoints !== null ? { projectedPoints } : {}),
     };
@@ -1621,6 +1630,8 @@ export async function buildEspnTeams(
         league: {
           provider: 'espn',
           providerLeagueId: row.league_id,
+          integrationId: integration.id,
+          providerTeamId: String(row.team_id),
           name: leagueRow?.name || `ESPN League ${row.league_id}`,
           season: leagueRow?.season ?? null,
           totalRosters: leagueRow?.total_rosters ?? null,
@@ -2003,10 +2014,30 @@ async function buildTeamsForUser(
     hasScoreboardData: Boolean(scoreboardData),
   });
 
+  // Yahoo/ESPN/Ottoneu leagues' scoring settings, read or inferred earlier
+  // and stored per league (see lib/league-scoring). One indexed query; the
+  // reads themselves happen in /api/leagues/scoring/refresh, off this path.
+  const scoringStart = startTimer();
+  const defaultSeason = String(nflState?.season ?? new Date().getFullYear());
+  const scoringKeys = teamsWithGameInfo
+    .map((team) => team.league)
+    .filter(usesStoredScoring)
+    .map((league) => scoringKeyFor(league, defaultSeason));
+  const storedScoring = await loadLeagueScoring(supabase, resolvedUserId, scoringKeys);
+  const teamsWithScoring = applyLeagueScoring(teamsWithGameInfo, storedScoring, {
+    defaultSeason,
+    lastCompletedWeek: lastCompletedWeekFor(nflState),
+    projections: sleeperProjectionsByPlayerId,
+  });
+  logDuration('getTeams: apply stored league scoring', scoringStart, {
+    leagueCount: scoringKeys.length,
+    storedCount: storedScoring.size,
+  });
+
   const feedSeason = Number.parseInt(String(nflState?.season ?? ''), 10);
   const feedWeek = Number.parseInt(String(week ?? ''), 10);
   return {
-    teams: teamsWithGameInfo,
+    teams: teamsWithScoring,
     season: Number.isFinite(feedSeason) ? feedSeason : null,
     week: Number.isFinite(feedWeek) ? feedWeek : null,
   };

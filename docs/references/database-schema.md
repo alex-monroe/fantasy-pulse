@@ -111,6 +111,36 @@ exists at all** — the ingest writes with the service role key. These are
 the only tables in this repo with no `user_id` column, by design; see
 [../NEWS_DIGEST.md](../NEWS_DIGEST.md).
 
+```sql
+CREATE TABLE public.fp_league_scoring (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  provider text NOT NULL CHECK (provider IN ('yahoo', 'espn', 'ottoneu')),
+  provider_league_id text NOT NULL,
+  season text NOT NULL,
+  source text NOT NULL DEFAULT 'unknown'
+    CHECK (source IN ('unknown', 'provider', 'inferred')),
+  settings jsonb NOT NULL DEFAULT '{}'::jsonb,
+  unmapped jsonb NOT NULL DEFAULT '[]'::jsonb,
+  inference jsonb,
+  read_error text,
+  checked_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fp_league_scoring_pkey PRIMARY KEY (id),
+  CONSTRAINT fp_league_scoring_user_id_provider_provider_league_id_season_key
+    UNIQUE (user_id, provider, provider_league_id, season),
+  CONSTRAINT fp_league_scoring_user_id_fkey
+    FOREIGN KEY (user_id)
+    REFERENCES auth.users(id) ON DELETE CASCADE
+);
+```
+
+`fp_league_scoring` (migration `20261123120000_add_fp_league_scoring.sql`)
+holds Yahoo/ESPN/Ottoneu leagues' scoring settings in Sleeper stat keys:
+read from the provider, inferred from past weeks, or `unknown`. RLS is
+enabled with own-rows-only policies, like `fp_mcp_tokens`. See
+[../ARCHITECTURE.md](../ARCHITECTURE.md#league-scoring-settings).
+
 A `fp_teams` table also exists (originally created as `teams` by
 `supabase/migrations/20250907113000_add_teams_table.sql` and constrained
 by `20250907123500_add_unique_constraint_to_teams_team_key.sql`); refer
