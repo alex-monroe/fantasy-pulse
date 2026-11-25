@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { JSDOM } from 'jsdom';
 import logger from '@/utils/logger';
 import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
+import { ottoneuScoring, parseOttoneuPointsSystem } from '@roster-loom/core';
 
 function normalizeTeamName(name: string) {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -414,3 +415,47 @@ export async function getLeagues(
   return { leagues: data };
 }
 
+
+/**
+ * Finds the "Points System" value ("1.0 PPR", ...) on an Ottoneu league
+ * settings page, which lays its settings out as label/value table rows.
+ */
+export async function extractOttoneuPointsSystem(html: string): Promise<string | null> {
+  const document = new JSDOM(html).window.document;
+  for (const row of Array.from(document.querySelectorAll('tr'))) {
+    const cells = Array.from(row.querySelectorAll('th, td')).map((cell) => cell.textContent?.trim() ?? '');
+    const index = cells.findIndex((text) => /^points system$/i.test(text));
+    if (index >= 0 && cells[index + 1]) return cells[index + 1];
+  }
+  // Fallback for a non-table layout: the text right after the label.
+  const text = (document.body?.textContent ?? '').replace(/\s+/g, ' ');
+  const match = text.match(/Points System\s+([^A-Z]*?PPR|Standard|Half PPR)/i);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Reads an Ottoneu league's scoring from its public settings page. Only
+ * points per reception varies between Ottoneu leagues; everything else is
+ * fixed (see `OTTONEU_BASE_SCORING`).
+ *
+ * @param leagueId - The Ottoneu football league id.
+ */
+export async function getOttoneuLeagueScoring(
+  leagueId: string
+): Promise<{ settings: Record<string, number>; unmapped: { label: string; value: number }[] } | { error: string }> {
+  try {
+    const res = await fetch(`https://ottoneu.fangraphs.com/football/${leagueId}/settings`);
+    if (!res.ok) {
+      return { error: `Ottoneu settings page returned ${res.status}.` };
+    }
+    const pointsSystem = await extractOttoneuPointsSystem(await res.text());
+    const ppr = parseOttoneuPointsSystem(pointsSystem);
+    if (ppr === null) {
+      return { error: `Could not read Ottoneu points system${pointsSystem ? ` "${pointsSystem}"` : ''}.` };
+    }
+    return { settings: ottoneuScoring(ppr), unmapped: [] };
+  } catch (error) {
+    logger.error({ err: error, leagueId, provider: 'ottoneu' }, 'Ottoneu: failed to read league settings');
+    return { error: 'Failed to fetch the Ottoneu settings page.' };
+  }
+}

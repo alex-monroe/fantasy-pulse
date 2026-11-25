@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -55,9 +56,19 @@ function MatchupTile({
     >
       <div className="flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
-        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          {team.league?.name ?? team.name}
-        </p>
+        {team.league && team.league.provider !== 'demo' ? (
+          <Link
+            href={`/leagues/${team.league.provider}/${encodeURIComponent(team.league.providerLeagueId)}`}
+            className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground hover:underline"
+            title="League settings"
+          >
+            {team.league.name ?? team.name}
+          </Link>
+        ) : (
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {team.league?.name ?? team.name}
+          </p>
+        )}
         <span
           className={cn(
             'ml-auto flex-shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums',

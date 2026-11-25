@@ -96,8 +96,9 @@ User → / (home)                    or the open page's 30s poll → /api/teams/
 
 - **The feed is league-agnostic.** Each play row holds every player's stat
   line in Sleeper's stat keys, keyed by gsis id; `applyLiveFeed` scores it
-  with the league's own `scoring_settings` (Sleeper: exact) or a stock
-  half-PPR profile (Yahoo, ESPN, Ottoneu, whose settings we can't read).
+  with the league's own settings when we have them (Sleeper always;
+  Yahoo/ESPN/Ottoneu once read or confidently inferred, see "League scoring
+  settings" below) or a stock half-PPR profile otherwise.
   Players are joined by Sleeper's `gsis_id`/`espn_id` (kept in the stored
   pool), else by name + NFL team + position. Defenses aren't in the feed.
 - **Headline score**, as on ottoneu-db's live pages: while the loop's
@@ -119,6 +120,46 @@ User → / (home)                    or the open page's 30s poll → /api/teams/
   to 60s old, so open pages don't hit Sleeper/Yahoo/ESPN twice a minute.
 - Any feed failure (tables missing, network) reads as "no feed": teams come
   back exactly as the providers built them.
+
+## League scoring settings
+
+Live plays and projections are only exact when we score them with the
+league's own rules. Sleeper hands us `scoring_settings` on every league
+read. For Yahoo, ESPN and Ottoneu leagues the rules are read once, stored,
+and re-checked in the background:
+
+```
+getTeams() → buildTeamsForUser()
+  → loadLeagueScoring()            one query on fp_league_scoring (lib/league-scoring/store.ts)
+  → applyLeagueScoring()           trusted settings → league.scoringSettings; projections re-scored
+                                   every league gets league.scoring { source, trusted, stale }
+
+Home page sees league.scoring.stale → POST /api/leagues/scoring/refresh (once per page view)
+  → refreshUserLeagueScoring()     lib/league-scoring/refresh-user.ts
+     1. read the provider          Yahoo league/{key}/settings · ESPN view=mSettings · Ottoneu /settings page
+                                   → translated into Sleeper keys (@roster-loom/core league-scoring.ts)
+     2. else infer from past weeks provider points per player-week (Yahoo roster;week=N, ESPN matchup by
+                                   scoringPeriodId) vs Sleeper's /v1/stats/nfl/regular/{season}/{week}
+                                   → inferScoringSettings() (@roster-loom/core scoring-inference.ts)
+     3. else 'unknown'             e.g. a league imported pre-season; retried every 6h and after each week
+  → upsert fp_league_scoring, drop the teams snapshot; the page re-fetches if anything changed
+```
+
+- **Sources.** `provider` (read), `inferred` (fitted), `unknown`. A failed read
+  keeps an earlier successful read rather than discarding it.
+- **Inference** searches only the values each platform offers (its
+  catalog: e.g. Ottoneu varies nothing but points per reception) from the
+  platform default and from a snapped least-squares fit. It uses single and
+  paired rule changes and a capped squared error, so stat corrections
+  don't bend the fit. Inferred settings are *trusted* (applied to live plays
+  and projections) at ≥ 90% exact matches over ≥ 20 player-weeks;
+  otherwise they're shown but the stock profile stays.
+- **Rules with no Sleeper equivalent** (return TDs, per-slot overrides
+  other than reception premiums, yardage buckets) are kept in `unmapped` and
+  listed on the league page rather than silently dropped.
+- **League pages:** `/leagues` lists every league with its scoring source;
+  `/leagues/[provider]/[leagueId]` shows the full table, how it was
+  obtained, and a "Check again" button. Scoreboard tiles link there.
 
 ## Data flow: news digest
 
@@ -174,13 +215,16 @@ repo's tables on the shared OttoneuDB project):
 - `nfl_live_games` / `nfl_live_plays` / `nfl_live_players` and
   `live_worm_state` — **not ours**: ottoneu-db's live NFL feed (its
   migration 066). Read-only here; see "Data flow: live play-by-play".
+- `fp_league_scoring` — per-user, per-league-season scoring settings for
+  Yahoo/ESPN/Ottoneu leagues, in Sleeper stat keys (see "League scoring
+  settings")
 - `fp_news_items` / `fp_news_ingests` — the shared player-news pool and
   its ingest bookkeeping (see [NEWS_DIGEST.md](NEWS_DIGEST.md)). Unlike
   every other table here these rows are not per-user: one public feed,
   ingested once, matched to each user's rosters at read time.
 
 RLS is enabled on `fp_mcp_tokens` (credential material — a user may only
-see their own rows) and on the two `fp_news_` tables (world-readable,
+see their own rows), on `fp_league_scoring` (own rows only) and on the two `fp_news_` tables (world-readable,
 writable only by the service role).
 
 Server-side Supabase access goes through `apps/web/src/utils/supabase/server.ts`;

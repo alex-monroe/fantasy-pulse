@@ -2,7 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server';
 import logger from '@/utils/logger';
-import { fetchJson } from '@roster-loom/core';
+import { fetchJson, translateEspnScoring } from '@roster-loom/core';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { logDuration, startTimer } from '@/utils/performance-logger';
 import { invalidateTeamsSnapshots } from '@/lib/teams-cache';
 
@@ -660,4 +661,40 @@ export async function getEspnMatchup(
   }
 
   return { matchup };
+}
+
+/**
+ * Reads an ESPN league's scoring rules (`view=mSettings`) and translates
+ * them into Sleeper stat keys (see `league-scoring.ts`).
+ *
+ * @param integrationId - The ESPN integration, whose cookies authenticate the read.
+ * @param leagueId - The ESPN league id.
+ * @param client - Supabase client for the cookie lookup.
+ */
+export async function getEspnLeagueScoring(
+  integrationId: number,
+  leagueId: string,
+  client?: SupabaseClient
+): Promise<{ settings: Record<string, number>; unmapped: { label: string; value: number }[] } | { error: string }> {
+  const supabase = client ?? createClient();
+  const { data: integration, error: integrationError } = await supabase
+    .from('fp_user_integrations')
+    .select('espn_s2, swid')
+    .eq('id', integrationId)
+    .single();
+  if (integrationError || !integration?.espn_s2 || !integration?.swid) {
+    return { error: 'ESPN integration not found or missing credentials.' };
+  }
+
+  const fetchStart = startTimer();
+  const { data, error, status } = await fetchEspnLeague(leagueId, integration.espn_s2, integration.swid, ['mSettings']);
+  logEspnApiDuration('fetch league settings', fetchStart, { integrationId, leagueId, success: !error });
+  if (status === 401 || status === 403) {
+    return { error: 'ESPN rejected the stored credentials.' };
+  }
+  const scoringItems = data?.settings?.scoringSettings?.scoringItems;
+  if (error || !Array.isArray(scoringItems) || scoringItems.length === 0) {
+    return { error: `Failed to read ESPN scoring settings: ${error || 'no scoring items'}` };
+  }
+  return translateEspnScoring(scoringItems);
 }

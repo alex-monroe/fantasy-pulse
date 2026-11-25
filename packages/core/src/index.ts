@@ -10,3 +10,5 @@ export * from './news';
 export * from './demo-data';
 export * from './worm-model';
 export * from './live-feed';
+export * from './league-scoring';
+export * from './scoring-inference';

@@ -272,4 +272,28 @@ describe('ottoneu actions', () => {
       expect(result).toEqual({ error: 'Could not find team in standings.' });
     });
   });
+
+  describe('getOttoneuLeagueScoring', () => {
+    const page = (value: string) =>
+      `<table><tr><td>Number of Teams</td><td>12</td></tr><tr>\n<td>Points System</td>\n<td>${value}</td></tr><tr><td>Roster Settings</td><td>3WR Superflex+Flex</td></tr></table>`;
+
+    it('reads points per reception from the league settings page', async () => {
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(page('1.0 PPR')) });
+      const result = await actions.getOttoneuLeagueScoring('67');
+      expect(fetchMock).toHaveBeenCalledWith('https://ottoneu.fangraphs.com/football/67/settings');
+      expect(result).toMatchObject({ settings: { rec: 1, pass_td: 4, pass_2pt: 1 }, unmapped: [] });
+    });
+
+    it('reports a points system it does not recognise', async () => {
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(page('Mystery')) });
+      expect(await actions.getOttoneuLeagueScoring('67')).toEqual({
+        error: 'Could not read Ottoneu points system "Mystery".',
+      });
+    });
+
+    it('reports a failed page load', async () => {
+      fetchMock.mockResolvedValue({ ok: false, status: 503 });
+      expect(await actions.getOttoneuLeagueScoring('67')).toEqual({ error: 'Ottoneu settings page returned 503.' });
+    });
+  });
 });
